@@ -1,0 +1,511 @@
+// Nar sözcüksel çözümleyici — **Nar diliyle** yazılmıştır.
+//
+// Bu, derleyiciyi kendi diline taşıma yolundaki ilk adımdır. Python'daki
+// `narc/lexer.py` ile aynı kuralları uygular; test paketi ikisinin aynı
+// token dizisini ürettiğini doğrular.
+//
+// Kütüphane olarak derlenir:
+//     nar build derleyici/lexer.nar --kutuphane -o cikti/nar-lexer.js
+
+import "../araclar/tarayici.nar"
+
+// --- token ----------------------------------------------------------------
+
+struct Token {
+  // tur: "ident" | "int" | "float" | "string" | anahtar kelime |
+  // operatör adı | "newline" | "eof"
+  tur: String
+  metin: String   // kaynaktaki ham metin
+  satir: Int
+  sutun: Int
+
+  fn goster() -> String = "${self.tur}(${self.metin}) ${self.satir}:${self.sutun}"
+}
+
+// Sözcük hatası: nerede olduğu ve ne olduğu.
+struct LexHatasi {
+  mesaj: String
+  satir: Int
+  sutun: Int
+
+  fn goster() -> String = "${self.satir}:${self.sutun} — ${self.mesaj}"
+}
+
+enum LexSonucu {
+  Tamam([Token])
+  Hata(LexHatasi)
+}
+
+// --- kurallar -------------------------------------------------------------
+
+let ANAHTAR_KELIMELER = [
+  "let", "var", "fn", "return", "if", "else", "while", "for", "in",
+  "match", "struct", "enum", "import", "true", "false", "none",
+  "self", "break", "continue", "type", "interface"
+]
+
+// Bu tokenlardan sonra gelen satır sonu bir deyimi bitirebilir (Go kuralı).
+let SATIR_SONLANDIRICILAR = [
+  "ident", "int", "float", "string", "true", "false", "none", "self",
+  "break", "continue", "return", ")", "]", "}", "?", "!"
+]
+
+// Uzundan kısaya sıralı: eşleştirme sırası önemlidir.
+let OPERATORLER = [
+  "..=", "?.", "??", "->", "=>", "==", "!=", "<=", ">=", "&&", "||", "..",
+  "+=", "-=", "*=", "/=", "%=",
+  "(", ")", "{", "}", "[", "]", ",", ".", ":", ";", "=", "<", ">",
+  "+", "-", "*", "/", "%", "!", "?", "|", "&", "_"
+]
+
+let ONALTILIK = "0123456789abcdefABCDEF"
+let TABAN_HARFLERI = "xXbBoO"
+
+// --- tarayıcı durumu ------------------------------------------------------
+
+struct Durum {
+  kaynak: String
+  var i: Int
+  var satir: Int
+  var sutun: Int
+
+  fn bitti() -> Bool = self.i >= self.kaynak.len()
+
+  fn bak() -> String = karakter(self.kaynak, self.i)
+
+  fn bakIleri(k: Int) -> String = karakter(self.kaynak, self.i + k)
+
+  // Bir karakter ilerler ve satır/sütun sayacını günceller.
+  fn ilerle() -> String {
+    let c = karakter(self.kaynak, self.i)
+    self.i += 1
+    if c == "\n" {
+      self.satir += 1
+      self.sutun = 1
+    } else {
+      self.sutun += 1
+    }
+    return c
+  }
+
+  fn ilerleN(adet: Int) {
+    var k = 0
+    while k < adet && !self.bitti() {
+      self.ilerle()
+      k += 1
+    }
+  }
+}
+
+// --- yardımcılar ----------------------------------------------------------
+
+fn sonTur(tokenlar: [Token]) -> String {
+  if tokenlar.len() == 0 {
+    return ""
+  }
+  return (tokenlar.last() ?? Token { tur: "", metin: "", satir: 0, sutun: 0 }).tur
+}
+
+fn tokenEkle(tokenlar: [Token], tur: String, metin: String, satir: Int, sutun: Int) {
+  tokenlar.push(Token { tur: tur, metin: metin, satir: satir, sutun: sutun })
+}
+
+fn onaltilikMi(c: String) -> Bool {
+  if c.len() == 0 {
+    return false
+  }
+  return ONALTILIK.contains(c)
+}
+
+// --- ana çözümleyici ------------------------------------------------------
+
+fn tokenlestir(kaynak: String) -> LexSonucu {
+  let d = Durum { kaynak: kaynak, i: 0, satir: 1, sutun: 1 }
+  var tokenlar: [Token] = []
+
+  while !d.bitti() {
+    let c = d.bak()
+
+    // satır sonu
+    if c == "\n" {
+      let satir = d.satir
+      let sutun = d.sutun
+      d.ilerle()
+      if SATIR_SONLANDIRICILAR.contains(sonTur(tokenlar)) {
+        tokenEkle(tokenlar, "newline", "\n", satir, sutun)
+      }
+      continue
+    }
+
+    // boşluk
+    if c == " " || c == "\t" || c == "\r" {
+      d.ilerle()
+      continue
+    }
+
+    // satır yorumu
+    if c == "/" && d.bakIleri(1) == "/" {
+      while !d.bitti() && d.bak() != "\n" {
+        d.ilerle()
+      }
+      continue
+    }
+
+    // blok yorumu (iç içe geçebilir)
+    if c == "/" && d.bakIleri(1) == "*" {
+      let hata = blokYorumuAtla(d)
+      if hata != none {
+        return LexSonucu.Hata(hata!)
+      }
+      continue
+    }
+
+    // metin literali
+    if c == "\"" {
+      let sonuc = metinOku(d)
+      match sonuc {
+        MetinSonucu.Tamam(t) -> tokenlar.push(t)
+        MetinSonucu.Hata(h) -> return LexSonucu.Hata(h)
+      }
+      continue
+    }
+
+    // sayı
+    if rakamMi(c) {
+      let sonuc = sayiOku(d)
+      match sonuc {
+        SayiSonucu.Tamam(t) -> tokenlar.push(t)
+        SayiSonucu.Hata(h) -> return LexSonucu.Hata(h)
+      }
+      continue
+    }
+
+    // tanımlayıcı ya da anahtar kelime
+    if harfMi(c) {
+      tokenlar.push(adOku(d))
+      continue
+    }
+
+    // operatör
+    let op = operatorOku(d)
+    if op == none {
+      return LexSonucu.Hata(LexHatasi {
+        mesaj: "beklenmeyen karakter: '${c}'",
+        satir: d.satir,
+        sutun: d.sutun
+      })
+    }
+    tokenlar.push(op!)
+  }
+
+  // Dosya sonunda kapatılmamış deyimi bitir.
+  if SATIR_SONLANDIRICILAR.contains(sonTur(tokenlar)) {
+    tokenEkle(tokenlar, "newline", "\n", d.satir, d.sutun)
+  }
+  tokenEkle(tokenlar, "eof", "", d.satir, d.sutun)
+  return LexSonucu.Tamam(tokenlar)
+}
+
+// --- alt çözümleyiciler ---------------------------------------------------
+
+fn blokYorumuAtla(d: Durum) -> LexHatasi? {
+  let baslangicSatir = d.satir
+  let baslangicSutun = d.sutun
+  d.ilerleN(2)
+  var derinlik = 1
+
+  while derinlik > 0 {
+    if d.bitti() {
+      return LexHatasi {
+        mesaj: "kapatılmamış blok yorumu",
+        satir: baslangicSatir,
+        sutun: baslangicSutun
+      }
+    }
+    if d.bak() == "/" && d.bakIleri(1) == "*" {
+      d.ilerleN(2)
+      derinlik += 1
+      continue
+    }
+    if d.bak() == "*" && d.bakIleri(1) == "/" {
+      d.ilerleN(2)
+      derinlik -= 1
+      continue
+    }
+    d.ilerle()
+  }
+  return none
+}
+
+enum MetinSonucu {
+  Tamam(Token)
+  Hata(LexHatasi)
+}
+
+fn metinOku(d: Durum) -> MetinSonucu {
+  let satir = d.satir
+  let sutun = d.sutun
+  var ham = d.ilerle()          // açılış tırnağı
+
+  while true {
+    if d.bitti() {
+      return MetinSonucu.Hata(LexHatasi {
+        mesaj: "kapatılmamış metin literali",
+        satir: satir,
+        sutun: sutun
+      })
+    }
+
+    let c = d.bak()
+
+    if c == "\n" {
+      return MetinSonucu.Hata(LexHatasi {
+        mesaj: "metin literali satır sonunda kapatılmamış",
+        satir: satir,
+        sutun: sutun
+      })
+    }
+
+    if c == "\\" {
+      ham += d.ilerle()
+      if !d.bitti() {
+        ham += d.ilerle()
+      }
+      continue
+    }
+
+    // `${...}` gömmesi: içindeki tırnaklar metni bitirmez.
+    if c == "$" && d.bakIleri(1) == "{" {
+      ham += d.ilerle()          // $
+      ham += d.ilerle()          // {
+      let hata = gommeAtla(d, satir, sutun)
+      if hata != none {
+        return MetinSonucu.Hata(hata!)
+      }
+      ham += "}"
+      continue
+    }
+
+    ham += d.ilerle()
+    if c == "\"" {
+      return MetinSonucu.Tamam(Token {
+        tur: "string",
+        metin: ham,
+        satir: satir,
+        sutun: sutun
+      })
+    }
+  }
+  return MetinSonucu.Hata(LexHatasi { mesaj: "ulaşılamaz", satir: satir, sutun: sutun })
+}
+
+// `${` görüldükten sonra, eşleşen `}` bulunana kadar ilerler.
+// Gömme içindeki metin literalleri olduğu gibi atlanır; oradaki tırnaklar
+// dıştaki metni bitirmez.
+fn gommeAtla(d: Durum, satir: Int, sutun: Int) -> LexHatasi? {
+  var derinlik = 1
+
+  while derinlik > 0 {
+    if d.bitti() {
+      return LexHatasi {
+        mesaj: "kapatılmamış \${...} gömmesi",
+        satir: satir,
+        sutun: sutun
+      }
+    }
+
+    let c = d.bak()
+
+    if c == "{" {
+      derinlik += 1
+      d.ilerle()
+      continue
+    }
+    if c == "}" {
+      derinlik -= 1
+      d.ilerle()
+      continue
+    }
+    if c == "\"" {
+      let hata = icMetniAtla(d, satir, sutun)
+      if hata != none {
+        return hata
+      }
+      continue
+    }
+    d.ilerle()
+  }
+  return none
+}
+
+// Gömme içindeki bir metin literalini atlar.
+fn icMetniAtla(d: Durum, satir: Int, sutun: Int) -> LexHatasi? {
+  d.ilerle()                    // açılış tırnağı
+  while true {
+    if d.bitti() {
+      return LexHatasi {
+        mesaj: "gömme içinde kapatılmamış metin",
+        satir: satir,
+        sutun: sutun
+      }
+    }
+    let c = d.bak()
+    if c == "\\" {
+      d.ilerle()
+      if !d.bitti() {
+        d.ilerle()
+      }
+      continue
+    }
+    d.ilerle()
+    if c == "\"" {
+      return none
+    }
+  }
+  return none
+}
+
+enum SayiSonucu {
+  Tamam(Token)
+  Hata(LexHatasi)
+}
+
+fn sayiOku(d: Durum) -> SayiSonucu {
+  let satir = d.satir
+  let sutun = d.sutun
+
+  // Taban gösterimi: 0x, 0b, 0o
+  if d.bak() == "0" && TABAN_HARFLERI.contains(d.bakIleri(1)) && d.bakIleri(1).len() > 0 {
+    var ham = d.ilerle()        // 0
+    ham += d.ilerle()           // x / b / o
+    var basamak = 0
+    while !d.bitti() && (onaltilikMi(d.bak()) || harfMi(d.bak()) || d.bak() == "_") {
+      let c = d.ilerle()
+      ham += c
+      if c != "_" {
+        basamak += 1
+      }
+    }
+    if basamak == 0 {
+      return SayiSonucu.Hata(LexHatasi {
+        mesaj: "sayı tabanı belirtildi ama rakam yok",
+        satir: satir,
+        sutun: sutun
+      })
+    }
+    return SayiSonucu.Tamam(Token {
+      tur: "int",
+      metin: ham,
+      satir: satir,
+      sutun: sutun
+    })
+  }
+
+  var ham = ""
+  var ondalikli = false
+
+  while !d.bitti() {
+    let c = d.bak()
+    if rakamMi(c) || c == "_" {
+      ham += d.ilerle()
+      continue
+    }
+    if c == "." && !ondalikli && rakamMi(d.bakIleri(1)) {
+      ondalikli = true
+      ham += d.ilerle()
+      continue
+    }
+    if (c == "e" || c == "E") && usVarMi(d) {
+      ondalikli = true
+      ham += d.ilerle()
+      if d.bak() == "+" || d.bak() == "-" {
+        ham += d.ilerle()
+      }
+      continue
+    }
+    break
+  }
+
+  var tur = "int"
+  if ondalikli {
+    tur = "float"
+  }
+  return SayiSonucu.Tamam(Token { tur: tur, metin: ham, satir: satir, sutun: sutun })
+}
+
+// `e` harfinden sonra geçerli bir üs geliyor mu?
+fn usVarMi(d: Durum) -> Bool {
+  let sonraki = d.bakIleri(1)
+  if rakamMi(sonraki) {
+    return true
+  }
+  if sonraki == "+" || sonraki == "-" {
+    return rakamMi(d.bakIleri(2))
+  }
+  return false
+}
+
+fn adOku(d: Durum) -> Token {
+  let satir = d.satir
+  let sutun = d.sutun
+  var ham = ""
+
+  while !d.bitti() && adKarakteriMi(d.bak()) {
+    ham += d.ilerle()
+  }
+
+  var tur = "ident"
+  if ANAHTAR_KELIMELER.contains(ham) {
+    tur = ham
+  }
+  return Token { tur: tur, metin: ham, satir: satir, sutun: sutun }
+}
+
+fn operatorOku(d: Durum) -> Token? {
+  let satir = d.satir
+  let sutun = d.sutun
+
+  for op in OPERATORLER {
+    if buradaBasliyorMu(d, op) {
+      // `_` tek başına joker desendir; `_ad` tanımlayıcıdır.
+      if op == "_" && adKarakteriMi(d.bakIleri(1)) {
+        return none
+      }
+      d.ilerleN(op.len())
+      return Token { tur: op, metin: op, satir: satir, sutun: sutun }
+    }
+  }
+  return none
+}
+
+fn buradaBasliyorMu(d: Durum, parca: String) -> Bool {
+  var k = 0
+  let n = parca.len()
+  while k < n {
+    if d.bakIleri(k) != parca.charAt(k) {
+      return false
+    }
+    k += 1
+  }
+  return true
+}
+
+// --- kolay kullanım -------------------------------------------------------
+
+// Token türlerini sırayla verir; testler ve hata ayıklama için.
+fn turleriVer(tokenlar: [Token]) -> [String] {
+  var sonuc: [String] = []
+  for t in tokenlar {
+    sonuc.push(t.tur)
+  }
+  return sonuc
+}
+
+// Tokenları tek satırlık okunabilir bir metne çevirir.
+fn tokenlariGoster(tokenlar: [Token]) -> String {
+  var parcalar: [String] = []
+  for t in tokenlar {
+    parcalar.push(t.goster())
+  }
+  return parcalar.join("\n")
+}

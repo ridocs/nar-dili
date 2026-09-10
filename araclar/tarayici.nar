@@ -6,8 +6,10 @@
 // Bu dosya bir kütüphanedir: `main` içermez, başka dosyalardan
 // `import "tarayici.nar"` ile alınır.
 
-let KUCUK = "abcçdefgğhıijklmnoöprsştuüvwxyz"
-let BUYUK = "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVWXYZ"
+// Türk alfabesi + İngilizce'ye özgü q, w, x. Bunlar tanımlayıcılarda
+// geçebilir ("sqrt" gibi yerleşik adlar dahil), o yüzden listede olmalı.
+let KUCUK = "abcçdefgğhıijklmnoöpqrsştuüvwxyz"
+let BUYUK = "ABCÇDEFGĞHIİJKLMNOÖPQRSŞTUÜVWXYZ"
 let RAKAM = "0123456789"
 let BOSLUK = " \t\r\n"
 
