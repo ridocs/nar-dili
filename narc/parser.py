@@ -203,7 +203,13 @@ class Parser:
         if self.match("->"):
             ret_type = self.parse_type()
 
-        body = self.parse_block()
+        # Kısa gövde:  fn kare(x: Int) -> Int = x * x
+        if self.match("="):
+            self.skip_newlines()
+            value = self.parse_expr()
+            body = A.Block(span, [A.Return(value.span, value)])
+        else:
+            body = self.parse_block()
         return A.FnDecl(span, name, params, ret_type, body, is_method, owner)
 
     def parse_params(self) -> list[A.Param]:
@@ -649,6 +655,12 @@ class Parser:
         if tok.kind == "{" and not self.no_struct_lit:
             return self.parse_map_literal()
 
+        if tok.kind == "if":
+            return self.parse_if_expr()
+
+        if tok.kind == "match":
+            return self.parse_match_expr()
+
         if tok.kind in ("|", "||"):
             return self.parse_lambda()
 
@@ -703,6 +715,65 @@ class Parser:
             self.no_struct_lit = saved
         self.expect("}", "'}'")
         return A.MapLit(span, entries)
+
+    def parse_braced_expr(self) -> A.Expr:
+        """`{ ifade }` — if/match ifadesinin dal gövdesi."""
+        self.expect("{", "'{'")
+        self.skip_newlines()
+        saved = self.no_struct_lit
+        self.no_struct_lit = False
+        try:
+            expr = self.parse_expr()
+        finally:
+            self.no_struct_lit = saved
+        self.skip_newlines()
+        self.expect("}", "'}' (if/match dalı tek bir değer içermeli)")
+        return expr
+
+    def parse_if_expr(self) -> A.IfExpr:
+        span = self.expect("if").span
+        cond = self.parse_condition()
+        then = self.parse_braced_expr()
+
+        self.skip_newlines()
+        if not self.at("else"):
+            raise NarError(
+                "değer üreten 'if' için 'else' zorunlu",
+                span,
+                hint="her iki durumda da bir değer üretilmeli",
+            )
+        self.advance()
+        if self.at("if"):
+            otherwise: A.Expr = self.parse_if_expr()
+        else:
+            otherwise = self.parse_braced_expr()
+        return A.IfExpr(span, cond, then, otherwise)
+
+    def parse_match_expr(self) -> A.MatchExpr:
+        span = self.expect("match").span
+        subject = self.parse_condition()
+        self.expect("{", "'{'")
+        self.skip_newlines()
+
+        arms: list[A.MatchArm] = []
+        while not self.at("}"):
+            if self.at("eof"):
+                raise NarError("kapatılmamış match: '}' bekleniyor", span)
+            pattern = self.parse_pattern()
+            arrow = self.expect("->", "desenden sonra '->'")
+            saved = self.no_struct_lit
+            self.no_struct_lit = False
+            try:
+                body = self.parse_expr()
+            finally:
+                self.no_struct_lit = saved
+            arms.append(A.MatchArm(arrow.span, pattern, body))
+            self.skip_newlines()
+
+        self.expect("}", "'}'")
+        if not arms:
+            raise NarError("match en az bir dal içermeli", span)
+        return A.MatchExpr(span, subject, arms)
 
     def parse_lambda(self) -> A.Lambda:
         tok = self.advance()  # `|` ya da `||` (parametresiz)

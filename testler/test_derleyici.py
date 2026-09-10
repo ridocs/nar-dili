@@ -177,8 +177,29 @@ fn main() { print(str(E.A(5).deger())) }
     def test_degismeze_atama(self):
         self.hatali(wrap("let x = 1\nx = 2"), "değişmez")
 
-    def test_int_float_toplama(self):
-        self.hatali(wrap("let x = 1 + 2.0"), "tanımlı değil")
+    def test_metin_ile_sayi_toplanamaz_degil_artik(self):
+        # Sadeleştirme: bir taraf metinse sonuç metindir
+        self.gecerli(wrap('let x = "yaş: " + 25\nprint(x)'))
+
+    def test_liste_ile_sayi_toplanmaz(self):
+        self.hatali(wrap("let x = [1] + 2"), "tanımlı değil")
+
+    def test_bool_carpilmaz(self):
+        self.hatali(wrap("let x = true * 2"), "tanımlı değil")
+
+    def test_if_dallari_ayni_tipte_olmali(self):
+        self.hatali(wrap('let x = if true { 1 } else { "a" }'), "uyuşmuyor")
+
+    def test_if_ifadesinde_else_zorunlu(self):
+        with self.assertRaises(NarError) as ctx:
+            check(wrap("let x = if true { 1 }"))
+        self.assertIn("else", ctx.exception.message)
+
+    def test_deger_ureten_match_tam_olmali(self):
+        self.hatali(
+            "enum E { A  B }\nfn main() { let x = match E.A { E.A -> 1 }\n print(x) }",
+            "tam değil",
+        )
 
     def test_opsiyonel_dogrudan_erisim(self):
         self.hatali(wrap('let s: String? = none\nprint(s.upper())'), "opsiyonel")

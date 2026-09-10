@@ -14,7 +14,7 @@ from __future__ import annotations
 from . import nar_ast as A
 from .diagnostics import NarError
 from .types import (
-    ANY, BOOL, FLOAT, INT, NEVER, NONE, ORDERED, PRIMITIVES, STRING, VOID,
+    ANY, BOOL, FLOAT, INT, NEVER, NONE, NUMERIC, ORDERED, PRIMITIVES, STRING, VOID,
     AnyT, EnumT, FnT, ListT, MapT, NeverT, NoneT, OptT, Prim, RangeT, StructT,
     Type, assignable, common_type, is_optional, unwrap_optional,
 )
@@ -720,6 +720,12 @@ class Checker:
         if isinstance(node, A.Lambda):
             return self.check_lambda(node, env, expected)
 
+        if isinstance(node, A.IfExpr):
+            return self.check_if_expr(node, env, expected)
+
+        if isinstance(node, A.MatchExpr):
+            return self.check_match_expr(node, env, expected)
+
         self.error(f"denetlenemeyen ifade: {type(node).__name__}", node.span)  # pragma: no cover
         return ANY
 
@@ -873,8 +879,13 @@ class Checker:
         if isinstance(left, AnyT) or isinstance(right, AnyT):
             return ANY
 
+        # Int ve Float birlikte kullanılabilir; sonuç Float'a yükselir.
+        # Yükseltme kayıpsızdır, bu yüzden tip güvenliğini bozmaz.
+        sayisal = left in NUMERIC and right in NUMERIC
+        sayi_sonucu = FLOAT if FLOAT in (left, right) else INT
+
         if op in ("==", "!="):
-            if common_type(left, right) is None:
+            if not sayisal and common_type(left, right) is None:
                 self.error(
                     f"'{left}' ile '{right}' karşılaştırılamaz",
                     span,
@@ -883,40 +894,38 @@ class Checker:
             return BOOL
 
         if op in ("<", "<=", ">", ">="):
-            if left != right:
-                self.error(f"'{left}' ile '{right}' sıralanamaz", span)
-            elif left not in ORDERED:
-                self.error(f"'{left}' sıralanabilir değil", span,
-                           hint="Int, Float ya da String olmalı")
+            if not sayisal:
+                if left != right:
+                    self.error(f"'{left}' ile '{right}' sıralanamaz", span)
+                elif left not in ORDERED:
+                    self.error(f"'{left}' sıralanabilir değil", span,
+                               hint="Int, Float ya da String olmalı")
             return BOOL
 
         if op == "+":
-            if left == STRING and right == STRING:
+            # Bir taraf metinse sonuç metindir; diğer taraf otomatik yazıya
+            # dökülür. Böylece `"yaş: " + 25` için str(...) gerekmez.
+            if left == STRING or right == STRING:
                 return STRING
             if isinstance(left, ListT) and left == right:
                 return left
-            if left == right and left in (INT, FLOAT):
-                return left
+            if sayisal:
+                return sayi_sonucu
             self.error(
                 f"'+' işlemi '{left}' ile '{right}' arasında tanımlı değil",
                 span,
-                hint="metin ile sayıyı birleştirmek için str(...) kullan"
-                if STRING in (left, right) else None,
             )
-            return left if left in (INT, FLOAT, STRING) else ANY
+            return left if left in NUMERIC else ANY
 
         if op in ("-", "*", "/", "%"):
-            if left == right and left in (INT, FLOAT):
-                if op == "%" and left == FLOAT:
-                    return FLOAT
-                return left
+            if sayisal:
+                return sayi_sonucu
             self.error(
                 f"'{op}' işlemi '{left}' ile '{right}' arasında tanımlı değil",
                 span,
-                hint="Int ve Float karışamaz; float(x) ya da int(x) kullan"
-                if {left, right} == {INT, FLOAT} else None,
+                hint="bu işlem yalnızca sayılar arasında yapılabilir",
             )
-            return left if left in (INT, FLOAT) else ANY
+            return left if left in NUMERIC else ANY
 
         self.error(f"bilinmeyen operatör: '{op}'", span)  # pragma: no cover
         return ANY
@@ -1095,6 +1104,70 @@ class Checker:
             return ret if isinstance(ret, OptT) else OptT(ret)
         return fn_ty.ret
 
+    def check_if_expr(self, node: A.IfExpr, env: Env, expected: Type | None) -> Type:
+        cond = self.check_expr(node.cond, env, BOOL)
+        self.expect_bool(cond, node.cond.span, "if koşulu")
+
+        then_env = env.child()
+        self.apply_narrowing(node.cond, then_env, True)
+        then_ty = self.check_expr(node.then, then_env, expected)
+
+        else_env = env.child()
+        self.apply_narrowing(node.cond, else_env, False)
+        else_ty = self.check_expr(node.otherwise, else_env, expected or then_ty)
+
+        merged = common_type(then_ty, else_ty)
+        if merged is None:
+            self.error(
+                f"if dallarının tipleri uyuşmuyor: '{then_ty}' ve '{else_ty}'",
+                node.span,
+                hint="her iki dal da aynı tipte değer üretmeli",
+            )
+            return then_ty
+        return merged
+
+    def check_match_expr(self, node: A.MatchExpr, env: Env, expected: Type | None) -> Type:
+        subject = self.check_expr(node.subject, env)
+        base = unwrap_optional(subject)
+        covered: set[str] = set()
+        has_catch_all = False
+        result: Type | None = None
+
+        for arm in node.arms:
+            arm_env = env.child()
+            if self.check_pattern(arm.pattern, subject, arm_env, covered):
+                has_catch_all = True
+            arm_ty = self.check_expr(arm.body, arm_env, expected or result)
+            if result is None:
+                result = arm_ty
+            else:
+                merged = common_type(result, arm_ty)
+                if merged is None:
+                    self.error(
+                        f"match dallarının tipleri uyuşmuyor: '{result}' ve '{arm_ty}'",
+                        arm.span,
+                        hint="her dal aynı tipte değer üretmeli",
+                    )
+                else:
+                    result = merged
+
+        if isinstance(base, EnumT) and not has_catch_all:
+            missing = [v for v in base.variants if v not in covered]
+            if missing:
+                self.error(
+                    f"match tam değil; kapsanmayan varyantlar: {', '.join(missing)}",
+                    node.span,
+                    hint="eksik dalları ekle ya da '_ -> ...' dalı koy",
+                )
+        elif not isinstance(base, EnumT) and not has_catch_all:
+            self.error(
+                "değer üreten match her durumu kapsamalı",
+                node.span,
+                hint="sona '_ -> ...' dalı ekle",
+            )
+
+        return result if result is not None else ANY
+
     def check_collection_method(self, node: A.Call, callee: A.FieldAccess, env: Env) -> Type | None:
         """`map`, `filter`, `reduce` için tipi lambdanın kendisinden hesaplar."""
         base = unwrap_optional(callee.obj.ty) if callee.obj.ty is not None else None
@@ -1241,9 +1314,12 @@ class Checker:
             return True
 
         if name == "print":
-            if not arity(1):
+            # Birden çok değer aralarında boşlukla yazdırılır: print("ad:", ad)
+            if not args:
+                self.error("'print' en az bir değer bekler", node.span)
                 return VOID
-            self.check_expr(args[0], env)
+            for a in args:
+                self.check_expr(a, env)
             return VOID
 
         if name == "str":
@@ -1293,14 +1369,17 @@ class Checker:
                 return INT
             a = self.check_expr(args[0], env)
             b = self.check_expr(args[1], env, a)
-            if a != b or a not in (INT, FLOAT, STRING):
-                if not (isinstance(a, AnyT) or isinstance(b, AnyT)):
-                    self.error(
-                        f"'{name}' aynı tipte iki sayı ya da metin bekler ('{a}', '{b}')",
-                        node.span,
-                    )
-                    return a if a in (INT, FLOAT, STRING) else INT
-            return a
+            if isinstance(a, AnyT) or isinstance(b, AnyT):
+                return a if not isinstance(a, AnyT) else b
+            if a in NUMERIC and b in NUMERIC:
+                return FLOAT if FLOAT in (a, b) else INT
+            if a == b and a == STRING:
+                return STRING
+            self.error(
+                f"'{name}' iki sayı ya da iki metin bekler ('{a}', '{b}')",
+                node.span,
+            )
+            return a if a in (INT, FLOAT, STRING) else INT
 
         if name in ("sqrt", "pow"):
             n = 1 if name == "sqrt" else 2
@@ -1308,17 +1387,16 @@ class Checker:
                 return FLOAT
             for a in args:
                 ty = self.check_expr(a, env, FLOAT)
-                if ty != FLOAT and not isinstance(ty, AnyT):
-                    self.error(f"'{name}' Float bekler, '{ty}' bulundu", a.span,
-                               hint="float(x) ile dönüştür" if ty == INT else None)
+                if ty not in NUMERIC and not isinstance(ty, AnyT):
+                    self.error(f"'{name}' sayı bekler, '{ty}' bulundu", a.span)
             return FLOAT
 
         if name in ("floor", "ceil", "round"):
             if not arity(1):
                 return INT
             ty = self.check_expr(args[0], env, FLOAT)
-            if ty not in (FLOAT, INT) and not isinstance(ty, AnyT):
-                self.error(f"'{name}' Float bekler, '{ty}' bulundu", args[0].span)
+            if ty not in NUMERIC and not isinstance(ty, AnyT):
+                self.error(f"'{name}' sayı bekler, '{ty}' bulundu", args[0].span)
             return INT
 
         if name == "random":

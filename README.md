@@ -3,10 +3,14 @@
 **Tek kaynaktan web, masaüstü, Linux, Android ve iOS.**
 Statik tipli, `null`'ı olmayan, derlenen bir programlama dili.
 
-> **Durum: v0.1 — çekirdek dil çalışıyor.**
+> **Durum: v0.2 — çekirdek dil çalışıyor, yeni başlayana göre sadeleşti.**
 > Lexer, parser, tip denetleyici ve JavaScript kod üreteci hazır ve test edilmiş
 > durumda. Platform paketleyicileri (`--target desktop|android|ios`) henüz yok;
 > yol haritası `YOL-HARITASI.md` dosyasında.
+
+**📖 [Dil rehberi](cikti/site/index.html)** — dilin tamamı, açıklamalar ve
+çalışan örneklerle. Üretmek için: `python site/uret.py`, sonra
+`cikti/site/index.html` dosyasını tarayıcında aç.
 
 ---
 
@@ -121,7 +125,9 @@ fn main() {
 | Boş değer | `null` yok. `T?` var, açmadan kullanılamaz. `??`, `?.`, `!` ve akış daraltma |
 | Değişkenlik | `let` değişmez (varsayılan), `var` değişken |
 | Hata sınıfları | `match` enum üzerinde **tam olmak zorunda**; eksik varyant derleme hatası |
-| Sayılar | `Int` ve `Float` karışmaz. `1 + 2.0` derlenmez — `float(1) + 2.0` gerekir |
+| Sayılar | `Int` ve `Float` birlikte kullanılır, sonuç `Float` olur. Bölmede tip belirleyici: `7/2` → `3`, `7/2.0` → `3.5` |
+| Metinler | `"yaş: " + 25` çalışır — sayı otomatik yazıya döner |
+| `if` / `match` | Hem deyim hem **ifade**: `let x = if a { 1 } else { 2 }` |
 | Fonksiyonlar | İmzalar açık, gövde içi tip çıkarımı otomatik |
 | Dönüş yolu | Değer döndüren fonksiyon her yolda dönmek zorunda |
 | Sınır kontrolü | Liste ve metin dizinlemesi çalışma zamanında kontrol edilir |
@@ -161,9 +167,13 @@ narc/                 derleyici (Python)
   driver.py           içe aktarma çözümleme + derleme boru hattı
   __main__.py         komut satırı arayüzü
   backends/js.py      JavaScript kod üreteci
+  highlight.py        sözdizimi renklendirme (belgeler sitesi için)
   runtime/            üretilen koda gömülen çalışma zamanı
+site/                 belgeler sitesi üreteci
+  icerik.py           bölümler, açıklamalar, örnekler
+  uret.py             örnekleri çalıştırıp HTML üretir
 ornekler/             örnek Nar programları
-testler/              91 test (ön uç + uçtan uca çalıştırma)
+testler/              120 test (ön uç + uçtan uca çalıştırma + örnekler)
 TASARIM.md            dil spesifikasyonu
 YOL-HARITASI.md       sıradaki adımlar
 ```
@@ -175,12 +185,22 @@ YOL-HARITASI.md       sıradaki adımlar
 | `ornekler/merhaba.nar` | Dilin küçük turu: struct, enum, liste işlemleri, opsiyoneller |
 | `ornekler/yapilacaklar.nar` | Modül içe aktarma, metotlar, `?.`, filtreleme ve biçimlendirme |
 | `ornekler/metin_araclari.nar` | İçe aktarılabilir yardımcı modül |
+| `deneme.nar` | Oyun alanı — yorumlarla anlatılmış, değiştirip çalıştırman için |
 
-## Sınırlar (v0.1)
+## Belgeler sitesi
+
+```bash
+python site/uret.py            # cikti/site/index.html
+```
+
+Sitedeki bütün çıktılar, sayfa üretilirken örnekler **gerçekten derlenip
+çalıştırılarak** alınır. Bir örnek bozulursa üretim durur — yani site hiçbir
+zaman çalışmayan kod göstermez.
+
+## Sınırlar (v0.2)
 
 Bunlar bilinen ve kasıtlı eksiklerdir, sürpriz değil:
 
-- `if` bir **deyimdir**, ifade değil (`let x = if a { 1 } else { 2 }` çalışmaz)
 - Kullanıcı tanımlı **generic** tipler yok (`[T]` ve `{K: V}` yerleşik generic'tir)
 - Arayüz / trait / kalıtım yok
 - Hata yönetimi `enum` ile yapılır; `try`/`catch` yok

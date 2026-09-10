@@ -84,6 +84,85 @@ class CalistirmaTesti(unittest.TestCase):
     def test_oncelik_zinciri(self):
         self.esit('print(str(2 + 3 * 4 - 6 / 2))', "11")
 
+    # --- sadeleştirmeler (v0.2) ---
+    def test_int_float_karisik_islem(self):
+        self.esit('print(1 + 2.0)\nprint(3 * 1.5)\nprint(7 / 2.0)\nprint(2.0 - 1)',
+                  "3.0\n4.5\n3.5\n1.0")
+
+    def test_karisik_islemde_int_bolme_kalmaz(self):
+        # 7 / 2 tam bölme, 7 / 2.0 ondalıklı — sonuç tipi belirler
+        self.esit('print(7 / 2)\nprint(7 / 2.0)', "3\n3.5")
+
+    def test_karisik_karsilastirma(self):
+        self.esit('print(1 < 2.5)\nprint(3.0 == 3)', "true\ntrue")
+
+    def test_metin_ile_sayi_birlestirme(self):
+        self.esit('print("yaş: " + 25)\nprint("pi " + 3.5)\nprint(1 + " adet")',
+                  "yaş: 25\npi 3.5\n1 adet")
+
+    def test_metin_ile_liste_birlestirme(self):
+        self.esit('print("liste: " + [1, 2])', "liste: [1, 2]")
+
+    def test_metin_arti_esittir(self):
+        self.esit('var s = "sayı: "\ns += 42\nprint(s)', "sayı: 42")
+
+    def test_cok_argumanli_print(self):
+        self.esit('print("ad:", "Ayşe", "yaş:", 30)', "ad: Ayşe yaş: 30")
+
+    def test_matematik_tam_sayi_kabul_eder(self):
+        self.esit('print(sqrt(16))\nprint(pow(2, 10))\nprint(max(3, 2.5))',
+                  "4.0\n1024.0\n3.0")
+
+    def test_if_ifadesi(self):
+        self.esit('let x = if 5 > 3 { "büyük" } else { "küçük" }\nprint(x)', "büyük")
+
+    def test_if_ifadesi_zinciri(self):
+        self.program('''fn harf(n: Int) -> String = if n >= 90 { "A" } else if n >= 80 { "B" } else { "C" }
+fn main() {
+  print(harf(95))
+  print(harf(85))
+  print(harf(60))
+}''', "A\nB\nC")
+
+    def test_if_ifadesi_ic_ice(self):
+        self.esit('let n = 4\nprint("sonuç: " + if n > 2 { n * 10 } else { 0 })',
+                  "sonuç: 40")
+
+    def test_match_ifadesi(self):
+        self.program('''enum Hava { Gunesli  Yagmurlu  Karli }
+fn tavsiye(h: Hava) -> String = match h {
+  Hava.Gunesli -> "şapka"
+  Hava.Yagmurlu -> "şemsiye"
+  Hava.Karli -> "mont"
+}
+fn main() { print(tavsiye(Hava.Yagmurlu)) }''', "şemsiye")
+
+    def test_match_ifadesi_baglama(self):
+        self.program('''enum Kutu { Dolu(Int)  Bos }
+fn main() {
+  let d = match Kutu.Dolu(7) {
+    Kutu.Dolu(n) -> n * 2
+    Kutu.Bos -> 0
+  }
+  print(d)
+}''', "14")
+
+    def test_match_ifadesi_literal(self):
+        self.esit('''let n = 3
+print(match n { 1 -> "bir"  2 -> "iki"  _ -> "çok" })''', "çok")
+
+    def test_kisa_fonksiyon_govdesi(self):
+        self.program('''fn kare(x: Int) -> Int = x * x
+fn selam(ad: String) -> String = "Merhaba " + ad
+fn main() { print(kare(7))
+ print(selam("Nar")) }''', "49\nMerhaba Nar")
+
+    def test_kisa_metot_govdesi(self):
+        self.program('''struct D { kenar: Float
+  fn alan() -> Float = self.kenar * self.kenar
+}
+fn main() { print(D { kenar: 3.0 }.alan()) }''', "9.0")
+
     # --- metin ---
     def test_metin_gommesi(self):
         self.esit('let a = 5\nprint("a=${a}, iki katı ${a * 2}")', "a=5, iki katı 10")

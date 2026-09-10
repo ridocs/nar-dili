@@ -10,36 +10,52 @@ fn main() {
   // --- değişkenler ---
   let ad = "Mustafa"           // let = değişmez
   var sayi = 7                 // var = değiştirilebilir
-  sayi = sayi + 3
-  print("${ad}, sayı ${sayi}")
+  sayi += 3
+  print("Merhaba " + ad + ", sayın " + sayi)
+
+  // Metin içine değer gömmek:
+  print("${ad} ${sayi} yaşında görünüyor")
+
+  // --- sayılar ---
+  print("yarısı:", sayi / 2)          // tam bölme  -> 5
+  print("ondalıklı:", sayi / 2.0)     // ondalıklı  -> 5.0
+  print("karekök:", sqrt(16))         // -> 4.0
+
+  // --- koşul: değer üretebilir ---
+  let durum = if sayi >= 18 { "yetişkin" } else { "genç" }
+  print("durum:", durum)
 
   // --- listeler ---
   let sayilar = [5, 3, 8, 1]
-  print("sıralı: ${sayilar.sort()}")
-  print("iki katları: ${sayilar.map(|x| x * 2)}")
-  print("büyükler: ${sayilar.filter(|x| x > 3)}")
-  print("toplam: ${sayilar.reduce(|a, b| a + b, 0)}")
+  print("sıralı:", sayilar.sort())
+  print("iki katları:", sayilar.map(|x| x * 2))
+  print("büyükler:", sayilar.filter(|x| x > 3))
+  print("toplam:", sayilar.reduce(|a, b| a + b, 0))
 
-  // --- koşul ve döngü ---
+  // --- döngü ---
   for i in 1..=5 {
-    if i % 2 == 0 {
-      print("${i} çift")
-    } else {
-      print("${i} tek")
-    }
+    let tip = if i % 2 == 0 { "çift" } else { "tek" }
+    print("${i} ${tip}")
   }
 
-  // --- kendi fonksiyonun ---
-  print("faktöriyel(6) = ${faktoriyel(6)}")
+  // --- kendi fonksiyonun (tek satırlık yazılabilir) ---
+  print("faktöriyel(6) =", faktoriyel(6))
+  print("kare(9) =", kare(9))
 
   // --- kendi tipin ---
   let k = Kisi { ad: "Ayşe", yas: 30 }
   print(k.selam())
 
-  // --- opsiyonel: 'none' olabilen değer ---
+  // --- seçenekler ve match ---
+  print(tavsiye(Hava.Yagmurlu))
+
+  // --- olmayabilen değer ---
   let takma: String? = none
-  print("takma ad: ${takma ?? "yok"}")
+  print("takma ad:", takma ?? "yok")
 }
+
+// Tek satırlık fonksiyon: gövde yerine `= ifade`
+fn kare(x: Int) -> Int = x * x
 
 fn faktoriyel(n: Int) -> Int {
   if n <= 1 {
@@ -52,7 +68,17 @@ struct Kisi {
   ad: String
   yas: Int
 
-  fn selam() -> String {
-    return "Ben ${self.ad}, ${self.yas} yaşındayım."
-  }
+  fn selam() -> String = "Ben ${self.ad}, ${self.yas} yaşındayım."
+}
+
+enum Hava {
+  Gunesli
+  Yagmurlu
+  Karli
+}
+
+fn tavsiye(h: Hava) -> String = match h {
+  Hava.Gunesli -> "Şapka al."
+  Hava.Yagmurlu -> "Şemsiye al."
+  Hava.Karli -> "Mont al."
 }

@@ -168,6 +168,21 @@ class Lambda(Expr):
     ret_type: Optional[TypeExpr] = None
 
 
+@dataclass
+class IfExpr(Expr):
+    """`if kosul { deger } else { deger }` — değer üreten if. `else` zorunlu."""
+    cond: Expr = None       # type: ignore[assignment]
+    then: Expr = None       # type: ignore[assignment]
+    otherwise: Expr = None  # IfExpr ya da Expr
+
+
+@dataclass
+class MatchExpr(Expr):
+    """`match x { desen -> deger  ... }` — değer üreten match."""
+    subject: Expr = None  # type: ignore[assignment]
+    arms: list = field(default_factory=list)  # list[MatchArm], gövdeler Expr
+
+
 # ------------------------------------------------------------------ desenler
 @dataclass
 class Pattern(Node):

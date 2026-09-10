@@ -1,9 +1,9 @@
-# Nar — Dil Tasarımı (v0.1)
+# Nar — Dil Tasarımı (v0.2)
 
 Nar; web, masaüstü, Linux, Android ve iOS için tek kaynaktan uygulama yazmayı
 hedefleyen, statik tipli, derlenen bir programlama dilidir.
 
-Bu belge **v0.1 çekirdeğinin** kesin tanımıdır. Burada yazan her şey uygulanmıştır;
+Bu belge **v0.2 çekirdeğinin** kesin tanımıdır. Burada yazan her şey uygulanmıştır;
 uygulanmamış fikirler `YOL-HARITASI.md` dosyasındadır.
 
 ---
@@ -70,8 +70,17 @@ let toplam = a +
 | `(A, B) -> C` | fonksiyon tipi |
 | `struct` / `enum` adı | kullanıcı tanımlı tip |
 
-**Örtük dönüşüm yoktur.** `Int` ile `Float` doğrudan toplanmaz; `float(x)` gerekir.
-Tek istisna: `T` değeri `T?` beklenen yere geçebilir (genişletme güvenlidir).
+**Dönüşüm kuralları.** Yalnızca *kayıpsız* dönüşümler örtüktür:
+
+| Durum | Sonuç | Neden |
+|---|---|---|
+| `Int` ⊕ `Float` | `Float` | Yükseltme kayıpsızdır |
+| `String + herhangi` | `String` | Diğer taraf otomatik yazıya dökülür |
+| `T` → `T?` | `T?` | Genişletme güvenlidir |
+
+Kayıplı dönüşüm hâlâ açıktır: `Float`'tan `Int`'e geçmek için `int(x)` yazılır.
+Bölmede sonucun tipi belirleyicidir: `7 / 2` tam bölmedir (`3`),
+`7 / 2.0` ondalıklıdır (`3.5`).
 
 ### Opsiyoneller
 
@@ -110,6 +119,13 @@ fn selamla(ad: String) {     // dönüş tipi yoksa Void
 ```
 
 Parametre tipleri ve dönüş tipi **zorunlu açıktır**. Gövde içi her şey çıkarılır.
+
+Gövde tek bir ifadeyse süslü parantez yerine `=` kullanılır:
+
+```nar
+fn kare(x: Int) -> Int = x * x
+fn selam(ad: String) -> String = "Merhaba " + ad
+```
 
 ### Struct
 
@@ -203,6 +219,27 @@ Desenler: enum varyantı (alt bağlamalarla), literal (`3`, `"a"`, `true`),
 `_` (her şey), tanımlayıcı (bağlar). Enum üzerinde eşleme **tam olmak
 zorundadır** — eksik varyant derleme hatasıdır.
 
+## 6b. Değer üreten if ve match
+
+`if` ve `match` yalnızca deyim değildir; **ifade** olarak da kullanılabilir.
+Bu biçimde her dal bir değer üretir ve tüm dallar aynı tipte olmalıdır.
+
+```nar
+let durum = if yas >= 18 { "yetişkin" } else { "çocuk" }
+let harf = if n >= 90 { "A" } else if n >= 80 { "B" } else { "C" }
+
+let ad = match sayi {
+  1 -> "bir"
+  2 -> "iki"
+  _ -> "çok"
+}
+```
+
+Kurallar:
+- İfade biçiminde `else` **zorunludur** (her durumda değer üretilmeli).
+- Dal gövdesi tek bir ifadedir; çok satırlı iş gerekiyorsa deyim biçimini kullan.
+- `match` ifadesi her durumu kapsamalıdır (enum tamlığı ya da `_` dalı).
+
 ## 7. İfadeler
 
 Öncelik, düşükten yükseğe:
@@ -244,16 +281,16 @@ let bos: [String] = []
 let m = {"bir": 1, "iki": 2}
 ```
 
-## 8. Yerleşik kütüphane (v0.1)
+## 8. Yerleşik kütüphane (v0.2)
 
 **Serbest fonksiyonlar:**
-`print(v)` · `str(v)` · `len(v)` · `int(s) -> Int?` · `float(s) -> Float?`
+`print(a, b, ...)` (çok değerli) · `str(v)` · `len(v)` · `int(s) -> Int?` · `float(s) -> Float?`
 `abs` · `min` · `max` · `sqrt` · `floor` · `ceil` · `round` · `pow` · `random()`
 `panic(mesaj)` · `assert(kosul, mesaj)`
 
 **String metotları:**
-`len()` `upper()` `lower()` `trim()` `split(s)` `join(...)` `contains(s)`
-`replace(a,b)` `startsWith(s)` `endsWith(s)` `slice(a,b)` `charAt(i)` `indexOf(s)`
+`len()` `upper()` `lower()` `upperTr()` `lowerTr()` `trim()` `split(s)` `contains(s)`
+`replace(a,b)` `startsWith(s)` `endsWith(s)` `slice(a,b)` `charAt(i)` `indexOf(s)` `repeat(n)`
 
 **[T] metotları:**
 `len()` `push(x)` `pop() -> T?` `contains(x)` `indexOf(x)` `slice(a,b)`

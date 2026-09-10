@@ -22,14 +22,33 @@ Sözdizimi, tip sistemi ve çalışan bir JavaScript arka ucu.
 
 ---
 
-## v0.2 — Dili yazılabilir kılmak
+## ✅ v0.2 — Dili yeni başlayana göre sadeleştirmek (tamamlandı)
 
-Çekirdek çalışıyor ama gerçek program yazarken canı yanan yerler var.
-Bu sürüm platform eklemez; **dilin kendisini** rahatlatır.
+Çekirdek çalışıyordu ama yeni başlayanın en çok takıldığı yerler duruyordu.
+Bu sürüm platform eklemedi; **dilin kendisini** rahatlattı.
+
+| Yapıldı | Ne değişti |
+|---|---|
+| Sayı uyumlanması | `1 + 2.0` çalışır, sonuç `Float`. `float(x)` yazma zorunluluğu kalktı |
+| Metin birleştirme | `"yaş: " + 25` çalışır; `str(...)` gerekmiyor |
+| `if` **ifade** olarak | `let x = if a { 1 } else { 2 }` |
+| `match` **ifade** olarak | `let ad = match n { 1 -> "bir"  _ -> "çok" }` |
+| Tek satırlık fonksiyon | `fn kare(x: Int) -> Int = x * x` |
+| Çok argümanlı `print` | `print("ad:", ad, "yaş:", yas)` |
+| Matematik yerleşikleri | `sqrt(16)` çalışır; tam sayı da kabul edilir |
+| `+=` `-=` `*=` `/=` `%=` | Lexer bunları hiç üretmiyordu, eklendi |
+| Belgeler sitesi | 32 konu, açıklama + çalışan örnek + gerçek çıktı |
+
+**Ölçüt:** ✅ 120 test geçiyor; site üretimi her örneği derleyip çalıştırıyor.
+
+---
+
+## v0.2.5 — Dili büyütmek
+
+Sadeleşme tamam; sırada ölçek için gereken yapı taşları var.
 
 | İş | Neden |
 |---|---|
-| `if` ve `match` **ifade** olarak | `let x = if a { 1 } else { 2 }` — en çok eksikliği hissedilen şey |
 | Kullanıcı tanımlı generic (`struct Kutu<T>`) | `Sonuc<T, H>` yazılamadan hata yönetimi tekrara düşüyor |
 | `interface` (trait) | Ortak davranış tanımı; `Yazdirilabilir`, `Karsilastirilabilir` |
 | Adlandırılmış ve varsayılan argümanlar | `slice(a)` gibi çağrılar; şu an tüm argümanlar zorunlu |

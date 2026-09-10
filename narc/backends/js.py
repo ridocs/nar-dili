@@ -332,8 +332,11 @@ class JsBackend:
         target = self.expr(stmt.target)
         if op == "=":
             self.write(f"{target} = {value};")
-        else:
-            self.write(f"{target} = {self.binary_js(op[0], stmt.target.ty, target, value)};")
+            return
+        if op == "+=" and unwrap_optional(stmt.target.ty) == STRING:
+            self.write(f"{target} = {target} + {self.to_string(stmt.value)};")
+            return
+        self.write(f"{target} = {self.binary_js(op[0], stmt.target.ty, target, value)};")
 
     def emit_if(self, stmt: A.If) -> None:
         self.write(f"if ({self.expr(stmt.cond)}) {{")
@@ -521,6 +524,13 @@ class JsBackend:
         if isinstance(node, A.Lambda):
             return self.lambda_(node)
 
+        if isinstance(node, A.IfExpr):
+            return (f"({self.expr(node.cond)} ? {self.expr(node.then)}"
+                    f" : {self.expr(node.otherwise)})")
+
+        if isinstance(node, A.MatchExpr):
+            return self.match_expr(node)
+
         if isinstance(node, A.RangeExpr):  # pragma: no cover - checker engelliyor
             raise AssertionError("aralık yalnızca 'for' içinde kullanılabilir")
 
@@ -580,11 +590,16 @@ class JsBackend:
                 return f"(!{call})" if node.op == "!=" else call
             return f"({left} {'===' if node.op == '==' else '!=='} {right})"
 
-        return self.binary_js(node.op, node.ty, left, right, node.left.ty)
+        # Metin birleştirmede sayı/liste/struct tarafı otomatik yazıya dökülür.
+        if node.op == "+" and node.ty == STRING:
+            return f"({self.to_string(node.left)} + {self.to_string(node.right)})"
 
-    def binary_js(self, op: str, result_ty: Type | None, left: str, right: str,
-                  operand_ty: Type | None = None) -> str:
-        base = unwrap_optional(operand_ty if operand_ty is not None else result_ty)
+        return self.binary_js(node.op, node.ty, left, right)
+
+    def binary_js(self, op: str, result_ty: Type | None, left: str, right: str) -> str:
+        # Sonuç tipine bakılır: `Int / Int` tam bölmedir, karışık işlemin
+        # sonucu Float olduğu için orada düz bölme kullanılır.
+        base = unwrap_optional(result_ty) if result_ty is not None else None
         if op == "/":
             return f"$idiv({left}, {right})" if base == INT else f"({left} / {right})"
         if op == "%":
@@ -618,6 +633,34 @@ class JsBackend:
         if node.safe:
             return f"{obj}?.{self.name(node.name)}"
         return f"{obj}.{self.name(node.name)}"
+
+    def match_expr(self, node: A.MatchExpr) -> str:
+        """Değer üreten match, desen bağlamalarını taşıyabilmek için hemen
+        çağrılan bir ok fonksiyonuna derlenir."""
+        subject = self.fresh("m")
+        pad = "  " * (self.indent + 1)
+        satirlar: list[str] = []
+        kapandi = False
+
+        for arm in node.arms:
+            test, bindings = self.pattern_test(arm.pattern, subject, node.subject.ty)
+            govde = "".join(f"{b} " for b in bindings)
+            if test is None:
+                satirlar.append(f"{pad}  {govde}return {self.expr(arm.body)};")
+                kapandi = True
+                break
+            satirlar.append(
+                f"{pad}  if ({test}) {{ {govde}return {self.expr(arm.body)}; }}"
+            )
+
+        if not kapandi:
+            satirlar.append(
+                f'{pad}  $panic("eşleşen match dalı yok: " + $str({subject}));'
+            )
+
+        govde_metni = "\n".join(satirlar)
+        return (f"(({subject}) => {{\n{govde_metni}\n{pad}}})"
+                f"({self.expr(node.subject)})")
 
     def lambda_(self, node: A.Lambda) -> str:
         params = ", ".join(self.name(p.name) for p in node.params)
@@ -689,7 +732,7 @@ class JsBackend:
         args = node.args
 
         if name == "print":
-            return f"console.log({self.to_string(args[0])})"
+            return "console.log(" + ", ".join(self.to_string(a) for a in args) + ")"
 
         if name == "str":
             return self.to_string(args[0])
