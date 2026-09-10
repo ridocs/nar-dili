@@ -984,6 +984,199 @@ fn main() {
         ],
     },
 
+    # --------------------------------------------------------------- arayüz
+    {
+        "id": "arayuz",
+        "baslik": "Ortak davranış: arayüzler",
+        "konular": [
+            {
+                "id": "arayuz-giris",
+                "baslik": "interface",
+                "aciklama": """
+Farklı tipler aynı işi yapabiliyorsa, bu ortak davranışa bir ad verilir.
+<code>interface</code> yalnızca <strong>hangi metotların bulunması
+gerektiğini</strong> söyler; nasıl yapılacağını her tip kendi bilir.
+<p>Bir tip arayüzü bildiriminde üstlenir (<code>struct Nokta:
+Yazdirilabilir</code>). Bu bir sözdür: metotlardan biri eksikse ya da
+imzası tutmuyorsa program derlenmez.</p>
+""",
+                "kod": '''interface Yazdirilabilir {
+  fn yaz() -> String
+}
+
+struct Nokta: Yazdirilabilir {
+  x: Float
+  y: Float
+  fn yaz() -> String = "(${self.x}, ${self.y})"
+}
+
+struct Kisi: Yazdirilabilir {
+  ad: String
+  fn yaz() -> String = "kişi: " + self.ad
+}
+
+fn goster(sey: Yazdirilabilir) {
+  print(sey.yaz())
+}
+
+fn main() {
+  goster(Nokta { x: 1.0, y: 2.0 })
+  goster(Kisi { ad: "Ayşe" })
+}''',
+                "tam": '''interface Yazdirilabilir {
+  fn yaz() -> String
+}
+
+struct Nokta: Yazdirilabilir {
+  x: Float
+  y: Float
+  fn yaz() -> String = "(${self.x}, ${self.y})"
+}
+
+struct Kisi: Yazdirilabilir {
+  ad: String
+  fn yaz() -> String = "kişi: " + self.ad
+}
+
+fn goster(sey: Yazdirilabilir) {
+  print(sey.yaz())
+}
+
+fn main() {
+  goster(Nokta { x: 1.0, y: 2.0 })
+  goster(Kisi { ad: "Ayşe" })
+}''',
+            },
+            {
+                "id": "arayuz-liste",
+                "baslik": "Farklı tipleri bir arada tutmak",
+                "aciklama": """
+Bir liste, aynı arayüzü üstlenen farklı tipleri bir arada tutabilir.
+<code>enum</code> da arayüz üstlenebilir.
+""",
+                "kod": '''interface Yazdirilabilir {
+  fn yaz() -> String
+}
+
+struct Kisi: Yazdirilabilir {
+  ad: String
+  fn yaz() -> String = "kişi: " + self.ad
+}
+
+enum Durum: Yazdirilabilir {
+  Acik
+  Kapali
+  fn yaz() -> String = match self {
+    Durum.Acik -> "açık"
+    Durum.Kapali -> "kapalı"
+  }
+}
+
+fn main() {
+  let hepsi: [Yazdirilabilir] = [
+    Kisi { ad: "Ayşe" },
+    Durum.Acik,
+    Durum.Kapali
+  ]
+  for e in hepsi {
+    print("- " + e.yaz())
+  }
+}''',
+                "tam": '''interface Yazdirilabilir {
+  fn yaz() -> String
+}
+
+struct Kisi: Yazdirilabilir {
+  ad: String
+  fn yaz() -> String = "kişi: " + self.ad
+}
+
+enum Durum: Yazdirilabilir {
+  Acik
+  Kapali
+  fn yaz() -> String = match self {
+    Durum.Acik -> "açık"
+    Durum.Kapali -> "kapalı"
+  }
+}
+
+fn main() {
+  let hepsi: [Yazdirilabilir] = [
+    Kisi { ad: "Ayşe" },
+    Durum.Acik,
+    Durum.Kapali
+  ]
+  for e in hepsi {
+    print("- " + e.yaz())
+  }
+}''',
+            },
+            {
+                "id": "arayuz-generic",
+                "baslik": "Tip parametresine sınır koymak",
+                "aciklama": """
+Generic bir fonksiyonda tip parametresine sınır konabilir:
+<code>&lt;T: Olculebilir&gt;</code> "T her tip olabilir, yeter ki
+<code>olcu</code> metodu olsun" demektir.
+<p>Böylece fonksiyon içinde o metodu çağırabilirsin; sınır koymadığın
+metotları kullanmana derleyici izin vermez.</p>
+""",
+                "kod": '''interface Olculebilir {
+  fn olcu() -> Float
+}
+
+struct Nokta: Olculebilir {
+  x: Float
+  y: Float
+  fn olcu() -> Float = sqrt(self.x * self.x + self.y * self.y)
+}
+
+fn enBuyuk<T: Olculebilir>(liste: [T]) -> Float {
+  var en = 0.0
+  for e in liste {
+    if e.olcu() > en {
+      en = e.olcu()
+    }
+  }
+  return en
+}
+
+fn main() {
+  print(enBuyuk([
+    Nokta { x: 3.0, y: 4.0 },
+    Nokta { x: 6.0, y: 8.0 }
+  ]))
+}''',
+                "tam": '''interface Olculebilir {
+  fn olcu() -> Float
+}
+
+struct Nokta: Olculebilir {
+  x: Float
+  y: Float
+  fn olcu() -> Float = sqrt(self.x * self.x + self.y * self.y)
+}
+
+fn enBuyuk<T: Olculebilir>(liste: [T]) -> Float {
+  var en = 0.0
+  for e in liste {
+    if e.olcu() > en {
+      en = e.olcu()
+    }
+  }
+  return en
+}
+
+fn main() {
+  print(enBuyuk([
+    Nokta { x: 3.0, y: 4.0 },
+    Nokta { x: 6.0, y: 8.0 }
+  ]))
+}''',
+            },
+        ],
+    },
+
     # -------------------------------------------------------------- güvenlik
     {
         "id": "opsiyonel",

@@ -93,8 +93,10 @@ class StructT(Type):
     def __init__(self, name: str, fields: dict | None = None,
                  mutable_fields: set | None = None, methods: dict | None = None,
                  type_params: tuple = (), type_args: tuple = (),
-                 sablon: "StructT | None" = None) -> None:
+                 sablon: "StructT | None" = None,
+                 interfaces: tuple = ()) -> None:
         self.name = name
+        self.interfaces = interfaces
         self._fields = fields if fields is not None else {}
         self.mutable_fields = mutable_fields if mutable_fields is not None else set()
         self._methods = methods if methods is not None else {}
@@ -159,8 +161,10 @@ class EnumT(Type):
 
     def __init__(self, name: str, variants: dict | None = None,
                  methods: dict | None = None, type_params: tuple = (),
-                 type_args: tuple = (), sablon: "EnumT | None" = None) -> None:
+                 type_args: tuple = (), sablon: "EnumT | None" = None,
+                 interfaces: tuple = ()) -> None:
         self.name = name
+        self.interfaces = interfaces
         self._variants = variants if variants is not None else {}
         self._methods = methods if methods is not None else {}
         self.type_params = type_params
@@ -218,6 +222,31 @@ class EnumT(Type):
 
     def __hash__(self) -> int:
         return hash(("enum", self.name, self.type_args))
+
+
+class InterfaceT(Type):
+    """Ortak davranış tanımı: hangi metotların bulunması gerektiğini söyler.
+
+    Bir struct ya da enum, bildiriminde arayüzü adıyla üstlenir
+    (`struct Nokta: Yazdirilabilir`). Böylece uyum tesadüfe değil,
+    yazılı bir söze dayanır.
+    """
+
+    def __init__(self, name: str, methods: dict | None = None) -> None:
+        self.name = name
+        self.methods = methods if methods is not None else {}
+
+    def __str__(self) -> str:
+        return self.name
+
+    def __repr__(self) -> str:
+        return self.name
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, InterfaceT) and other.name == self.name
+
+    def __hash__(self) -> int:
+        return hash(("interface", self.name))
 
 
 @dataclass(eq=True, frozen=True)
@@ -321,6 +350,7 @@ def uygula_struct(sablon: StructT, args: tuple[Type, ...]) -> StructT:
         type_params=kok.type_params,
         type_args=args,
         sablon=kok,
+        interfaces=kok.interfaces,
     )
 
 
@@ -335,6 +365,7 @@ def uygula_enum(sablon: EnumT, args: tuple[Type, ...]) -> EnumT:
         type_params=kok.type_params,
         type_args=args,
         sablon=kok,
+        interfaces=kok.interfaces,
     )
 
 
@@ -493,6 +524,13 @@ def assignable(target: Type, source: Type) -> bool:
         return True
     if target == source:
         return True
+    # Arayüzü bildiriminde üstlenen bir tip, o arayüzün beklendiği yere geçer.
+    if isinstance(target, InterfaceT):
+        if isinstance(source, InterfaceT):
+            return source.name == target.name
+        if isinstance(source, (StructT, EnumT)):
+            return target.name in source.interfaces
+
     if isinstance(target, OptT):
         if isinstance(source, NoneT):
             return True

@@ -16,7 +16,8 @@ from .diagnostics import NarError, NarErrors, duzenle
 from .types import (
     ANY, BOOL, ELEMENT, FLOAT, INT, NEVER, NONE, NUMERIC, OLAY, ORDERED,
     PRIMITIVES, STRING, VOID,
-    AnyT, EnumT, FnT, ListT, MapT, NeverT, NoneT, OptT, Prim, RangeT, StructT,
+    AnyT, EnumT, FnT, InterfaceT, ListT, MapT, NeverT, NoneT, OptT, Prim,
+    RangeT, StructT,
     Type, TypeVar, assignable, birlestir, common_type, is_optional, subst,
     tipdegiskeni_var_mi, tipdegiskenleri, tipdegiskenlerini_serbest_birak,
     unwrap_optional, uygula_enum, uygula_struct,
@@ -82,6 +83,9 @@ class Checker:
         self.kutuphane = kutuphane
         self.structs: dict[str, StructT] = {}
         self.enums: dict[str, EnumT] = {}
+        self.interfaces: dict[str, InterfaceT] = {}
+        # Kapsamdaki tip parametrelerinin arayüz sınırlamaları
+        self.tip_sinirlari: dict[str, list[str]] = {}
         self.aliases: dict[str, Type] = {}
         self.functions: dict[str, FnT] = {}
         self.fn_decls: dict[str, A.FnDecl] = {}
@@ -113,12 +117,30 @@ class Checker:
                 if item.name in self.structs or item.name in self.enums:
                     self.error(f"'{item.name}' tipi zaten tanımlı", item.span)
                 self.structs[item.name] = StructT(
-                    item.name, type_params=tuple(item.type_params))
+                    item.name, type_params=tuple(item.type_params),
+                    interfaces=tuple(item.interfaces))
             elif isinstance(item, A.EnumDecl):
                 if item.name in self.structs or item.name in self.enums:
                     self.error(f"'{item.name}' tipi zaten tanımlı", item.span)
                 self.enums[item.name] = EnumT(
-                    item.name, type_params=tuple(item.type_params))
+                    item.name, type_params=tuple(item.type_params),
+                    interfaces=tuple(item.interfaces))
+
+        # a2) arayüzler ve metot imzaları
+        for item in self.module.items:
+            if isinstance(item, A.InterfaceDecl):
+                if item.name in self.structs or item.name in self.enums                         or item.name in self.interfaces:
+                    self.error(f"'{item.name}' tipi zaten tanımlı", item.span)
+                self.interfaces[item.name] = InterfaceT(item.name)
+
+        for item in self.module.items:
+            if isinstance(item, A.InterfaceDecl):
+                arayuz = self.interfaces[item.name]
+                for m in item.methods:
+                    if m.name in arayuz.methods:
+                        self.error(
+                            f"'{item.name}' içinde '{m.name}' metodu yinelendi", m.span)
+                    arayuz.methods[m.name] = self.fn_signature(m)
 
         # b) tip takma adları
         for item in self.module.items:
@@ -174,6 +196,13 @@ class Checker:
             if isinstance(item, A.LetStmt):
                 self.check_let(item, self.globals)
 
+        # f) üstlenilen arayüzler gerçekten uygulanmış mı?
+        for item in self.module.items:
+            if isinstance(item, A.StructDecl):
+                self.arayuz_uyumunu_dogrula(item, self.structs[item.name])
+            elif isinstance(item, A.EnumDecl):
+                self.arayuz_uyumunu_dogrula(item, self.enums[item.name])
+
         if "main" not in self.functions:
             if not self.kutuphane:
                 self.error(
@@ -184,8 +213,37 @@ class Checker:
         elif self.functions["main"].params:
             self.error("'main' parametre almamalı", self.fn_decls["main"].span)
 
+    def arayuz_uyumunu_dogrula(self, decl, tip) -> None:
+        """Bildirimde üstlenilen her arayüzün metotları gerçekten var mı?"""
+        for arayuz_adi in decl.interfaces:
+            arayuz = self.interfaces.get(arayuz_adi)
+            if arayuz is None:
+                self.error(
+                    f"bilinmeyen arayüz: '{arayuz_adi}'",
+                    decl.span,
+                    hint=f"var olanlar: {', '.join(self.interfaces) or 'yok'}",
+                )
+                continue
+
+            for metot_adi, beklenen in arayuz.methods.items():
+                mevcut = tip.methods.get(metot_adi)
+                if mevcut is None:
+                    self.error(
+                        f"'{decl.name}', '{arayuz_adi}' arayüzünü üstleniyor ama "
+                        f"'{metot_adi}' metodu yok",
+                        decl.span,
+                        hint=f"eklenecek imza: fn {metot_adi}{beklenen}",
+                    )
+                    continue
+                if mevcut != beklenen:
+                    self.error(
+                        f"'{decl.name}.{metot_adi}' imzası arayüzle uyuşmuyor: "
+                        f"'{beklenen}' bekleniyordu, '{mevcut}' bulundu",
+                        decl.span,
+                    )
+
     def fn_signature(self, decl: A.FnDecl) -> FnT:
-        onceki = self.tip_kapsami_ac(decl.type_params)
+        onceki = self.tip_kapsami_ac(decl.type_params, decl.type_bounds)
         params = []
         seen: set[str] = set()
         for p in decl.params:
@@ -229,17 +287,19 @@ class Checker:
         uygula = uygula_struct if struct_mu else uygula_enum
         return uygula(sablon, tuple(args))
 
-    def tip_kapsami_ac(self, params) -> dict:
+    def tip_kapsami_ac(self, params, sinirlar: dict | None = None) -> tuple:
         """Tip parametrelerini kapsama alır, önceki kapsamı döndürür."""
-        onceki = self.tip_degiskenleri
+        onceki = (self.tip_degiskenleri, self.tip_sinirlari)
         if params:
-            self.tip_degiskenleri = dict(onceki)
+            self.tip_degiskenleri = dict(self.tip_degiskenleri)
+            self.tip_sinirlari = dict(self.tip_sinirlari)
             for ad in params:
                 self.tip_degiskenleri[ad] = TypeVar(ad)
+                self.tip_sinirlari[ad] = list((sinirlar or {}).get(ad, []))
         return onceki
 
-    def tip_kapsami_kapat(self, onceki: dict) -> None:
-        self.tip_degiskenleri = onceki
+    def tip_kapsami_kapat(self, onceki: tuple) -> None:
+        self.tip_degiskenleri, self.tip_sinirlari = onceki
 
     @staticmethod
     def sablon_ornegi(sablon):
@@ -270,6 +330,12 @@ class Checker:
                 if node.args:
                     self.error(f"'{node.name}' tip argümanı almaz", node.span)
                 return PRIMITIVES[node.name]
+
+            if node.name in self.interfaces:
+                if node.args:
+                    self.error(f"'{node.name}' bir arayüz; tip argümanı almaz",
+                               node.span)
+                return self.interfaces[node.name]
 
             if node.name in self.structs:
                 return self.genel_tipi_uygula(self.structs[node.name], node, True)
@@ -325,7 +391,7 @@ class Checker:
                 self.tip_kapsami_kapat(onceki)
 
     def check_fn(self, decl: A.FnDecl, owner: Type | None) -> None:
-        onceki_tipler = self.tip_kapsami_ac(decl.type_params)
+        onceki_tipler = self.tip_kapsami_ac(decl.type_params, decl.type_bounds)
         env = self.globals.child()
         prev_ret, prev_self = self.current_ret, self.self_type
         self.current_ret = decl.ty.ret if decl.ty else VOID
@@ -857,6 +923,19 @@ class Checker:
                 return ListT(ANY)
             return ListT(hint)
 
+        # Eleman tipi yazılmışsa her eleman ona uymalıdır; elemanların
+        # birbirine uyması gerekmez. `[Yazdirilabilir]` listesine farklı
+        # tipler konabilmesi buna bağlı.
+        if hint is not None:
+            for item in node.items:
+                got = self.check_expr(item, env, hint)
+                if not assignable(hint, got):
+                    self.error(
+                        f"liste elemanı '{hint}' olmalı, '{got}' bulundu",
+                        item.span,
+                    )
+            return ListT(hint)
+
         elem = self.check_expr(node.items[0], env, hint)
         for item in node.items[1:]:
             got = self.check_expr(item, env, hint or elem)
@@ -1231,6 +1310,23 @@ class Checker:
             node.__dict__["resolved"] = "field"
             return ANY
 
+        # `fn f<T: Yazdirilabilir>(x: T)` içinde x.yaz() çağrılabilir.
+        if isinstance(base, TypeVar):
+            for arayuz_adi in self.tip_sinirlari.get(base.name, []):
+                arayuz = self.interfaces.get(arayuz_adi)
+                if arayuz is not None and node.name in arayuz.methods:
+                    node.__dict__["resolved"] = "method"
+                    return arayuz.methods[node.name]
+            sinirlar = self.tip_sinirlari.get(base.name, [])
+            self.error(
+                f"'{base.name}' tip parametresinde '{node.name}' yok",
+                node.span,
+                hint=(f"'{base.name}' yalnızca şu arayüzlerin metotlarını "
+                      f"sunuyor: {', '.join(sinirlar)}") if sinirlar else
+                     (f"tip parametresine sınır koy: <{base.name}: Arayuz>"),
+            )
+            return ANY
+
         if isinstance(base, StructT):
             if node.name in base.fields:
                 node.__dict__["resolved"] = "field"
@@ -1243,6 +1339,17 @@ class Checker:
                 node.span,
                 hint=f"alanlar: {', '.join(base.fields) or 'yok'}; "
                      f"metotlar: {', '.join(base.methods) or 'yok'}",
+            )
+            return ANY
+
+        if isinstance(base, InterfaceT):
+            if node.name in base.methods:
+                node.__dict__["resolved"] = "method"
+                return base.methods[node.name]
+            self.error(
+                f"'{base.name}' arayüzünde '{node.name}' yok",
+                node.span,
+                hint=f"arayüzün metotları: {', '.join(base.methods) or 'yok'}",
             )
             return ANY
 

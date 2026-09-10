@@ -305,6 +305,8 @@ class FnDecl(Node):
     is_method: bool = False
     owner: Optional[str] = None  # metotsa sahibi olan tipin adı
     type_params: list[str] = field(default_factory=list)
+    # Tip parametresi sınırlamaları: `fn f<T: Yazdirilabilir>` → {"T": ["Yazdirilabilir"]}
+    type_bounds: dict = field(default_factory=dict)
     ty: object = field(default=None, init=False, repr=False)
 
 
@@ -322,6 +324,7 @@ class StructDecl(Node):
     fields: list[FieldDecl] = field(default_factory=list)
     methods: list[FnDecl] = field(default_factory=list)
     type_params: list[str] = field(default_factory=list)
+    interfaces: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -337,6 +340,14 @@ class EnumDecl(Node):
     variants: list[VariantDecl] = field(default_factory=list)
     methods: list[FnDecl] = field(default_factory=list)
     type_params: list[str] = field(default_factory=list)
+    interfaces: list[str] = field(default_factory=list)
+
+
+@dataclass
+class InterfaceDecl(Node):
+    """`interface Ad { fn m() -> T ... }` — gövdesiz metot imzaları."""
+    name: str = ""
+    methods: list[FnDecl] = field(default_factory=list)
 
 
 @dataclass

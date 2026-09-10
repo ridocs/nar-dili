@@ -13,7 +13,7 @@ from .diagnostics import NarError, Span
 KEYWORDS = {
     "let", "var", "fn", "return", "if", "else", "while", "for", "in",
     "match", "struct", "enum", "import", "true", "false", "none",
-    "self", "break", "continue", "type",
+    "self", "break", "continue", "type", "interface",
 }
 
 # Bu tokenlardan sonra gelen satır sonu bir deyimi bitirebilir (Go kuralı).

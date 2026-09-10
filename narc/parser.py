@@ -117,6 +117,8 @@ class Parser:
             return self.parse_struct()
         if self.at("enum"):
             return self.parse_enum()
+        if self.at("interface"):
+            return self.parse_interface()
         if self.at("type"):
             return self.parse_type_alias()
         if self.at("let", "var"):
@@ -156,20 +158,80 @@ class Parser:
             ty = A.OptionalType(span, ty)
         return ty
 
-    def parse_type_params(self) -> list[str]:
-        """Bildirimdeki tip parametreleri: `struct Kutu<T, U>` → ["T", "U"]"""
+    def parse_type_params(self) -> tuple[list[str], dict]:
+        """Bildirimdeki tip parametreleri.
+
+        `struct Kutu<T, U>` → (["T", "U"], {})
+        `fn f<T: Yazdirilabilir>` → (["T"], {"T": ["Yazdirilabilir"]})
+        """
         if not self.at("<"):
-            return []
+            return [], {}
         self.advance()
         adlar: list[str] = []
+        sinirlar: dict = {}
         while True:
-            adlar.append(self.expect("ident", "tip parametresi adı").value)
+            ad = self.expect("ident", "tip parametresi adı").value
+            adlar.append(ad)
+            if self.match(":"):
+                bagli = [self.expect("ident", "arayüz adı").value]
+                while self.match("+"):
+                    bagli.append(self.expect("ident", "arayüz adı").value)
+                sinirlar[ad] = bagli
             if not self.match(","):
                 break
         self.expect(">", "tip parametrelerini kapatan '>'")
         if not adlar:
             raise NarError("tip parametre listesi boş olamaz", self.cur.span)
+        return adlar, sinirlar
+
+    def parse_interface_list(self) -> list[str]:
+        """`struct Nokta: Yazdirilabilir, Karsilastirilabilir {`"""
+        if not self.match(":"):
+            return []
+        adlar = [self.expect("ident", "arayüz adı").value]
+        while self.match(","):
+            adlar.append(self.expect("ident", "arayüz adı").value)
         return adlar
+
+    def parse_interface(self) -> A.InterfaceDecl:
+        span = self.expect("interface").span
+        name = self.expect("ident", "arayüz adı").value
+        self.expect("{", "'{'")
+        self.skip_newlines()
+
+        methods: list[A.FnDecl] = []
+        while not self.at("}"):
+            if self.at("eof"):
+                raise NarError("kapatılmamış interface: '}' bekleniyor", span)
+            methods.append(self.parse_interface_method(name))
+            self.skip_newlines()
+
+        self.expect("}", "'}'")
+        if not methods:
+            raise NarError(
+                f"'{name}' arayüzü en az bir metot içermeli",
+                span,
+                hint="örnek: interface Yazdirilabilir { fn yaz() -> String }",
+            )
+        return A.InterfaceDecl(span, name, methods)
+
+    def parse_interface_method(self, owner: str) -> A.FnDecl:
+        """Arayüzdeki metot yalnızca imzadır; gövdesi yoktur."""
+        span = self.expect("fn", "arayüz içinde 'fn'").span
+        name = self.expect("ident", "metot adı").value
+        self.expect("(", "'('")
+        params = self.parse_params()
+        self.expect(")", "')'")
+        ret_type = None
+        if self.match("->"):
+            ret_type = self.parse_type()
+        if self.at("{"):
+            raise NarError(
+                f"'{owner}.{name}' arayüzde gövde alamaz",
+                self.cur.span,
+                hint="arayüz yalnızca imzayı söyler; gövdeyi tipler yazar",
+            )
+        return A.FnDecl(span, name, params, ret_type, A.Block(span, []), True, owner)
 
     def parse_type_args(self) -> list[A.TypeExpr]:
         """Kullanımdaki tip argümanları: `Kutu<Int>` → [Int]
@@ -228,7 +290,7 @@ class Parser:
     def parse_fn(self, is_method: bool = False, owner: str | None = None) -> A.FnDecl:
         span = self.expect("fn").span
         name = self.expect("ident", "fonksiyon adı").value
-        type_params = self.parse_type_params()
+        type_params, type_bounds = self.parse_type_params()
         self.expect("(", "'('")
         params = self.parse_params()
         self.expect(")", "')'")
@@ -245,7 +307,7 @@ class Parser:
         else:
             body = self.parse_block()
         return A.FnDecl(span, name, params, ret_type, body, is_method, owner,
-                        type_params)
+                        type_params, type_bounds)
 
     def parse_params(self) -> list[A.Param]:
         params: list[A.Param] = []
@@ -265,7 +327,8 @@ class Parser:
     def parse_struct(self) -> A.StructDecl:
         span = self.expect("struct").span
         name = self.expect("ident", "struct adı").value
-        type_params = self.parse_type_params()
+        type_params, _ = self.parse_type_params()
+        interfaces = self.parse_interface_list()
         self.expect("{", "'{'")
         self.skip_newlines()
 
@@ -284,12 +347,13 @@ class Parser:
             self.skip_newlines()
 
         self.expect("}", "'}'")
-        return A.StructDecl(span, name, fields, methods, type_params)
+        return A.StructDecl(span, name, fields, methods, type_params, interfaces)
 
     def parse_enum(self) -> A.EnumDecl:
         span = self.expect("enum").span
         name = self.expect("ident", "enum adı").value
-        type_params = self.parse_type_params()
+        type_params, _ = self.parse_type_params()
+        interfaces = self.parse_interface_list()
         self.expect("{", "'{'")
         self.skip_newlines()
 
@@ -310,7 +374,7 @@ class Parser:
             self.skip_newlines()
 
         self.expect("}", "'}'")
-        return A.EnumDecl(span, name, variants, methods, type_params)
+        return A.EnumDecl(span, name, variants, methods, type_params, interfaces)
 
     # ------------------------------------------------------------- deyimler
     def parse_block(self) -> A.Block:
