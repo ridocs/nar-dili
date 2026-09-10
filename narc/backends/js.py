@@ -66,6 +66,23 @@ LIST_METHODS = {
     "filter": "{0}.filter({1})",
     "reduce": "$listReduce({0}, {1}, {2})",
     "join": "{0}.join({1})",
+    # Lambda gerektirmeyen kolay işlemler
+    "benzersiz": "$listBenzersiz({0})",
+    "say": "$listSay({0}, {1})",
+    "toplam": "$listToplam({0})",
+    "carpim": "$listCarpim({0})",
+    "ortalama": "$listOrtalama({0})",
+    "enBuyuk": "$listEnBuyuk({0})",
+    "enKucuk": "$listEnKucuk({0})",
+    "kat": "$listKat({0}, {1})",
+    "artir": "$listArtir({0}, {1})",
+    "buyukler": "$listBuyukler({0}, {1})",
+    "kucukler": "$listKucukler({0}, {1})",
+    "ciftler": "$listCiftler({0})",
+    "tekler": "$listTekler({0})",
+    "buyukHarf": "$listBuyukHarf({0})",
+    "kucukHarf": "$listKucukHarf({0})",
+    "icerenler": "$listIcerenler({0}, {1})",
 }
 
 MAP_METHODS = {

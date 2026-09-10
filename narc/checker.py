@@ -1484,8 +1484,12 @@ def builtin_method(base: Type, name: str) -> FnT | None:
 
     if isinstance(base, ListT):
         t = base.elem
+        opsiyonel_t = OptT(t) if not isinstance(t, OptT) else t
         table = {
             "len": FnT((), INT),
+            # Lambda yazmadan kullanılabilen, adı kendini anlatan işlemler.
+            "benzersiz": FnT((), ListT(t)),
+            "say": FnT((t,), INT),
             "push": FnT((t,), VOID),
             "pop": FnT((), OptT(t) if not isinstance(t, OptT) else t),
             "contains": FnT((t,), BOOL),
@@ -1500,6 +1504,32 @@ def builtin_method(base: Type, name: str) -> FnT | None:
             "reduce": FnT((FnT((ANY, t), ANY), ANY), ANY),
             "join": FnT((STRING,), STRING),
         }
+
+        # Sayı listelerine özel kolay işlemler — lambda gerektirmez.
+        if t in NUMERIC:
+            table.update({
+                "toplam": FnT((), t),
+                "carpim": FnT((), t),
+                "ortalama": FnT((), FLOAT),
+                "enBuyuk": FnT((), opsiyonel_t),
+                "enKucuk": FnT((), opsiyonel_t),
+                "kat": FnT((t,), ListT(t)),
+                "artir": FnT((t,), ListT(t)),
+                "buyukler": FnT((t,), ListT(t)),
+                "kucukler": FnT((t,), ListT(t)),
+            })
+            if t == INT:
+                table["ciftler"] = FnT((), ListT(t))
+                table["tekler"] = FnT((), ListT(t))
+
+        # Metin listelerine özel kolay işlemler.
+        if t == STRING:
+            table.update({
+                "buyukHarf": FnT((), ListT(STRING)),
+                "kucukHarf": FnT((), ListT(STRING)),
+                "icerenler": FnT((STRING,), ListT(STRING)),
+            })
+
         return table.get(name)
 
     if isinstance(base, MapT):
@@ -1522,7 +1552,10 @@ _BUILTIN_MEMBER_NAMES = {
     "String": ["len", "upper", "lower", "upperTr", "lowerTr", "trim", "split", "contains", "replace",
                "startsWith", "endsWith", "slice", "charAt", "indexOf", "repeat"],
     "ListT": ["len", "push", "pop", "contains", "indexOf", "slice", "reverse",
-              "sort", "first", "last", "map", "filter", "reduce", "join"],
+              "sort", "first", "last", "map", "filter", "reduce", "join",
+              "benzersiz", "say", "toplam", "carpim", "ortalama", "enBuyuk",
+              "enKucuk", "kat", "artir", "buyukler", "kucukler", "ciftler",
+              "tekler", "buyukHarf", "kucukHarf", "icerenler"],
     "MapT": ["len", "get", "set", "has", "remove", "keys", "values"],
 }
 

@@ -11,26 +11,28 @@ fn main() {
   let ad = "Mustafa"           // let = değişmez
   var sayi = 7                 // var = değiştirilebilir
   sayi += 3
-  print("Merhaba " + ad + ", sayın " + sayi)
+  print("${ad}, sayı ${sayi}")
 
-  // Metin içine değer gömmek:
-  print("${ad} ${sayi} yaşında görünüyor")
+  // --- listeler: lambda yazmadan ---
+  let sayilar = [5, 3, 8, 1]
 
-  // --- sayılar ---
-  print("yarısı:", sayi / 2)          // tam bölme  -> 5
-  print("ondalıklı:", sayi / 2.0)     // ondalıklı  -> 5.0
-  print("karekök:", sqrt(16))         // -> 4.0
+  print("sıralı:", sayilar.sort())
+  print("iki katları:", sayilar.kat(2))
+  print("büyükler:", sayilar.buyukler(3))
+  print("küçükler:", sayilar.kucukler(3))
+  print("toplam:", sayilar.toplam())
+  print("ortalama:", sayilar.ortalama())
+  print("en büyük:", sayilar.enBuyuk() ?? 0)
+  print("çiftler:", sayilar.ciftler())
+  print("tekler:", sayilar.tekler())
+
+  let kelimeler = ["nar", "elma", "kiraz"]
+  print("büyük harf:", kelimeler.buyukHarf())
+  print("küçük harf:", ["NAR", "ELMA"].kucukHarf())
 
   // --- koşul: değer üretebilir ---
   let durum = if sayi >= 18 { "yetişkin" } else { "genç" }
   print("durum:", durum)
-
-  // --- listeler ---
-  let sayilar = [5, 3, 8, 1]
-  print("sıralı:", sayilar.sort())
-  print("iki katları:", sayilar.map(|x| x * 2))
-  print("büyükler:", sayilar.filter(|x| x > 3))
-  print("toplam:", sayilar.reduce(|a, b| a + b, 0))
 
   // --- döngü ---
   for i in 1..=5 {

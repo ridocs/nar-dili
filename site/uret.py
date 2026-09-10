@@ -656,7 +656,9 @@ document.querySelectorAll('.kopyala').forEach(function (dugme) {
 """
 
 
-def sayfa_uret() -> str:
+def sayfa_uret(artifact: bool = False) -> str:
+    """Sayfayı üretir. `artifact=True` ise `<html>/<head>/<body>` sarmalı
+    olmadan, yayın ortamının kendi iskeletine gömülecek biçimde döner."""
     uyarilar = kontrastlari_dogrula()
     if uyarilar:
         raise SystemExit("kontrast yetersiz:\n  " + "\n  ".join(uyarilar))
@@ -670,16 +672,10 @@ def sayfa_uret() -> str:
         govde.append("</section>")
     govde.append(referans_html())
 
-    return f"""<!doctype html>
-<html lang="tr">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{html.escape(BASLIK)} — dil rehberi</title>
-<meta name="description" content="{html.escape(ALT_BASLIK)}">
-<style>{stil()}</style>
-</head>
-<body>
+    # `lang="tr"` kök sarmalayıcıda: `text-transform: uppercase` Türkçe
+    # kurallarına göre çalışsın (i → İ). Yayın ortamında <html lang> bize ait
+    # olmadığı için bu sarmalayıcı gerekli.
+    icerik = f"""<div lang="tr" class="kok">
 
 <header class="ust">
   <div class="ust-ic">
@@ -714,6 +710,23 @@ def sayfa_uret() -> str:
   Son üretim: {date.today().isoformat()}.
 </footer>
 
+</div>"""
+
+    if artifact:
+        return (f"<title>Nar Dil Rehberi</title>\n"
+                f"<style>{stil()}</style>\n\n{icerik}\n\n<script>{SCRIPT}</script>\n")
+
+    return f"""<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{html.escape(BASLIK)} — dil rehberi</title>
+<meta name="description" content="{html.escape(ALT_BASLIK)}">
+<style>{stil()}</style>
+</head>
+<body>
+{icerik}
 <script>{SCRIPT}</script>
 </body>
 </html>

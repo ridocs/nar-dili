@@ -349,11 +349,43 @@ print("içinde 8 var mı:", sayilar.contains(8))
 print("bir kısmı:", sayilar.slice(1, 3))''',
             },
             {
+                "id": "liste-kolay",
+                "baslik": "Listelerle kolay işlemler",
+                "aciklama": """
+Bir listeyle en çok yapılan işler için adı kendini anlatan hazır işlemler var.
+Hiçbirinde fonksiyon yazman gerekmez.
+<p>Toplama, ortalama, filtreleme gibi şeyler için önce buraya bak; aradığın
+yoksa bir sonraki başlıktaki <code>map</code>/<code>filter</code> yöntemini
+kullanırsın.</p>
+""",
+                "kod": '''let sayilar = [5, 3, 8, 1, 3]
+
+print("toplam:", sayilar.toplam())
+print("ortalama:", sayilar.ortalama())
+print("çarpım:", sayilar.carpim())
+print("en büyük:", sayilar.enBuyuk() ?? 0)
+print("en küçük:", sayilar.enKucuk() ?? 0)
+
+print("iki katları:", sayilar.kat(2))
+print("10 artırılmış:", sayilar.artir(10))
+print("3'ten büyükler:", sayilar.buyukler(3))
+print("3'ten küçükler:", sayilar.kucukler(3))
+print("çiftler:", sayilar.ciftler())
+print("tekler:", sayilar.tekler())
+
+print("benzersiz:", sayilar.benzersiz())
+print("kaç tane 3 var:", sayilar.say(3))
+
+let kelimeler = ["nar", "elma", "kiraz"]
+print("büyük harf:", kelimeler.buyukHarf())
+print("'a' içerenler:", kelimeler.icerenler("a"))''',
+            },
+            {
                 "id": "liste-donusum",
                 "baslik": "map, filter, reduce",
                 "aciklama": """
-Bunlar listeyi tek satırda dönüştürmenin yollarıdır. Döngü yazmaktan
-kısadır ve niyeti daha açık anlatır.
+Bir önceki başlıktaki hazır işlemler aradığını karşılamıyorsa, kendi kuralını
+yazabilirsin. Bunlar listeyi tek satırda dönüştürmenin genel yoludur.
 <p><code>|x| ...</code> yazımı "her eleman için" demektir; <code>x</code>
 sırayla her elemanın yerini alır.</p>
 <ul>
@@ -987,6 +1019,30 @@ REFERANS = [
             ("map(f)", "Her elemanı dönüştürür"),
             ("filter(f)", "Koşula uyanları seçer"),
             ("reduce(f, baslangic)", "Hepsini tek değere indirger"),
+            ("benzersiz()", "Tekrar edenleri atar"),
+            ("say(x)", "x kaç kez geçiyor"),
+        ],
+    },
+    {
+        "baslik": "Sayı listesi işlemleri",
+        "aciklama": "Fonksiyon yazmadan kullanılır; yalnızca sayı listelerinde geçerlidir.",
+        "satirlar": [
+            ("toplam()", "Hepsinin toplamı"),
+            ("carpim()", "Hepsinin çarpımı"),
+            ("ortalama()", "Ortalaması (her zaman ondalıklı)"),
+            ("enBuyuk() · enKucuk()", "En büyük · en küçük eleman (boşsa none)"),
+            ("kat(n)", "Her elemanı n ile çarpar"),
+            ("artir(n)", "Her elemana n ekler"),
+            ("buyukler(n) · kucukler(n)", "n'den büyük · küçük olanlar"),
+            ("ciftler() · tekler()", "Çift · tek sayılar (yalnızca Int)"),
+        ],
+    },
+    {
+        "baslik": "Metin listesi işlemleri",
+        "aciklama": "Yalnızca metin listelerinde geçerlidir.",
+        "satirlar": [
+            ("buyukHarf() · kucukHarf()", "Hepsini Türkçe kurallarıyla büyütür · küçültür"),
+            ("icerenler(parca)", "İçinde o parça geçenleri seçer"),
         ],
     },
     {

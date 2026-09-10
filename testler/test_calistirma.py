@@ -199,6 +199,47 @@ print(l.map(|x| x * x))
 print(l.filter(|x| x % 2 == 0))
 print(str(l.reduce(|a, b| a + b, 0)))''', "[1, 4, 9, 16]\n[2, 4]\n10")
 
+    # --- lambda gerektirmeyen kolay liste işlemleri ---
+    def test_sayi_listesi_ozetleri(self):
+        self.esit('''let s = [5, 3, 8, 1]
+print(s.toplam())
+print(s.carpim())
+print(s.ortalama())
+print(s.enBuyuk() ?? 0)
+print(s.enKucuk() ?? 0)''', "17\n120\n4.25\n8\n1")
+
+    def test_sayi_listesi_donusumleri(self):
+        self.esit('''let s = [5, 3, 8, 1]
+print(s.kat(2))
+print(s.artir(10))
+print(s.buyukler(3))
+print(s.kucukler(3))
+print(s.ciftler())
+print(s.tekler())''',
+                  "[10, 6, 16, 2]\n[15, 13, 18, 11]\n[5, 8]\n[1]\n[8]\n[5, 3, 1]")
+
+    def test_benzersiz_ve_say(self):
+        self.esit('let s = [1, 2, 2, 3, 2]\nprint(s.benzersiz())\nprint(s.say(2))',
+                  "[1, 2, 3]\n3")
+
+    def test_metin_listesi_islemleri(self):
+        self.esit('''let k = ["nar", "elma", "kiraz"]
+print(k.buyukHarf())
+print(["NAR", "ELMA"].kucukHarf())
+print(k.icerenler("ir"))''',
+                  '["NAR", "ELMA", "KİRAZ"]\n["nar", "elma"]\n["kiraz"]')
+
+    def test_ondalikli_liste_ozetleri(self):
+        self.esit('let s = [1.5, 2.5]\nprint(s.toplam())\nprint(s.ortalama())',
+                  "4.0\n2.0")
+
+    def test_bos_listede_enbuyuk_none(self):
+        self.esit('let s: [Int] = []\nprint(s.enBuyuk() ?? -1)', "-1")
+
+    def test_bos_listede_ortalama_panik(self):
+        cikti = calistir(govde('let s: [Int] = []\nprint(s.ortalama())'))
+        self.assertIn("boş listenin ortalaması alınamaz", cikti)
+
     def test_liste_sinir_asimi(self):
         cikti = calistir(govde('let l = [1]\nprint(str(l[3]))'))
         self.assertIn("liste sınırı aşıldı", cikti)

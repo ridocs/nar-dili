@@ -9,3 +9,6 @@ cikti/
 __pycache__/
 *.py[cod]
 .venv/
+
+# IDE calisma dosyalari
+calismalar/

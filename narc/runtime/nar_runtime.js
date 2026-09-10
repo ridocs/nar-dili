@@ -241,6 +241,87 @@ function $listReduce(list, f, init) {
   return acc;
 }
 
+// --- kolay liste işlemleri -------------------------------------------------
+// Lambda yazmadan kullanılabilen, adı kendini anlatan işlemler.
+function $listToplam(list) {
+  let t = 0;
+  for (const x of list) t += x;
+  return t;
+}
+
+function $listCarpim(list) {
+  let t = 1;
+  for (const x of list) t *= x;
+  return t;
+}
+
+function $listOrtalama(list) {
+  if (list.length === 0) $panic("boş listenin ortalaması alınamaz");
+  return $listToplam(list) / list.length;
+}
+
+function $listEnBuyuk(list) {
+  if (list.length === 0) return null;
+  let e = list[0];
+  for (const x of list) if (x > e) e = x;
+  return e;
+}
+
+function $listEnKucuk(list) {
+  if (list.length === 0) return null;
+  let e = list[0];
+  for (const x of list) if (x < e) e = x;
+  return e;
+}
+
+function $listKat(list, n) {
+  return list.map((x) => x * n);
+}
+
+function $listArtir(list, n) {
+  return list.map((x) => x + n);
+}
+
+function $listBuyukler(list, n) {
+  return list.filter((x) => x > n);
+}
+
+function $listKucukler(list, n) {
+  return list.filter((x) => x < n);
+}
+
+function $listCiftler(list) {
+  return list.filter((x) => x % 2 === 0);
+}
+
+function $listTekler(list) {
+  return list.filter((x) => x % 2 !== 0);
+}
+
+function $listBenzersiz(list) {
+  const out = [];
+  for (const x of list) if (!$listContains(out, x)) out.push(x);
+  return out;
+}
+
+function $listSay(list, x) {
+  let n = 0;
+  for (const e of list) if ($eq(e, x)) n++;
+  return n;
+}
+
+function $listBuyukHarf(list) {
+  return list.map($upperTr);
+}
+
+function $listKucukHarf(list) {
+  return list.map($lowerTr);
+}
+
+function $listIcerenler(list, parca) {
+  return list.filter((s) => s.includes(parca));
+}
+
 // --- metin metotları -------------------------------------------------------
 function $strSlice(s, a, b) {
   return Array.from(s).slice(a, b).join("");
