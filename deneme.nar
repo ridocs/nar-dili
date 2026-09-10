@@ -1,0 +1,58 @@
+// Burası senin oyun alanın. İstediğin gibi değiştir, sonra çalıştır:
+//
+//     .\nar.cmd run deneme.nar
+//
+// Her program bir `main` fonksiyonuyla başlar.
+
+fn main() {
+  print("Merhaba Nar!")
+
+  // --- değişkenler ---
+  let ad = "Mustafa"           // let = değişmez
+  var sayi = 7                 // var = değiştirilebilir
+  sayi = sayi + 3
+  print("${ad}, sayı ${sayi}")
+
+  // --- listeler ---
+  let sayilar = [5, 3, 8, 1]
+  print("sıralı: ${sayilar.sort()}")
+  print("iki katları: ${sayilar.map(|x| x * 2)}")
+  print("büyükler: ${sayilar.filter(|x| x > 3)}")
+  print("toplam: ${sayilar.reduce(|a, b| a + b, 0)}")
+
+  // --- koşul ve döngü ---
+  for i in 1..=5 {
+    if i % 2 == 0 {
+      print("${i} çift")
+    } else {
+      print("${i} tek")
+    }
+  }
+
+  // --- kendi fonksiyonun ---
+  print("faktöriyel(6) = ${faktoriyel(6)}")
+
+  // --- kendi tipin ---
+  let k = Kisi { ad: "Ayşe", yas: 30 }
+  print(k.selam())
+
+  // --- opsiyonel: 'none' olabilen değer ---
+  let takma: String? = none
+  print("takma ad: ${takma ?? "yok"}")
+}
+
+fn faktoriyel(n: Int) -> Int {
+  if n <= 1 {
+    return 1
+  }
+  return n * faktoriyel(n - 1)
+}
+
+struct Kisi {
+  ad: String
+  yas: Int
+
+  fn selam() -> String {
+    return "Ben ${self.ad}, ${self.yas} yaşındayım."
+  }
+}

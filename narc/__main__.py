@@ -58,8 +58,7 @@ def main(argv: list[str] | None = None) -> int:
     sources: dict[str, str] = {}
 
     try:
-        compilation = compile_file(args.file)
-        sources = compilation.sources
+        compilation = compile_file(args.file, sources)
     except NarError as err:
         return fail(err, sources)
     except FileNotFoundError:

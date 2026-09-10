@@ -39,7 +39,9 @@ def load_module(path: Path, sources: dict[str, str], seen: list[Path],
     if not resolved.exists():
         raise NarError(f"dosya bulunamadı: {path}", Span(str(path), 1, 1))
 
-    source = resolved.read_text(encoding="utf-8")
+    # `utf-8-sig`: Windows araçları (Not Defteri, PowerShell'in `-Encoding utf8`)
+    # dosyanın başına BOM koyar. BOM varsa atılır, yoksa davranış değişmez.
+    source = resolved.read_text(encoding="utf-8-sig")
     name = resolved.name
     sources[name] = source
     seen.append(resolved)
@@ -59,8 +61,13 @@ def load_module(path: Path, sources: dict[str, str], seen: list[Path],
     return items
 
 
-def compile_file(path: Path) -> Compilation:
-    sources: dict[str, str] = {}
+def compile_file(path: Path, sources: dict[str, str] | None = None) -> Compilation:
+    """Dosyayı derler.
+
+    `sources` verilirse okunan kaynak metinler oraya yazılır. Hata fırlatılsa
+    bile dolu kalır; çağıran böylece hatanın geçtiği satırı gösterebilir.
+    """
+    sources = sources if sources is not None else {}
     seen: list[Path] = []
     items = load_module(path, sources, seen)
 

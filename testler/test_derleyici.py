@@ -64,6 +64,12 @@ class LexerTesti(unittest.TestCase):
         self.assertEqual(toks[-3].value, 0)
         self.assertEqual(tokenize("0", "t.nar")[0].value, 0)
 
+    def test_bom_atlanir(self):
+        # Regresyon: Not Defteri ve PowerShell `-Encoding utf8` dosya başına
+        # BOM koyar; derleyici bunu görmezden gelmeli.
+        toks = tokenize("﻿let x = 1", "t.nar")
+        self.assertEqual(toks[0].kind, "let")
+
     def test_kapatilmamis_metin(self):
         with self.assertRaises(NarError):
             tokenize('"açık', "t.nar")

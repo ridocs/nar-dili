@@ -51,7 +51,8 @@ def _is_ident_part(ch: str) -> bool:
 
 class Lexer:
     def __init__(self, source: str, filename: str = "<kaynak>") -> None:
-        self.src = source
+        # Kaynak metin doğrudan verildiyse BOM hâlâ başta olabilir; at.
+        self.src = source.lstrip("﻿")
         self.filename = filename
         self.i = 0
         self.line = 1

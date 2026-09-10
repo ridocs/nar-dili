@@ -10,9 +10,43 @@ Statik tipli, `null`'ı olmayan, derlenen bir programlama dili.
 
 ---
 
-## Hızlı başlangıç
+## Nasıl denerim?
 
 Gereken: **Python 3.11+** (derleyici) ve **Node.js 18+** (üretilen kodu çalıştırmak için).
+İkisi de kuruluysa kurulacak başka bir şey yok — derleyici olduğu gibi çalışır.
+
+**1. Klasöre gir** (PowerShell):
+
+```powershell
+cd C:\Users\mstfa\Desktop\yazılım_dili
+```
+
+**2. Hazır oyun alanını çalıştır:**
+
+```powershell
+.\nar.cmd run deneme.nar
+```
+
+`deneme.nar` dosyasını aç, istediğin gibi değiştir, tekrar çalıştır.
+Dilin çoğu özelliği orada yorumlarla anlatılıyor.
+
+**3. Örnekleri gez:**
+
+```powershell
+.\nar.cmd run ornekler\merhaba.nar
+.\nar.cmd run ornekler\algoritmalar.nar
+.\nar.cmd run ornekler\yapilacaklar.nar
+```
+
+**4. Kasten hata yap** — derleyicinin ne söylediğini görmek öğreticidir.
+`deneme.nar` içinde `let x = 1` yazıp altına `x = 2` ekle ve çalıştır.
+
+> **Not:** Nar'ın etkileşimli konsolu (REPL) yok. Programı dosyaya yazıp
+> `run` ile çalıştırıyorsun.
+
+---
+
+## Komutlar
 
 ```bash
 # Bir programı derle ve çalıştır
