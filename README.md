@@ -68,6 +68,11 @@ nar.cmd run ornekler\merhaba.nar        # Windows
 
 # Üretilen kodu ekrana yaz (ne ürettiğini görmek için)
 ./nar emit ornekler/merhaba.nar
+
+# Kodu yeniden girintile ve düzenle
+./nar fmt deneme.nar
+./nar fmt deneme.nar --goster     # dosyayı değiştirmeden göster
+./nar fmt deneme.nar --denetle    # düzensizse 1 döner (CI için)
 ```
 
 Testler:
@@ -75,6 +80,32 @@ Testler:
 ```bash
 python -m unittest discover -s testler
 ```
+
+---
+
+## Nar IDE
+
+Dil için bir masaüstü düzenleyici. Kendi penceresinde açılır, kurulum
+gerektirmez:
+
+```powershell
+ide.cmd                 # masaüstü penceresi
+ide.cmd --tarayici      # tarayıcı sekmesi olarak
+```
+
+| Özellik | Nasıl |
+|---|---|
+| Yazarken tip denetimi | Hatalı satır kenarda işaretlenir, altta mesaj görünür |
+| Çalıştır | `Ctrl+Enter` — çıktı yandaki panelde |
+| Düzenle (biçimlendir) | `Ctrl+Shift+D` |
+| Kaydet | `Ctrl+S` |
+| Hata kutusuna tıkla | İlgili satıra gider |
+| "JavaScript'i gör" | Nar'ın ürettiği kodu gösterir — öğretici |
+
+**IDE'nin kendisi kısmen Nar ile yazılmıştır.** Sözdizimi renklendirme,
+kod biçimlendirme, imleç konumu ve otomatik girinti hesabı
+`araclar/*.nar` dosyalarındadır; sunucu bunları derleyip tarayıcıya
+verir. Alt çubuktaki "araçlar: Nar ile yazıldı" bunu gösterir.
 
 ---
 
@@ -165,17 +196,28 @@ narc/                 derleyici (Python)
   types.py            tip sistemi
   checker.py          tip denetimi, akış daraltma, tamlık kontrolü
   driver.py           içe aktarma çözümleme + derleme boru hattı
+  bicim.py            nar fmt (biçimlendiriciyi Nar'dan çalıştırır)
   __main__.py         komut satırı arayüzü
   backends/js.py      JavaScript kod üreteci
   highlight.py        sözdizimi renklendirme (belgeler sitesi için)
   runtime/            üretilen koda gömülen çalışma zamanı
+araclar/              **Nar diliyle yazılmış araçlar**
+  tarayici.nar        ortak lexer yardımcıları
+  renklendirici.nar   sözdizimi renklendirme
+  bicimlendirici.nar  kod biçimlendirme
+  ide_araclari.nar    IDE'nin kullandığı kütüphane
+ide/                  masaüstü düzenleyici
+  masaustu.py         uygulama penceresi
+  sunucu.py           yerel sunucu + derleme/çalıştırma
+  arayuz.html         editör arayüzü
 site/                 belgeler sitesi üreteci
   icerik.py           bölümler, açıklamalar, örnekler
   uret.py             örnekleri çalıştırıp HTML üretir
 ornekler/             örnek Nar programları
-testler/              120 test (ön uç + uçtan uca çalıştırma + örnekler)
+testler/              145 test (ön uç + uçtan uca + örnekler + biçimlendirici)
 TASARIM.md            dil spesifikasyonu
 YOL-HARITASI.md       sıradaki adımlar
+DURUM.md              uzun geliştirmede nerede kalındığı
 ```
 
 ## Örnekler
@@ -185,7 +227,9 @@ YOL-HARITASI.md       sıradaki adımlar
 | `ornekler/merhaba.nar` | Dilin küçük turu: struct, enum, liste işlemleri, opsiyoneller |
 | `ornekler/yapilacaklar.nar` | Modül içe aktarma, metotlar, `?.`, filtreleme ve biçimlendirme |
 | `ornekler/metin_araclari.nar` | İçe aktarılabilir yardımcı modül |
+| `ornekler/sayac_web.nar` | Tarayıcıda çalışan uygulama: DOM, düğme, olay dinleme |
 | `deneme.nar` | Oyun alanı — yorumlarla anlatılmış, değiştirip çalıştırman için |
+| `araclar/*.nar` | Nar'ın kendi araçları — dilin kendini yazması |
 
 ## Belgeler sitesi
 
@@ -197,7 +241,7 @@ Sitedeki bütün çıktılar, sayfa üretilirken örnekler **gerçekten derlenip
 çalıştırılarak** alınır. Bir örnek bozulursa üretim durur — yani site hiçbir
 zaman çalışmayan kod göstermez.
 
-## Sınırlar (v0.2)
+## Sınırlar
 
 Bunlar bilinen ve kasıtlı eksiklerdir, sürpriz değil:
 
@@ -207,3 +251,5 @@ Bunlar bilinen ve kasıtlı eksiklerdir, sürpriz değil:
 - Eşzamanlılık (`async`) yok
 - Standart kütüphane küçük — dosya, ağ, tarih işlemleri yok
 - Bağlamı olmayan lambda'da parametre tipi yazılmalı (`|x: Int| x + 1`)
+- Sözdizimi hatalarında yalnızca ilki bildirilir (tip hatalarının hepsi bildirilir)
+- Sayfa (DOM) işlemleri yalnızca tarayıcı hedefinde çalışır
