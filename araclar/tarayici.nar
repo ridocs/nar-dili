@@ -1,0 +1,187 @@
+// Nar kaynağını gezmek için ortak yardımcılar — Nar diliyle yazılmıştır.
+//
+// Hem sözdizimi renklendiricisi hem kod biçimlendirici bunu kullanır.
+// Nar'da düzenli ifade (regex) yoktur; kaynak karakter karakter taranır.
+//
+// Bu dosya bir kütüphanedir: `main` içermez, başka dosyalardan
+// `import "tarayici.nar"` ile alınır.
+
+let KUCUK = "abcçdefgğhıijklmnoöprsştuüvwxyz"
+let BUYUK = "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVWXYZ"
+let RAKAM = "0123456789"
+let BOSLUK = " \t\r\n"
+
+let ANAHTAR = [
+  "let", "var", "fn", "return", "if", "else", "while", "for", "in",
+  "match", "struct", "enum", "import", "true", "false", "none",
+  "self", "break", "continue", "type"
+]
+
+let TIP_ADI = ["Int", "Float", "Bool", "String", "Void", "Element"]
+
+let YERLESIK = [
+  "print", "str", "len", "int", "float", "abs", "min", "max", "sqrt",
+  "pow", "floor", "ceil", "round", "random", "panic", "assert",
+  "bul", "bulHepsi", "olustur", "govde", "zamanla", "istek"
+]
+
+// --- karakter sınıfları ---------------------------------------------------
+
+fn harfMi(c: String) -> Bool {
+  if c.len() == 0 {
+    return false
+  }
+  return KUCUK.contains(c) || BUYUK.contains(c) || c == "_"
+}
+
+fn rakamMi(c: String) -> Bool {
+  if c.len() == 0 {
+    return false
+  }
+  return RAKAM.contains(c)
+}
+
+fn adKarakteriMi(c: String) -> Bool = harfMi(c) || rakamMi(c)
+
+fn buyukHarfMi(c: String) -> Bool {
+  if c.len() == 0 {
+    return false
+  }
+  return BUYUK.contains(c)
+}
+
+fn bosluktanMi(c: String) -> Bool {
+  if c.len() == 0 {
+    return false
+  }
+  return BOSLUK.contains(c)
+}
+
+// --- güvenli karakter erişimi ---------------------------------------------
+
+fn karakter(kaynak: String, i: Int) -> String {
+  if i < 0 || i >= kaynak.len() {
+    return ""
+  }
+  return kaynak.charAt(i)
+}
+
+// --- parça sonu bulucular -------------------------------------------------
+// Her biri parçanın başladığı dizini alır, bittiği dizini döndürür.
+
+fn satirYorumuSonu(kaynak: String, bas: Int) -> Int {
+  var i = bas
+  let n = kaynak.len()
+  while i < n && karakter(kaynak, i) != "\n" {
+    i += 1
+  }
+  return i
+}
+
+fn blokYorumuSonu(kaynak: String, bas: Int) -> Int {
+  let n = kaynak.len()
+  var i = bas + 2
+  var derinlik = 1
+  while i < n && derinlik > 0 {
+    let c = karakter(kaynak, i)
+    let d = karakter(kaynak, i + 1)
+    if c == "/" && d == "*" {
+      derinlik += 1
+      i += 2
+    } else {
+      if c == "*" && d == "/" {
+        derinlik -= 1
+        i += 2
+      } else {
+        i += 1
+      }
+    }
+  }
+  return i
+}
+
+fn metinSonu(kaynak: String, bas: Int) -> Int {
+  let n = kaynak.len()
+  var i = bas + 1
+  while i < n {
+    let c = karakter(kaynak, i)
+    if c == "\\" {
+      i += 2
+      continue
+    }
+    if c == "\"" {
+      return i + 1
+    }
+    if c == "\n" {
+      return i
+    }
+    i += 1
+  }
+  return i
+}
+
+fn sayiSonu(kaynak: String, bas: Int) -> Int {
+  let n = kaynak.len()
+  var i = bas
+  var noktaVar = false
+  while i < n {
+    let c = karakter(kaynak, i)
+    if rakamMi(c) || c == "_" {
+      i += 1
+      continue
+    }
+    if c == "." && !noktaVar && rakamMi(karakter(kaynak, i + 1)) {
+      noktaVar = true
+      i += 1
+      continue
+    }
+    if harfMi(c) && i > bas {
+      // 0xFF, 1e5 gibi gösterimlerin harfleri
+      i += 1
+      continue
+    }
+    return i
+  }
+  return i
+}
+
+fn kelimeSonu(kaynak: String, bas: Int) -> Int {
+  let n = kaynak.len()
+  var i = bas
+  while i < n && adKarakteriMi(karakter(kaynak, i)) {
+    i += 1
+  }
+  return i
+}
+
+// --- kelime sınıflandırma -------------------------------------------------
+
+// Bir kelimenin hangi renge boyanacağını belirler. `sonrasi`, kelimeden
+// hemen sonraki metindir; açılış parantezi varsa kelime bir çağrıdır.
+fn kelimeSinifi(kelime: String, sonrasi: String) -> String {
+  if ANAHTAR.contains(kelime) {
+    return "n-kw"
+  }
+  if TIP_ADI.contains(kelime) {
+    return "n-tip"
+  }
+  if YERLESIK.contains(kelime) {
+    return "n-yerlesik"
+  }
+  if sonrasi.trim().startsWith("(") {
+    return "n-fn"
+  }
+  if buyukHarfMi(kelime.charAt(0)) {
+    return "n-tip"
+  }
+  return ""
+}
+
+// --- HTML kaçışı ----------------------------------------------------------
+
+fn kacir(s: String) -> String {
+  var sonuc = s.replace("&", "&amp;")
+  sonuc = sonuc.replace("<", "&lt;")
+  sonuc = sonuc.replace(">", "&gt;")
+  return sonuc
+}

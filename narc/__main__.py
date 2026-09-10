@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
+from .bicim import BicimHatasi, bicimlendir
 from .diagnostics import NarError, NarErrors
 from .driver import compile_file, to_html
 
@@ -39,6 +40,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"Nar {__version__}")
     subs = parser.add_subparsers(dest="command", required=True)
 
+    fmt = subs.add_parser("fmt", help="kodu yeniden girintiler ve düzenler")
+    fmt.add_argument("file", type=Path, help="kaynak .nar dosyası")
+    fmt.add_argument("--goster", action="store_true",
+                     help="dosyayı değiştirme, sonucu ekrana yaz")
+    fmt.add_argument("--denetle", action="store_true",
+                     help="dosyayı değiştirme; düzenlenmesi gerekiyorsa 1 döner")
+
     for name, help_text in (
         ("run", "derler ve çalıştırır"),
         ("build", "hedef kodu dosyaya yazar"),
@@ -60,9 +68,45 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def komut_fmt(args) -> int:
+    """Biçimlendirici Nar diliyle yazılmıştır; burada yalnızca çağrılır."""
+    if not args.file.exists():
+        print(f"hata: dosya bulunamadı: {args.file}", file=sys.stderr)
+        return 1
+
+    kaynak = args.file.read_text(encoding="utf-8-sig")
+    try:
+        sonuc = bicimlendir(kaynak)
+    except BicimHatasi as err:
+        print(f"hata: {err}", file=sys.stderr)
+        return 1
+
+    if args.goster:
+        sys.stdout.write(sonuc)
+        return 0
+
+    if args.denetle:
+        if sonuc != kaynak:
+            print(f"{args.file}: düzenlenmesi gerekiyor")
+            return 1
+        print(f"{args.file}: düzenli")
+        return 0
+
+    if sonuc == kaynak:
+        print(f"{args.file}: zaten düzenli")
+        return 0
+
+    args.file.write_text(sonuc, encoding="utf-8")
+    print(f"düzenlendi: {args.file}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     sources: dict[str, str] = {}
+
+    if args.command == "fmt":
+        return komut_fmt(args)
 
     try:
         compilation = compile_file(args.file, sources,

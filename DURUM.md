@@ -7,7 +7,7 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 
 ## Son güncelleme
 
-**2026-09-10 23:39** — v0.2 + IDE tamamlandı, v0.2.5'e başlanıyor.
+**2026-09-11 00:05** — DOM bağlaması bitti; IDE'yi Nar'a taşıma sürüyor.
 
 ## Şu ana kadar biten
 
@@ -18,15 +18,24 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 | v0.2 | Belgeler sitesi (33 konu, örnekler üretimde çalıştırılıyor) | ✅ |
 | v0.2 | Lambda gerektirmeyen liste işlemleri (toplam, ortalama, kat, buyukler…) | ✅ |
 | v0.2 | Nar IDE — tarayıcıda editör, canlı denetim, çalıştır, JS'i gör | ✅ |
+| v0.2.5 | Tüm tip hataları tek seferde bildiriliyor | ✅ |
+| v0.2.5 | IDE masaüstü uygulaması (pywebview / Edge --app) | ✅ |
+| v0.2.5 | Kütüphane modu (--kutuphane): Nar ile JS kütüphanesi yazma | ✅ |
+| v0.2.5 | Renklendirici Nar ile yeniden yazıldı, IDE onu kullanıyor | ✅ |
+| v0.2.5 | Metin işlemlerinde O(n²) → O(n) önbellek düzeltmesi | ✅ |
+| v0.3 | Sayfa (DOM) bağlaması: Element tipi, bul/olustur/dinle | ✅ |
 
-**Testler:** 127, hepsi geçiyor · `python -m unittest discover -s testler`
-**Son commit:** `b64a7fb`
+**Testler:** 132, hepsi geçiyor · `python -m unittest discover -s testler`
+**Son commit:** `20fc796`
 
 ## Sırada (öncelik sırasıyla)
 
-- [ ] **1. Birden çok hatayı birden bildirme** — şu an ilk hatada duruyor.
-      `Checker.check()` içinde `raise self.errors[0]` var; hepsini toplayıp
-      döndürmeli. CLI ve IDE hepsini göstermeli.
+**Kullanıcının açık isteği:** IDE'yi olabildiğince Nar diliyle yazmak
+(şu ana kadar: renklendirici taşındı) ve masaüstü uygulaması olarak
+geliştirmek (yapıldı).
+
+- [ ] **1. Kod biçimlendirici** — `araclar/bicimlendirici.nar` (Nar ile),
+      `nar fmt` komutu ve IDE'de "Düzenle" düğmesi.
 - [ ] **2. Generic tipler** — `struct Kutu<T>`, `enum Sonuc<T, H>`.
       Tip sistemine tip değişkeni ve yerine koyma (substitution) gerekir.
 - [ ] **3. interface (trait)** — ortak davranış tanımı.

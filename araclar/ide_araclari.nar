@@ -1,0 +1,51 @@
+// IDE'nin tarayıcıda kullandığı araçlar — hepsi Nar diliyle yazılmıştır.
+//
+// Renklendirici ve biçimlendirici tek bir kütüphane olarak derlenir; böylece
+// çalışma zamanı kütüphanesi bir kez gömülür ve isimler çakışmaz.
+//
+//     nar build araclar/ide_araclari.nar --kutuphane -o cikti/nar-araclari.js
+//
+// Tarayıcıda:  Nar.renklendir(kaynak)  ·  Nar.bicimlendir(kaynak)
+
+import "renklendirici.nar"
+import "bicimlendirici.nar"
+
+// Kaynağın kaç satır olduğunu söyler — IDE satır numaralarını buna göre üretir.
+fn satirSayisi(kaynak: String) -> Int = kaynak.split("\n").len()
+
+// Verilen konumun kaçıncı satır ve sütunda olduğunu bulur (1 tabanlı).
+// IDE alt çubuğundaki "satır 3, sütun 12" bilgisi budur.
+fn satirSutun(kaynak: String, konum: Int) -> [Int] {
+  var satir = 1
+  var sutun = 1
+  var i = 0
+  let sinir = min(konum, kaynak.len())
+
+  while i < sinir {
+    if karakter(kaynak, i) == "\n" {
+      satir += 1
+      sutun = 1
+    } else {
+      sutun += 1
+    }
+    i += 1
+  }
+  return [satir, sutun]
+}
+
+// Enter'a basıldığında yeni satırın alacağı girintiyi hesaplar:
+// önceki satırın girintisi, satır "{" ile bitiyorsa bir kademe fazlası.
+fn sonrakiGirinti(satir: String) -> String {
+  var bas = 0
+  let n = satir.len()
+  while bas < n && (karakter(satir, bas) == " " || karakter(satir, bas) == "\t") {
+    bas += 1
+  }
+  var girinti = satir.slice(0, bas)
+
+  let kirpik = satir.trim()
+  if kirpik.endsWith("{") || kirpik.endsWith("[") || kirpik.endsWith("(") {
+    girinti += GIRINTI
+  }
+  return girinti
+}

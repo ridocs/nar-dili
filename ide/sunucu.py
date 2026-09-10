@@ -34,37 +34,46 @@ ARAYUZ = Path(__file__).resolve().parent / "arayuz.html"
 CALISMALAR = KOK / "calismalar"
 NODE = shutil.which("node")
 
-# IDE'nin sözdizimi renklendiricisi Nar diliyle yazılmıştır; sunucu onu
-# istendiğinde derleyip servis eder. Kaynak değişirse kendiliğinden yenilenir.
-RENKLENDIRICI_NAR = KOK / "araclar" / "renklendirici.nar"
-_renklendirici_onbellek: dict[str, object] = {"mtime": None, "js": ""}
+# IDE'nin araçları — renklendirici, biçimlendirici ve düzenleme yardımcıları —
+# Nar diliyle yazılmıştır. Sunucu onları istendiğinde derleyip servis eder;
+# kaynak değişirse kendiliğinden yenilenir.
+ARACLAR_NAR = KOK / "araclar" / "ide_araclari.nar"
+_araclar_onbellek: dict[str, object] = {"imza": None, "js": ""}
 
 
-def renklendirici_js() -> str:
-    """`araclar/renklendirici.nar` dosyasını kütüphane olarak derler."""
+def _araclar_imzasi() -> tuple:
+    """Araç kaynaklarının değişme zamanları; biri değişirse yeniden derlenir."""
+    zamanlar = []
+    for yol in sorted((KOK / "araclar").glob("*.nar")):
+        try:
+            zamanlar.append((yol.name, yol.stat().st_mtime))
+        except OSError:
+            pass
+    return tuple(zamanlar)
+
+
+def araclar_js() -> str:
+    """`araclar/ide_araclari.nar` dosyasını kütüphane olarak derler."""
+    if not ARACLAR_NAR.exists():
+        return "/* ide_araclari.nar bulunamadı */"
+
+    imza = _araclar_imzasi()
+    if _araclar_onbellek["imza"] == imza and _araclar_onbellek["js"]:
+        return _araclar_onbellek["js"]  # type: ignore[return-value]
+
     try:
-        mtime = RENKLENDIRICI_NAR.stat().st_mtime
-    except OSError:
-        return "/* renklendirici.nar bulunamadı */"
-
-    if _renklendirici_onbellek["mtime"] == mtime:
-        return _renklendirici_onbellek["js"]  # type: ignore[return-value]
-
-    kaynak = RENKLENDIRICI_NAR.read_text(encoding="utf-8-sig")
-    try:
-        module = parse(kaynak, "renklendirici.nar")
-        checker = Checker(module, kaynak, kutuphane=True)
-        checker.check()
-        kod = js_backend.generate(module, checker, kutuphane=True)
+        from narc.driver import compile_file
+        kod = compile_file(ARACLAR_NAR, kutuphane=True).to_js()
     except NarError as err:
-        # Renklendirici bozulursa IDE çalışmaya devam etmeli.
-        kod = ("/* renklendirici derlenemedi:\n"
-               + err.render(kaynak).replace("*/", "* /")
+        # Araçlar bozulursa IDE çalışmaya devam etmeli; yalnızca renk gider.
+        kod = ("/* Nar araçları derlenemedi:\n"
+               + err.render().replace("*/", "* /")
                + "\n*/\n")
 
-    _renklendirici_onbellek["mtime"] = mtime
-    _renklendirici_onbellek["js"] = kod
+    _araclar_onbellek["imza"] = imza
+    _araclar_onbellek["js"] = kod
     return kod
+
 
 # Çalıştırma süresi sınırı: sonsuz döngü tarayıcıyı kilitlemesin.
 ZAMAN_ASIMI = 10
@@ -214,8 +223,8 @@ class Islem(BaseHTTPRequestHandler):
             self._metin(ARAYUZ.read_text(encoding="utf-8"))
             return
 
-        if yol == "/renklendirici.js":
-            self._metin(renklendirici_js(), "application/javascript; charset=utf-8")
+        if yol == "/nar-araclari.js":
+            self._metin(araclar_js(), "application/javascript; charset=utf-8")
             return
 
         if yol == "/api/dosyalar":
