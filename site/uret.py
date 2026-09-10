@@ -761,9 +761,13 @@ def main() -> int:
         "--cikti", type=Path, default=KOK / "cikti" / "site" / "index.html",
         help="çıktı HTML dosyası",
     )
+    ayristirici.add_argument(
+        "--artifact", action="store_true",
+        help="Artifact olarak yayımlanacak biçim (html/head/body sarmalayıcısı yok)",
+    )
     args = ayristirici.parse_args()
 
-    sayfa = sayfa_uret()
+    sayfa = sayfa_uret(artifact=args.artifact)
     args.cikti.parent.mkdir(parents=True, exist_ok=True)
     args.cikti.write_text(sayfa, encoding="utf-8")
 
