@@ -225,6 +225,22 @@ fn main() { print(str(E.A(5).deger())) }
             "eksik alanlar",
         )
 
+    def test_tum_hatalar_birden_bildirilir(self):
+        src = wrap('let a: Int = "m"\nlet b = yok\nprint(d)')
+        with self.assertRaises(NarError) as ctx:
+            check(src)
+        hepsi = getattr(ctx.exception, "errors", [])
+        self.assertEqual(len(hepsi), 3, f"3 hata bekleniyordu: {[h.message for h in hepsi]}")
+        # Konuma göre sıralı olmalı
+        satirlar = [h.span.line for h in hepsi]
+        self.assertEqual(satirlar, sorted(satirlar))
+
+    def test_ayni_hata_tekrarlanmaz(self):
+        src = wrap("let a = yok")
+        with self.assertRaises(NarError) as ctx:
+            check(src)
+        self.assertEqual(len(getattr(ctx.exception, "errors", [])), 1)
+
     def test_yanlis_argüman_sayisi(self):
         self.hatali(
             "fn f(a: Int) -> Int { return a }\nfn main() { print(str(f(1, 2))) }",

@@ -12,7 +12,7 @@ bu sayede `[]`, `none` ve lambda parametreleri tip yazmadan çalışır.
 from __future__ import annotations
 
 from . import nar_ast as A
-from .diagnostics import NarError
+from .diagnostics import NarError, NarErrors, duzenle
 from .types import (
     ANY, BOOL, FLOAT, INT, NEVER, NONE, NUMERIC, ORDERED, PRIMITIVES, STRING, VOID,
     AnyT, EnumT, FnT, ListT, MapT, NeverT, NoneT, OptT, Prim, RangeT, StructT,
@@ -79,7 +79,8 @@ class Checker:
         self.collect()
         self.check_bodies()
         if self.errors:
-            raise self.errors[0]
+            # Tüm hatalar birden bildirilir; kullanıcı hepsini tek seferde görür.
+            raise NarErrors(duzenle(self.errors))
 
     def error(self, message: str, span, hint: str | None = None) -> None:
         self.errors.append(NarError(message, span, hint))

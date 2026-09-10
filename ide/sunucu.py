@@ -38,22 +38,35 @@ NODE = shutil.which("node")
 ZAMAN_ASIMI = 10
 
 
+def _hata_sozlugu(err: NarError, kaynak: str) -> dict:
+    return {
+        "mesaj": err.message,
+        "satir": err.span.line if err.span else None,
+        "sutun": err.span.col if err.span else None,
+        "uzunluk": err.span.length if err.span else 1,
+        "ipucu": err.hint,
+        "gosterim": err.render(kaynak),
+    }
+
+
 def derle(kaynak: str, ad: str = "duzenleyici.nar"):
-    """(js_kodu, hata_sozlugu) döndürür; biri her zaman None'dur."""
+    """(js_kodu, hata_sozlugu) döndürür; biri her zaman None'dur.
+
+    Hata sözlüğü ilk hatayı taşır; `hepsi` alanında tüm hatalar bulunur.
+    """
     try:
         module = parse(kaynak, ad)
         checker = Checker(module, kaynak)
         checker.check()
         return js_backend.generate(module, checker), None
     except NarError as err:
-        return None, {
-            "mesaj": err.message,
-            "satir": err.span.line if err.span else None,
-            "sutun": err.span.col if err.span else None,
-            "uzunluk": err.span.length if err.span else 1,
-            "ipucu": err.hint,
-            "gosterim": err.render(kaynak),
-        }
+        sozluk = _hata_sozlugu(err, kaynak)
+        hepsi = getattr(err, "errors", None)
+        sozluk["hepsi"] = [_hata_sozlugu(h, kaynak) for h in hepsi] if hepsi else [dict(sozluk)]
+        sozluk["adet"] = len(sozluk["hepsi"])
+        if sozluk["adet"] > 1:
+            sozluk["gosterim"] = "\n\n".join(h["gosterim"] for h in sozluk["hepsi"])
+        return None, sozluk
     except RecursionError:
         return None, {
             "mesaj": "program çok derin iç içe geçmiş (özyineleme sınırı)",

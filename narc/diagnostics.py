@@ -48,3 +48,55 @@ class NarError(Exception):
         if self.hint:
             out.append(f"  ipucu: {self.hint}")
         return "\n".join(out)
+
+
+class NarErrors(NarError):
+    """Birden çok derleme hatası.
+
+    `NarError`'dan türer: ilk hatanın mesajını ve konumunu taşır, böylece
+    yalnızca tek hata bekleyen çağıranlar değişmeden çalışmaya devam eder.
+    Hepsini görmek isteyen `errors` listesine ya da `render_all()`'a bakar.
+    """
+
+    def __init__(self, errors: list[NarError]) -> None:
+        if not errors:  # pragma: no cover - çağıran boş liste vermez
+            raise ValueError("NarErrors boş liste ile oluşturulamaz")
+        ilk = errors[0]
+        super().__init__(ilk.message, ilk.span, ilk.hint)
+        self.errors = errors
+
+    def render_all(self, sources: dict[str, str] | None = None) -> str:
+        """Tüm hataları alt alta biçimler."""
+        sources = sources or {}
+        parcalar = []
+        for hata in self.errors:
+            kaynak = sources.get(hata.span.filename) if hata.span else None
+            parcalar.append(hata.render(kaynak))
+        adet = len(self.errors)
+        if adet > 1:
+            parcalar.append(f"\n{adet} hata bulundu.")
+        return "\n\n".join(parcalar)
+
+
+def duzenle(errors: list[NarError]) -> list[NarError]:
+    """Hataları konuma göre sıralar ve birebir aynı olanları teke indirir."""
+    gorulmus: set[tuple] = set()
+    benzersiz: list[NarError] = []
+    for hata in errors:
+        anahtar = (
+            hata.span.filename if hata.span else "",
+            hata.span.line if hata.span else 0,
+            hata.span.col if hata.span else 0,
+            hata.message,
+        )
+        if anahtar in gorulmus:
+            continue
+        gorulmus.add(anahtar)
+        benzersiz.append(hata)
+
+    benzersiz.sort(key=lambda h: (
+        h.span.filename if h.span else "",
+        h.span.line if h.span else 0,
+        h.span.col if h.span else 0,
+    ))
+    return benzersiz

@@ -16,11 +16,14 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .diagnostics import NarError
+from .diagnostics import NarError, NarErrors
 from .driver import compile_file, to_html
 
 
 def fail(err: NarError, sources: dict[str, str]) -> int:
+    if isinstance(err, NarErrors):
+        print(err.render_all(sources), file=sys.stderr)
+        return 1
     source = None
     if err.span is not None:
         source = sources.get(err.span.filename)
