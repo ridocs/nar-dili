@@ -1,0 +1,213 @@
+// Tip sistemini sınamak için sabit bir tip listesi.
+//
+// Python'daki `narc/tip_ornekleri.py` **birebir aynı** listeyi kurar.
+// Böylece iki tip sistemi, tarif alışverişine gerek kalmadan aynı tipler
+// üzerinde karşılaştırılabilir: i. tip iki tarafta da aynı tiptir.
+//
+// Liste sıralaması testin sözleşmesidir; ortaya eleman eklenmez, sona eklenir.
+
+import "../../derleyici/tipler.nar"
+
+fn ornekStruct() -> StructTipi = StructTipi {
+  ad: "Nokta",
+  arayuzler: ["Yazdirilabilir"],
+  hamAlanlar: [
+    AdTip { ad: "x", tip: TAM },
+    AdTip { ad: "y", tip: TAM }
+  ],
+  degisebilirAlanlar: ["x"],
+  hamMetotlar: [AdTip { ad: "yaz", tip: TipIslev([], METIN) }],
+  tipParametreleri: [],
+  tipArgumanlari: [],
+  sablon: none,
+  cozulmusAlanlar: none,
+  cozulmusMetotlar: none
+}
+
+// `struct Kutu<T> { deger: T }`
+fn kutuSablonu() -> StructTipi = StructTipi {
+  ad: "Kutu",
+  arayuzler: [],
+  hamAlanlar: [AdTip { ad: "deger", tip: TipDegisken("T") }],
+  degisebilirAlanlar: [],
+  hamMetotlar: [AdTip { ad: "al", tip: TipIslev([], TipDegisken("T")) }],
+  tipParametreleri: ["T"],
+  tipArgumanlari: [],
+  sablon: none,
+  cozulmusAlanlar: none,
+  cozulmusMetotlar: none
+}
+
+fn ornekEnum() -> EnumTipi = EnumTipi {
+  ad: "Hava",
+  arayuzler: [],
+  hamVaryantlar: [
+    AdYuk { ad: "Gunesli", yuk: [] },
+    AdYuk { ad: "Yagmurlu", yuk: [TAM] }
+  ],
+  hamMetotlar: [],
+  tipParametreleri: [],
+  tipArgumanlari: [],
+  sablon: none,
+  cozulmusVaryantlar: none,
+  cozulmusMetotlar: none
+}
+
+// `enum Sonuc<T, H> { Tamam(T)  Hata(H) }`
+fn sonucSablonu() -> EnumTipi = EnumTipi {
+  ad: "Sonuc",
+  arayuzler: [],
+  hamVaryantlar: [
+    AdYuk { ad: "Tamam", yuk: [TipDegisken("T")] },
+    AdYuk { ad: "Hata", yuk: [TipDegisken("H")] }
+  ],
+  hamMetotlar: [],
+  tipParametreleri: ["T", "H"],
+  tipArgumanlari: [],
+  sablon: none,
+  cozulmusVaryantlar: none,
+  cozulmusMetotlar: none
+}
+
+fn ornekArayuz() -> ArayuzTipi = ArayuzTipi {
+  ad: "Yazdirilabilir",
+  metotlar: [AdTip { ad: "yaz", tip: TipIslev([], METIN) }]
+}
+
+fn ornekTipler() -> [Tip] {
+  let nokta = ornekStruct()
+  let kutu = kutuSablonu()
+  let hava = ornekEnum()
+  let sonuc = sonucSablonu()
+
+  return [
+    TAM,                                             // 0
+    ONDALIK,                                         // 1
+    MANTIK,                                          // 2
+    METIN,                                           // 3
+    BOSLUK,                                          // 4
+    OGE,                                             // 5
+    OLAY_TIPI,                                       // 6
+    TipYok,                                          // 7
+    TipHicbir,                                       // 8
+    TipHerhangi,                                     // 9
+    TipListe(TAM),                                   // 10
+    TipListe(METIN),                                 // 11
+    TipListe(TipListe(TAM)),                         // 12
+    TipEsleme(METIN, TAM),                           // 13
+    TipEsleme(TAM, TipListe(METIN)),                 // 14
+    TipOpsiyonel(TAM),                               // 15
+    TipOpsiyonel(METIN),                             // 16
+    TipOpsiyonel(TipListe(TAM)),                     // 17
+    TipIslev([], BOSLUK),                            // 18
+    TipIslev([TAM], MANTIK),                         // 19
+    TipIslev([TAM, METIN], BOSLUK),                  // 20
+    TipIslev([OLAY_TIPI], BOSLUK),                   // 21
+    TipIslev([], TAM),                               // 22
+    TipAralik(TAM),                                  // 23
+    TipDegisken("T"),                                // 24
+    TipDegisken("U"),                                // 25
+    TipStruct(nokta),                                // 26
+    TipStruct(kutu),                                 // 27  (uygulanmamış şablon)
+    TipStruct(structUygula(kutu, [TAM])),            // 28
+    TipStruct(structUygula(kutu, [METIN])),          // 29
+    TipStruct(structUygula(kutu, [TipDegisken("T")])), // 30
+    TipEnum(hava),                                   // 31
+    TipEnum(sonuc),                                  // 32
+    TipEnum(enumUygula(sonuc, [TAM, METIN])),        // 33
+    TipEnum(enumUygula(sonuc, [METIN, TAM])),        // 34
+    TipArayuz(ornekArayuz()),                        // 35
+    TipOpsiyonel(TipStruct(nokta)),                  // 36
+    TipListe(TipStruct(structUygula(kutu, [TAM]))),  // 37
+    TipIslev([TipDegisken("T")], TipDegisken("T")),  // 38
+    TipEsleme(METIN, TipOpsiyonel(TAM))              // 39
+  ]
+}
+
+// --- sınama çıktıları -----------------------------------------------------
+// Her biri düz metin döndürür; Python tarafı aynısını üretmelidir.
+
+fn tipMetinleri() -> [String] = ornekTipler().map(|t| tipMetni(t))
+
+fn atanabilirlikTablosu() -> [String] {
+  let tipler = ornekTipler()
+  var satirlar: [String] = []
+  for hedef in tipler {
+    var satir = ""
+    for kaynak in tipler {
+      if atanabilir(hedef, kaynak) {
+        satir += "1"
+      } else {
+        satir += "0"
+      }
+    }
+    satirlar.push(satir)
+  }
+  return satirlar
+}
+
+fn ortakTipTablosu() -> [String] {
+  let tipler = ornekTipler()
+  var satirlar: [String] = []
+  for a in tipler {
+    var hucreler: [String] = []
+    for b in tipler {
+      let o = ortakTip(a, b)
+      if o == none {
+        hucreler.push("-")
+      } else {
+        hucreler.push(tipMetni(o!))
+      }
+    }
+    satirlar.push(hucreler.join("|"))
+  }
+  return satirlar
+}
+
+fn birlestirmeTablosu() -> [String] {
+  let tipler = ornekTipler()
+  var satirlar: [String] = []
+  for sablon in tipler {
+    var hucreler: [String] = []
+    for somut in tipler {
+      var esleme: [AdTip] = []
+      let oldu = birlestir(sablon, somut, esleme)
+      if !oldu {
+        hucreler.push("-")
+      } else {
+        hucreler.push(esleme.map(|e| e.ad + "=" + tipMetni(e.tip)).join(","))
+      }
+    }
+    satirlar.push(hucreler.join("|"))
+  }
+  return satirlar
+}
+
+// Generic tiplerin tembel çözülen alanları.
+fn alanMetinleri() -> [String] {
+  let kutu = kutuSablonu()
+  let sonuc = sonucSablonu()
+  var cikti: [String] = []
+
+  let nokta = ornekStruct()
+  cikti.push(nokta.alanlar().map(|a| a.ad + ":" + tipMetni(a.tip)).join(","))
+
+  for arg in [TAM, METIN, TipListe(TAM)] {
+    let u = structUygula(kutu, [arg])
+    cikti.push(u.alanlar().map(|a| a.ad + ":" + tipMetni(a.tip)).join(","))
+    cikti.push(u.metotlar().map(|m| m.ad + ":" + tipMetni(m.tip)).join(","))
+  }
+
+  let s = enumUygula(sonuc, [TAM, METIN])
+  cikti.push(s.varyantlar().map(
+    |v| v.ad + "(" + v.yuk.map(|t| tipMetni(t)).join(",") + ")").join(";"))
+
+  let ters = enumUygula(sonuc, [METIN, TAM])
+  cikti.push(ters.varyantlar().map(
+    |v| v.ad + "(" + v.yuk.map(|t| tipMetni(t)).join(",") + ")").join(";"))
+
+  return cikti
+}
+
+fn tipDegiskeniMetinleri() -> [String] =
+  ornekTipler().map(|t| tipDegiskenleri(t).join(","))

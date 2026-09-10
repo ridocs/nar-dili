@@ -7,7 +7,7 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 
 ## Son güncelleme
 
-**2026-09-11 02:30** — Self-hosting parser bitti; sırada tip denetleyici ya da IDE'yi arayüz kütüphanesine taşımak.
+**2026-09-11 03:10** — Tip sistemi Nar'a taşındı. Sırada tip denetleyicinin kendisi (`narc/checker.py`, 2100+ satır).
 
 ## Şu ana kadar biten
 
@@ -39,11 +39,12 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 | v0.6 | Karakter kodu: `"A".kodu()` ve `koddan(65)` | ✅ |
 | v0.7 | **Self-hosting adım 2**: çözümleyici (parser) Nar diliyle | ✅ |
 | v0.7 | S-ifadesi karşılaştırması (ast.nar + narc/sifade.py) | ✅ |
+| v0.7 | **Self-hosting adım 3**: tip sistemi Nar diliyle (tipler.nar) | ✅ |
 | v0.6 | **Mobil hedef**: nar build --target mobil (Capacitor projesi) | ⚠️ cihazda denenmedi |
 
-**Testler:** 225, hepsi geçiyor · `python -m unittest discover -s testler`
-**Son commit:** `a017485` (bir sonraki: self-hosting parser)
-**Nar ile yazılan kod:** ~4900 satır (`araclar/`, `derleyici/`, `ornekler/`, `testler/nar/`)
+**Testler:** 231, hepsi geçiyor · `python -m unittest discover -s testler`
+**Son commit:** `0bd2351` (bir sonraki: tip sistemi)
+**Nar ile yazılan kod:** ~5800 satır (`araclar/`, `derleyici/`, `ornekler/`, `testler/nar/`)
 
 ## Sırada (öncelik sırasıyla)
 
@@ -62,10 +63,16 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
       `derleyici/ast.nar`, `derleyici/parser.nar`. Doğrulama: iki
       çözümleyicinin ürettiği ağaçlar S-ifadesi olarak karşılaştırılıyor;
       projedeki 22 `.nar` dosyasında birebir aynı.
-- [ ] **6. Self-hosting: tip denetleyici** — sıradaki en büyük parça.
-      `narc/checker.py` 2100+ satır; tip sistemi (`narc/types.py`) de
-      taşınmalı. Aynı doğrulama yöntemi kullanılabilir: iki denetleyicinin
-      ürettiği hata listelerini karşılaştır (mesaj + satır + sütun).
+- [x] ~~**6a. Tip sistemi**~~ — `derleyici/tipler.nar`. Doğrulama: iki
+      taraf aynı 40 tipi kurar; atanabilirlik, ortak tip ve birleştirme
+      40×40 çift üzerinde karşılaştırılır (1600 çift × 3 işlem), ayrıca
+      yazım, tembel alan çözümü ve tip değişkeni arama.
+- [ ] **6b. Tip denetleyici** — sıradaki en büyük parça (`narc/checker.py`,
+      2100+ satır). Doğrulama yöntemi: iki denetleyicinin ürettiği hata
+      listelerini karşılaştır (mesaj + satır + sütun). Hatasız dosyalarda
+      ise "ikisi de hata bulmadı" yeterli.
+      Tavsiye: parça parça git — önce ifadeler, sonra deyimler, sonra
+      bildirimler. Her parçadan sonra karşılaştırmayı çalıştır.
 - [ ] **7. IDE'yi arayüz kütüphanesiyle yeniden yaz** — IDE şu an DOM'a elle
       çiziyor; `Gorunum` ağacına taşınırsa hem kütüphane gerçek bir yükte
       denenmiş olur hem de IDE kodu kısalır.
@@ -84,6 +91,20 @@ git log --oneline | head -5                # nerede kalındı
 Sonra yukarıdaki listede işaretsiz ilk maddeye devam et.
 Her madde bitince: testleri çalıştır, siteyi yeniden üret
 (`python site/uret.py`), commit et, bu dosyayı güncelle.
+
+## Dilde bilinen kısıtlar
+
+Bunlar hata değil, henüz yapılmamış şeyler. Nar ile kod yazarken karşına
+çıkarsa şaşırma:
+
+- **`match` bir ifade olarak kullanıldığında kolları tek değer olmalı.**
+  Blok yazamazsın. Birkaç adım gerekiyorsa ya `match` deyimi kullan (kolda
+  blok olur) ya da o kolu ayrı bir işleve çıkar. `derleyici/tipler.nar`
+  bu yüzden çok sayıda küçük işleve bölündü.
+- **Blok ifadesi yok.** `{ deyimler...  son_deger }` diye bir şey yazılamaz.
+- **`fn` ifadesi ad ister.** `let f = fn (x: Int) ...` geçersiz;
+  `let f = fn ic(x: Int) ...` ya da lambda (`|x| ...`) kullan.
+- **Varsayılan parametre değeri yok.** İki ayrı işlev yaz.
 
 ## Değişmez kurallar
 

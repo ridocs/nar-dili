@@ -1,0 +1,707 @@
+// Nar tip sistemi — **Nar diliyle** yazılmıştır.
+//
+// Python'daki `narc/types.py` ile aynı kuralları uygular. Doğruluğunun
+// ölçüsü şu: aynı tip çiftleri için aynı yanıtı vermek
+// (`testler/test_nar_tipler.py` binlerce çift üzerinde karşılaştırır).
+//
+// Tipler yapısal karşılaştırılır; `struct` ve `enum` ise adlarıyla
+// (nominal). Örtük dönüşüm yoktur — tek istisna, sayı literallerinin
+// beklenen tip `Float` olduğunda `Float` sayılmasıdır, o da çözümleyicide
+// değil denetleyicide olur.
+//
+// Kütüphanedir: `main` içermez.
+
+// --- tip temsili ----------------------------------------------------------
+
+// Adlar `derleyici/ast.nar` içindeki *tip yazımı* düğümleriyle
+// karışmasın diye `Tip` önekli: orada kaynakta yazılmış tip ifadesi var,
+// burada çözümlenmiş tipin kendisi.
+enum Tip {
+  TipPrim(String)                 // Int | Float | Bool | String | Void | Element | Olay
+  TipListe(Tip)
+  TipEsleme(Tip, Tip)
+  TipOpsiyonel(Tip)
+  TipIslev([Tip], Tip)
+  TipAralik(Tip)                  // `a..b` ifadesinin tipi
+  TipDegisken(String)             // struct Kutu<T> içindeki T
+  TipStruct(StructTipi)
+  TipEnum(EnumTipi)
+  TipArayuz(ArayuzTipi)
+  TipYok                          // yalnızca `none` literalinin tipi
+  TipHicbir                       // panic() gibi geri dönmeyenler (Never)
+  TipHerhangi                     // yalnızca print/str gibi yerleşiklerde (Any)
+}
+
+// Ad -> tip çiftleri. Nar'da eşleme sırası korunur, bu yüzden alan sırası
+// bildirimdeki sırayla aynı kalır (hata mesajlarında önemli).
+struct AdTip {
+  ad: String
+  // Birleştirme sırasında bağlama güncellenebilir (ortak tipe genişler).
+  var tip: Tip
+}
+
+struct AdYuk {
+  ad: String
+  yuk: [Tip]
+}
+
+// Generic bir struct uygulandığında (`Kutu<Int>`) alanlar **tembel**
+// hesaplanır. Bu şart: `struct Dugum<T> { sonraki: Dugum<T>? }` gibi
+// kendine başvuran tiplerde hemen hesaplamak sonsuz döngüye girer.
+struct StructTipi {
+  ad: String
+  var arayuzler: [String]
+  var hamAlanlar: [AdTip]
+  var degisebilirAlanlar: [String]
+  var hamMetotlar: [AdTip]
+  var tipParametreleri: [String]
+  var tipArgumanlari: [Tip]
+  // Uygulanmış bir tipin şablonu; şablonun kendisinde `none`.
+  var sablon: StructTipi?
+  var cozulmusAlanlar: [AdTip]?
+  var cozulmusMetotlar: [AdTip]?
+
+  fn esleme() -> [AdTip] {
+    if self.sablon == none {
+      return []
+    }
+    return parametreEslemesi(self.sablon!.tipParametreleri, self.tipArgumanlari)
+  }
+
+  fn alanlar() -> [AdTip] {
+    if self.sablon == none {
+      return self.hamAlanlar
+    }
+    if self.cozulmusAlanlar == none {
+      let e = self.esleme()
+      self.cozulmusAlanlar = self.sablon!.hamAlanlar.map(
+        |a| AdTip { ad: a.ad, tip: yerineKoy(a.tip, e) })
+    }
+    return self.cozulmusAlanlar!
+  }
+
+  fn metotlar() -> [AdTip] {
+    if self.sablon == none {
+      return self.hamMetotlar
+    }
+    if self.cozulmusMetotlar == none {
+      let e = self.esleme()
+      self.cozulmusMetotlar = self.sablon!.hamMetotlar.map(
+        |m| AdTip { ad: m.ad, tip: yerineKoy(m.tip, e) })
+    }
+    return self.cozulmusMetotlar!
+  }
+
+  fn alan(ad: String) -> Tip? = adaGoreTip(self.alanlar(), ad)
+
+  fn metot(ad: String) -> Tip? = adaGoreTip(self.metotlar(), ad)
+}
+
+struct EnumTipi {
+  ad: String
+  var arayuzler: [String]
+  var hamVaryantlar: [AdYuk]
+  var hamMetotlar: [AdTip]
+  var tipParametreleri: [String]
+  var tipArgumanlari: [Tip]
+  var sablon: EnumTipi?
+  var cozulmusVaryantlar: [AdYuk]?
+  var cozulmusMetotlar: [AdTip]?
+
+  fn esleme() -> [AdTip] {
+    if self.sablon == none {
+      return []
+    }
+    return parametreEslemesi(self.sablon!.tipParametreleri, self.tipArgumanlari)
+  }
+
+  fn varyantlar() -> [AdYuk] {
+    if self.sablon == none {
+      return self.hamVaryantlar
+    }
+    if self.cozulmusVaryantlar == none {
+      let e = self.esleme()
+      self.cozulmusVaryantlar = self.sablon!.hamVaryantlar.map(
+        |v| AdYuk { ad: v.ad, yuk: v.yuk.map(|t| yerineKoy(t, e)) })
+    }
+    return self.cozulmusVaryantlar!
+  }
+
+  fn metotlar() -> [AdTip] {
+    if self.sablon == none {
+      return self.hamMetotlar
+    }
+    if self.cozulmusMetotlar == none {
+      let e = self.esleme()
+      self.cozulmusMetotlar = self.sablon!.hamMetotlar.map(
+        |m| AdTip { ad: m.ad, tip: yerineKoy(m.tip, e) })
+    }
+    return self.cozulmusMetotlar!
+  }
+
+  fn varyant(ad: String) -> [Tip]? {
+    for v in self.varyantlar() {
+      if v.ad == ad {
+        return v.yuk
+      }
+    }
+    return none
+  }
+
+  fn metot(ad: String) -> Tip? = adaGoreTip(self.metotlar(), ad)
+}
+
+// Ortak davranış tanımı: hangi metotların bulunması gerektiğini söyler.
+struct ArayuzTipi {
+  ad: String
+  var metotlar: [AdTip]
+
+  fn metot(ad: String) -> Tip? = adaGoreTip(self.metotlar, ad)
+}
+
+// --- kısayollar -----------------------------------------------------------
+
+let TAM = TipPrim("Int")
+let ONDALIK = TipPrim("Float")
+let MANTIK = TipPrim("Bool")
+let METIN = TipPrim("String")
+let BOSLUK = TipPrim("Void")
+let OGE = TipPrim("Element")
+let OLAY_TIPI = TipPrim("Olay")
+
+let ILKELLER = ["Int", "Float", "Bool", "String", "Void", "Element", "Olay"]
+let SAYISAL = ["Int", "Float"]
+let SIRALANABILIR = ["Int", "Float", "String"]
+
+fn ilkelMi(ad: String) -> Bool = ILKELLER.contains(ad)
+
+fn ilkelTip(ad: String) -> Tip? {
+  if ILKELLER.contains(ad) {
+    return TipPrim(ad)
+  }
+  return none
+}
+
+fn sayisalMi(t: Tip) -> Bool = match t {
+  TipPrim(ad) -> SAYISAL.contains(ad)
+  _ -> false
+}
+
+fn siralanabilirMi(t: Tip) -> Bool = match t {
+  TipPrim(ad) -> SIRALANABILIR.contains(ad)
+  _ -> false
+}
+
+fn bosMu(t: Tip) -> Bool = match t {
+  TipPrim(ad) -> ad == "Void"
+  _ -> false
+}
+
+// --- yardımcılar ----------------------------------------------------------
+
+fn adaGoreTip(ciftler: [AdTip], ad: String) -> Tip? {
+  for c in ciftler {
+    if c.ad == ad {
+      return c.tip
+    }
+  }
+  return none
+}
+
+fn parametreEslemesi(params: [String], args: [Tip]) -> [AdTip] {
+  var e: [AdTip] = []
+  var i = 0
+  while i < params.len() && i < args.len() {
+    e.push(AdTip { ad: params[i], tip: args[i] })
+    i += 1
+  }
+  return e
+}
+
+// --- yazım ----------------------------------------------------------------
+
+fn tipMetni(t: Tip) -> String = match t {
+  TipPrim(ad) -> ad
+  TipListe(e) -> "[" + tipMetni(e) + "]"
+  TipEsleme(k, v) -> "{" + tipMetni(k) + ": " + tipMetni(v) + "}"
+  TipOpsiyonel(i) -> tipMetni(i) + "?"
+  TipIslev(p, r) -> "(" + p.map(|x| tipMetni(x)).join(", ") + ") -> " + tipMetni(r)
+  TipAralik(e) -> "Range<" + tipMetni(e) + ">"
+  TipDegisken(ad) -> ad
+  TipStruct(s) -> s.ad + argMetni(s.tipArgumanlari)
+  TipEnum(e) -> e.ad + argMetni(e.tipArgumanlari)
+  TipArayuz(a) -> a.ad
+  TipYok -> "none"
+  TipHicbir -> "Never"
+  TipHerhangi -> "Any"
+}
+
+fn argMetni(args: [Tip]) -> String {
+  if args.len() == 0 {
+    return ""
+  }
+  return "<" + args.map(|a| tipMetni(a)).join(", ") + ">"
+}
+
+// --- eşitlik --------------------------------------------------------------
+
+// Struct ve enum adlarıyla, geri kalanı yapısıyla karşılaştırılır.
+fn tipEsit(a: Tip, b: Tip) -> Bool = match a {
+  TipPrim(ad) -> match b {
+    TipPrim(bd) -> ad == bd
+    _ -> false
+  }
+  TipListe(e) -> match b {
+    TipListe(be) -> tipEsit(e, be)
+    _ -> false
+  }
+  TipEsleme(k, v) -> match b {
+    TipEsleme(bk, bv) -> tipEsit(k, bk) && tipEsit(v, bv)
+    _ -> false
+  }
+  TipOpsiyonel(i) -> match b {
+    TipOpsiyonel(bi) -> tipEsit(i, bi)
+    _ -> false
+  }
+  TipIslev(p, r) -> match b {
+    TipIslev(bp, br) -> listeEsit(p, bp) && tipEsit(r, br)
+    _ -> false
+  }
+  TipAralik(e) -> match b {
+    TipAralik(be) -> tipEsit(e, be)
+    _ -> false
+  }
+  TipDegisken(ad) -> match b {
+    TipDegisken(bd) -> ad == bd
+    _ -> false
+  }
+  TipStruct(s) -> match b {
+    TipStruct(bs) -> s.ad == bs.ad && listeEsit(s.tipArgumanlari, bs.tipArgumanlari)
+    _ -> false
+  }
+  TipEnum(e) -> match b {
+    TipEnum(be) -> e.ad == be.ad && listeEsit(e.tipArgumanlari, be.tipArgumanlari)
+    _ -> false
+  }
+  TipArayuz(x) -> match b {
+    TipArayuz(bx) -> x.ad == bx.ad
+    _ -> false
+  }
+  TipYok -> match b {
+    TipYok -> true
+    _ -> false
+  }
+  TipHicbir -> match b {
+    TipHicbir -> true
+    _ -> false
+  }
+  TipHerhangi -> match b {
+    TipHerhangi -> true
+    _ -> false
+  }
+}
+
+fn listeEsit(a: [Tip], b: [Tip]) -> Bool {
+  if a.len() != b.len() {
+    return false
+  }
+  var i = 0
+  while i < a.len() {
+    if !tipEsit(a[i], b[i]) {
+      return false
+    }
+    i += 1
+  }
+  return true
+}
+
+// --- opsiyonel yardımcıları -----------------------------------------------
+
+fn opsiyoneliAc(t: Tip) -> Tip = match t {
+  TipOpsiyonel(i) -> i
+  _ -> t
+}
+
+fn opsiyonelMi(t: Tip) -> Bool = match t {
+  TipOpsiyonel(_) -> true
+  TipYok -> true
+  _ -> false
+}
+
+// --- tip değişkeni yerine koyma -------------------------------------------
+
+// `yerineKoy(Kutu<T>, {T: Int})` → `Kutu<Int>`
+//
+// Not: `match` bir *ifade* olarak kullanıldığında kolları tek bir değer
+// olmak zorunda. Birkaç adım gerektiren kollar bu yüzden ayrı işlevlere
+// bölündü.
+fn yerineKoy(t: Tip, esleme: [AdTip]) -> Tip {
+  if esleme.len() == 0 {
+    return t
+  }
+  match t {
+    TipDegisken(ad) -> return adaGoreTip(esleme, ad) ?? t
+    TipOpsiyonel(i) -> return opsiyonelYap(yerineKoy(i, esleme))
+    TipListe(e) -> return TipListe(yerineKoy(e, esleme))
+    TipEsleme(k, v) -> return TipEsleme(yerineKoy(k, esleme), yerineKoy(v, esleme))
+    TipIslev(p, r) -> return TipIslev(
+      p.map(|x| yerineKoy(x, esleme)), yerineKoy(r, esleme))
+    TipAralik(e) -> return TipAralik(yerineKoy(e, esleme))
+    TipStruct(sa) -> return structYerineKoy(t, sa, esleme)
+    TipEnum(en) -> return enumYerineKoy(t, en, esleme)
+    _ -> return t
+  }
+}
+
+// `T??` düzleşir: iç içe opsiyonel yoktur.
+fn opsiyonelYap(ic: Tip) -> Tip = match ic {
+  TipOpsiyonel(_) -> ic
+  _ -> TipOpsiyonel(ic)
+}
+
+fn structYerineKoy(asil: Tip, s: StructTipi, esleme: [AdTip]) -> Tip {
+  if s.tipParametreleri.len() == 0 && s.tipArgumanlari.len() == 0 {
+    return asil
+  }
+  let yeni = s.tipArgumanlari.map(|a| yerineKoy(a, esleme))
+  if listeEsit(yeni, s.tipArgumanlari) {
+    return asil
+  }
+  return TipStruct(structUygula(s, yeni))
+}
+
+fn enumYerineKoy(asil: Tip, e: EnumTipi, esleme: [AdTip]) -> Tip {
+  if e.tipParametreleri.len() == 0 && e.tipArgumanlari.len() == 0 {
+    return asil
+  }
+  let yeni = e.tipArgumanlari.map(|a| yerineKoy(a, esleme))
+  if listeEsit(yeni, e.tipArgumanlari) {
+    return asil
+  }
+  return TipEnum(enumUygula(e, yeni))
+}
+
+// Şablona tip argümanları uygular. Alanlar tembel çözülür.
+fn structUygula(sablon: StructTipi, args: [Tip]) -> StructTipi {
+  let kok = sablon.sablon ?? sablon
+  return StructTipi {
+    ad: kok.ad,
+    arayuzler: kok.arayuzler,
+    hamAlanlar: [],
+    degisebilirAlanlar: kok.degisebilirAlanlar,
+    hamMetotlar: [],
+    tipParametreleri: kok.tipParametreleri,
+    tipArgumanlari: args,
+    sablon: kok,
+    cozulmusAlanlar: none,
+    cozulmusMetotlar: none
+  }
+}
+
+fn enumUygula(sablon: EnumTipi, args: [Tip]) -> EnumTipi {
+  let kok = sablon.sablon ?? sablon
+  return EnumTipi {
+    ad: kok.ad,
+    arayuzler: kok.arayuzler,
+    hamVaryantlar: [],
+    hamMetotlar: [],
+    tipParametreleri: kok.tipParametreleri,
+    tipArgumanlari: args,
+    sablon: kok,
+    cozulmusVaryantlar: none,
+    cozulmusMetotlar: none
+  }
+}
+
+// --- tip değişkeni arama --------------------------------------------------
+
+fn tipDegiskenleri(t: Tip) -> [String] {
+  var toplam: [String] = []
+  topla(t, toplam)
+  return toplam
+}
+
+fn topla(t: Tip, toplam: [String]) {
+  match t {
+    TipDegisken(ad) -> {
+      if !toplam.contains(ad) {
+        toplam.push(ad)
+      }
+    }
+    TipListe(e) -> topla(e, toplam)
+    TipOpsiyonel(i) -> topla(i, toplam)
+    TipAralik(e) -> topla(e, toplam)
+    TipEsleme(k, v) -> {
+      topla(k, toplam)
+      topla(v, toplam)
+    }
+    TipIslev(p, r) -> {
+      for x in p {
+        topla(x, toplam)
+      }
+      topla(r, toplam)
+    }
+    TipStruct(s) -> {
+      for a in s.tipArgumanlari {
+        topla(a, toplam)
+      }
+    }
+    TipEnum(e) -> {
+      for a in e.tipArgumanlari {
+        topla(a, toplam)
+      }
+    }
+    _ -> {}
+  }
+}
+
+fn tipDegiskeniVarMi(t: Tip) -> Bool = tipDegiskenleri(t).len() > 0
+
+// --- birleştirme (unification) --------------------------------------------
+
+// `sablon` içindeki tip değişkenlerini `somut` ile eşleştirir; bulduklarını
+// `esleme` listesine yazar. Çelişki varsa false döner.
+fn birlestir(sablon: Tip, somut: Tip, esleme: [AdTip]) -> Bool {
+  // Any ve Never bilgi taşımaz: çelişki üretmezler.
+  match somut {
+    TipHerhangi -> return true
+    TipHicbir -> return true
+    _ -> {}
+  }
+
+  match sablon {
+    TipDegisken(ad) -> return degiskeniBagla(ad, somut, esleme)
+    TipOpsiyonel(i) -> return opsiyonelBirlestir(i, somut, esleme)
+    TipListe(e) -> return listeBirlestir(sablon, e, somut, esleme)
+    TipEsleme(k, v) -> return eslemeBirlestir(sablon, k, v, somut, esleme)
+    TipIslev(p, r) -> return islevBirlestir(sablon, p, r, somut, esleme)
+    TipStruct(st) -> return structBirlestir(sablon, st, somut, esleme)
+    TipEnum(en) -> return enumBirlestir(sablon, en, somut, esleme)
+    _ -> return genelBirlestir(sablon, somut)
+  }
+}
+
+// Tür eşleşmediğinde uygulanan genel kural.
+fn genelBirlestir(sablon: Tip, somut: Tip) -> Bool =
+  atanabilir(sablon, somut) || tipEsit(sablon, somut)
+
+fn degiskeniBagla(ad: String, somut: Tip, esleme: [AdTip]) -> Bool {
+  let onceki = adaGoreTip(esleme, ad)
+  if onceki == none {
+    // `none` tek başına tip belirlemez.
+    match somut {
+      TipYok -> return true
+      _ -> {}
+    }
+    esleme.push(AdTip { ad: ad, tip: somut })
+    return true
+  }
+  if tipEsit(onceki!, somut) {
+    return true
+  }
+  let ortak = ortakTip(onceki!, somut)
+  if ortak == none {
+    return false
+  }
+  eslemeyiGuncelle(esleme, ad, ortak!)
+  return true
+}
+
+fn eslemeyiGuncelle(esleme: [AdTip], ad: String, tip: Tip) {
+  var i = 0
+  while i < esleme.len() {
+    if esleme[i].ad == ad {
+      esleme[i].tip = tip
+      return
+    }
+    i += 1
+  }
+  esleme.push(AdTip { ad: ad, tip: tip })
+}
+
+fn opsiyonelBirlestir(i: Tip, somut: Tip, esleme: [AdTip]) -> Bool = match somut {
+  TipYok -> true
+  TipOpsiyonel(si) -> birlestir(i, si, esleme)
+  _ -> birlestir(i, somut, esleme)
+}
+
+fn listeBirlestir(sablon: Tip, e: Tip, somut: Tip, esleme: [AdTip]) -> Bool = match somut {
+  TipListe(se) -> birlestir(e, se, esleme)
+  _ -> genelBirlestir(sablon, somut)
+}
+
+fn eslemeBirlestir(sablon: Tip, k: Tip, v: Tip, somut: Tip,
+                   esleme: [AdTip]) -> Bool = match somut {
+  TipEsleme(sk, sv) -> birlestir(k, sk, esleme) && birlestir(v, sv, esleme)
+  _ -> genelBirlestir(sablon, somut)
+}
+
+fn islevBirlestir(sablon: Tip, p: [Tip], r: Tip, somut: Tip,
+                  esleme: [AdTip]) -> Bool {
+  match somut {
+    TipIslev(sp, sr) -> {
+      // Burada parametre sayısı eşit olmalı; atanabilirlikteki esneklik
+      // tip çıkarımında geçerli değil.
+      if sp.len() != p.len() {
+        return false
+      }
+      var i = 0
+      while i < p.len() {
+        if !birlestir(p[i], sp[i], esleme) {
+          return false
+        }
+        i += 1
+      }
+      return birlestir(r, sr, esleme)
+    }
+    _ -> return genelBirlestir(sablon, somut)
+  }
+}
+
+fn structBirlestir(sablon: Tip, s: StructTipi, somut: Tip,
+                   esleme: [AdTip]) -> Bool {
+  match somut {
+    TipStruct(ss) -> {
+      if s.ad != ss.ad {
+        return false
+      }
+      return argumanlariBirlestir(s.tipArgumanlari, ss.tipArgumanlari, esleme)
+    }
+    _ -> return genelBirlestir(sablon, somut)
+  }
+}
+
+fn enumBirlestir(sablon: Tip, e: EnumTipi, somut: Tip, esleme: [AdTip]) -> Bool {
+  match somut {
+    TipEnum(se) -> {
+      if e.ad != se.ad {
+        return false
+      }
+      return argumanlariBirlestir(e.tipArgumanlari, se.tipArgumanlari, esleme)
+    }
+    _ -> return genelBirlestir(sablon, somut)
+  }
+}
+
+fn argumanlariBirlestir(a: [Tip], b: [Tip], esleme: [AdTip]) -> Bool {
+  if a.len() != b.len() {
+    return false
+  }
+  var i = 0
+  while i < a.len() {
+    if !birlestir(a[i], b[i], esleme) {
+      return false
+    }
+    i += 1
+  }
+  return true
+}
+
+// --- atanabilirlik --------------------------------------------------------
+
+// `kaynak` tipindeki bir değer `hedef` bekleyen yere konabilir mi?
+fn atanabilir(hedef: Tip, kaynak: Tip) -> Bool {
+  match kaynak {
+    TipHicbir -> return true
+    TipHerhangi -> return true
+    _ -> {}
+  }
+  match hedef {
+    TipHerhangi -> return true
+    _ -> {}
+  }
+  if tipEsit(hedef, kaynak) {
+    return true
+  }
+
+  // Arayüzü bildiriminde üstlenen bir tip, o arayüzün beklendiği yere geçer.
+  match hedef {
+    TipArayuz(a) -> {
+      match kaynak {
+        TipArayuz(k) -> return k.ad == a.ad
+        TipStruct(s) -> return s.arayuzler.contains(a.ad)
+        TipEnum(e) -> return e.arayuzler.contains(a.ad)
+        _ -> return false
+      }
+    }
+    _ -> {}
+  }
+
+  match hedef {
+    TipOpsiyonel(ic) -> {
+      match kaynak {
+        TipYok -> return true
+        TipOpsiyonel(ki) -> {
+          if atanabilir(ic, ki) {
+            return true
+          }
+        }
+        _ -> {}
+      }
+      if atanabilir(ic, kaynak) {
+        return true
+      }
+    }
+    _ -> {}
+  }
+
+  // Daha az parametre alan bir fonksiyon, daha çok parametre bekleyen yere
+  // verilebilir; fazlası yok sayılır. Olay dinleyicilerinde işe yarar:
+  // `dinle("click", || { ... })` yazmak için olayı almak zorunda kalmazsın.
+  match hedef {
+    TipIslev(hp, hr) -> {
+      match kaynak {
+        TipIslev(kp, kr) -> {
+          if kp.len() > hp.len() {
+            return false
+          }
+          var i = 0
+          while i < kp.len() {
+            if !atanabilir(kp[i], hp[i]) {
+              return false
+            }
+            i += 1
+          }
+          if atanabilir(hr, kr) {
+            return true
+          }
+          // Dönüş değeri kullanılmıyorsa (Void bekleniyorsa) tip serbesttir.
+          return bosMu(hr)
+        }
+        _ -> return false
+      }
+    }
+    _ -> {}
+  }
+
+  return false
+}
+
+// İki dalın ortak tipi (`??` ve liste literalleri için).
+fn ortakTip(a: Tip, b: Tip) -> Tip? {
+  if atanabilir(a, b) {
+    return a
+  }
+  if atanabilir(b, a) {
+    return b
+  }
+  match a {
+    TipYok -> return TipOpsiyonel(b)
+    TipOpsiyonel(ai) -> {
+      if atanabilir(ai, b) {
+        return a
+      }
+    }
+    _ -> {}
+  }
+  match b {
+    TipYok -> return TipOpsiyonel(a)
+    TipOpsiyonel(bi) -> {
+      if atanabilir(bi, a) {
+        return b
+      }
+    }
+    _ -> {}
+  }
+  return none
+}

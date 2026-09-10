@@ -22,11 +22,16 @@ from narc.driver import compile_file  # noqa: E402
 NAR_TESTLERI = Path(__file__).resolve().parent / "nar"
 NODE = shutil.which("node")
 
+# Kendi başına çalışmayan yardımcılar: `main` içermezler, başka testlerden
+# içe aktarılırlar.
+KUTUPHANELER = {"tip_ornekleri.nar"}
+
 
 @unittest.skipIf(NODE is None, "node bulunamadı")
 class NarTestleri(unittest.TestCase):
     def test_nar_ile_yazilmis_testler_geciyor(self):
-        dosyalar = sorted(NAR_TESTLERI.glob("*.nar"))
+        dosyalar = [d for d in sorted(NAR_TESTLERI.glob("*.nar"))
+                    if d.name not in KUTUPHANELER]
         self.assertGreater(len(dosyalar), 0, "hiç Nar testi bulunamadı")
 
         for yol in dosyalar:
