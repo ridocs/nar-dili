@@ -7,7 +7,7 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 
 ## Son güncelleme
 
-**2026-09-11 01:00** — IDE tamamen Nar'a taşındı; generic tiplere başlanıyor.
+**2026-09-11 00:50** — Generic tipler ve masaüstü hedefi bitti; interface'e geçiliyor.
 
 ## Şu ana kadar biten
 
@@ -27,25 +27,27 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 | v0.3 | JSON kütüphanesi (Nar ile yazıldı) | ✅ |
 | v0.3 | **IDE'nin tüm davranışı Nar diliyle** | ✅ |
 | v0.3 | Site ve IDE aynı renklendiriciyi kullanıyor (tek kaynak) | ✅ |
+| v0.4 | **Generic tipler**: struct/enum/fn tip parametreleri, çıkarım | ✅ |
+| v0.4 | Sonuc<T, H> standart kütüphanesi (Nar ile) | ✅ |
+| v0.4 | **Masaüstü hedefi**: nar build --target masaustu | ✅ |
 
-**Testler:** 150, hepsi geçiyor · `python -m unittest discover -s testler`
-**Son commit:** `47168a7`
-**Nar ile yazılan kod:** ~1540 satır (`araclar/`, `testler/nar/`)
+**Testler:** 178, hepsi geçiyor · `python -m unittest discover -s testler`
+**Son commit:** `d74b0af`
+**Nar ile yazılan kod:** ~1703 satır (`araclar/`, `testler/nar/`)
 
 ## Sırada (öncelik sırasıyla)
 
-- [ ] **1. Generic tipler** — `struct Kutu<T>`, `enum Sonuc<T, H>`, `fn ilk<T>(...)`.
-      Gereken parçalar:
-      - `types.py`: `TypeVar`, `StructT`/`EnumT` üzerinde `type_params` ve
-        `type_args`; `subst()` (yerine koyma) ve `unify()` (birleştirme)
-      - `parser.py`: bildirimde `<T, U>`, kullanımda `Kutu<Int>`
-      - `checker.py`: tip değişkenlerini bağlama, argümanlardan çıkarım
-      - `backends/js.py`: silme (JS'te generic yok; `$defType` tip kodları
-        uygulanmış argümanlarla yazılmalı)
-- [ ] **2. interface (trait)** — ortak davranış tanımı; generic'ten sonra.
-- [ ] **3. Standart kütüphane** — dosya okuma/yazma (Node hedefi), tarih/saat.
-- [ ] **4. UI katmanı** — `component` / `view`. DOM bağlaması hazır olduğu
+- [ ] **1. interface (trait)** — ortak davranış tanımı.
+      `interface Yazdirilabilir { fn yaz() -> String }` ve
+      `struct X: Yazdirilabilir { ... }`. Generic ile birleşince
+      `fn hepsiniYaz<T: Yazdirilabilir>(l: [T])` yazılabilir olur.
+- [ ] **2. Standart kütüphane** — dosya okuma/yazma (Node hedefi), tarih/saat,
+      daha fazla matematik.
+- [ ] **3. UI katmanı** — `component` / `view`. DOM bağlaması hazır olduğu
       için artık üstüne kurulabilir.
+- [ ] **4. Mobil hedef** — Capacitor ile Android/iOS paketleme. Not: bu
+      makinede Android Studio yok, üretilen paket doğrulanamaz; dürüstlük
+      gereği "üretildi ama cihazda denenmedi" diye işaretlenmeli.
 - [ ] **5. Self-hosting'e doğru** — derleyicinin parçalarını Nar'a taşımak.
       Lexer iyi bir başlangıç: `araclar/tarayici.nar` zaten yarı yolda.
 
