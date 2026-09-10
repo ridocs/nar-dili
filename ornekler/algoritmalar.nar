@@ -1,0 +1,107 @@
+// Klasik algoritmalar — dilin çekirdeğini biraz zorlayan bir örnek.
+
+fn asallar(sinir: Int) -> [Int] {
+  var elek: [Bool] = []
+  for i in 0..=sinir {
+    elek.push(true)
+  }
+  elek[0] = false
+  if sinir >= 1 {
+    elek[1] = false
+  }
+
+  var p = 2
+  while p * p <= sinir {
+    if elek[p] {
+      var k = p * p
+      while k <= sinir {
+        elek[k] = false
+        k = k + p
+      }
+    }
+    p = p + 1
+  }
+
+  var sonuc: [Int] = []
+  for i in 0..=sinir {
+    if elek[i] {
+      sonuc.push(i)
+    }
+  }
+  return sonuc
+}
+
+fn ikiliArama(liste: [Int], hedef: Int) -> Int? {
+  var alt = 0
+  var ust = liste.len() - 1
+  while alt <= ust {
+    let orta = (alt + ust) / 2
+    let deger = liste[orta]
+    if deger == hedef {
+      return orta
+    }
+    if deger < hedef {
+      alt = orta + 1
+    } else {
+      ust = orta - 1
+    }
+  }
+  return none
+}
+
+fn hizliSirala(liste: [Int]) -> [Int] {
+  if liste.len() <= 1 {
+    return liste
+  }
+  let esik = liste[liste.len() / 2]
+  let kucuk = liste.filter(|x| x < esik)
+  let esit = liste.filter(|x| x == esik)
+  let buyuk = liste.filter(|x| x > esik)
+  return hizliSirala(kucuk) + esit + hizliSirala(buyuk)
+}
+
+fn ebob(a: Int, b: Int) -> Int {
+  if b == 0 {
+    return a
+  }
+  return ebob(b, a % b)
+}
+
+fn kelimeSay(metin: String) -> {String: Int} {
+  var sayim: {String: Int} = {}
+  for kelime in metin.lowerTr().split(" ") {
+    if kelime.len() == 0 {
+      continue
+    }
+    sayim.set(kelime, (sayim.get(kelime) ?? 0) + 1)
+  }
+  return sayim
+}
+
+fn main() {
+  print("50'ye kadar asallar:")
+  print(asallar(50))
+
+  let sirali = hizliSirala([9, 3, 7, 1, 8, 2, 5])
+  print("")
+  print("sıralanmış: ${sirali}")
+
+  for hedef in [7, 4] {
+    let yer = ikiliArama(sirali, hedef)
+    if yer != none {
+      print("${hedef} bulundu, dizin ${yer}")
+    } else {
+      print("${hedef} listede yok")
+    }
+  }
+
+  print("")
+  print("ebob(48, 18) = ${ebob(48, 18)}")
+
+  print("")
+  let sayim = kelimeSay("bir iki bir üç iki bir")
+  var anahtarlar = sayim.keys().sort()
+  for k in anahtarlar {
+    print("${k}: ${sayim.get(k) ?? 0}")
+  }
+}

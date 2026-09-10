@@ -1,0 +1,11 @@
+# Derleyici ara çıktıları
+.narbuild/
+cikti/
+*.js
+*.html
+!narc/runtime/*.js
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/

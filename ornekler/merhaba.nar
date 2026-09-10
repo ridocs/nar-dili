@@ -1,0 +1,76 @@
+// Nar'a giriş — çekirdek dilin küçük bir turu.
+
+struct Nokta {
+  x: Float
+  y: Float
+
+  fn uzunluk() -> Float {
+    return sqrt(self.x * self.x + self.y * self.y)
+  }
+
+  fn tasi(dx: Float, dy: Float) -> Nokta {
+    return Nokta { x: self.x + dx, y: self.y + dy }
+  }
+}
+
+enum Sonuc {
+  Tamam(Int)
+  Hata(String)
+
+  fn basarili() -> Bool {
+    match self {
+      Sonuc.Tamam(_) -> return true
+      Sonuc.Hata(_) -> return false
+    }
+  }
+}
+
+fn bol(a: Int, b: Int) -> Sonuc {
+  if b == 0 {
+    return Sonuc.Hata("sıfıra bölme")
+  }
+  return Sonuc.Tamam(a / b)
+}
+
+fn main() {
+  print("— Nar v0.1 —")
+
+  let n = Nokta { x: 3.0, y: 4.0 }
+  print("uzunluk: ${n.uzunluk()}")
+  print("taşınmış: ${n.tasi(1.0, 1.0)}")
+
+  let sayilar = [4, 9, 16, 25]
+  let kokler = sayilar.map(|s| sqrt(float(s)))
+  print("kökler: ${kokler}")
+  print("toplam: ${sayilar.reduce(|a, b| a + b, 0)}")
+  print("çiftler: ${sayilar.filter(|s| s % 2 == 0)}")
+
+  for bolen in [2, 0, 5] {
+    match bol(100, bolen) {
+      Sonuc.Tamam(deger) -> print("100 / ${bolen} = ${deger}")
+      Sonuc.Hata(mesaj) -> print("hata: ${mesaj}")
+    }
+  }
+
+  let stok = {"elma": 12, "armut": 0}
+  for (urun, adet) in stok {
+    let durum = if_bos(adet)
+    print("${urun}: ${adet} (${durum})")
+  }
+
+  var ad: String? = none
+  print("ad: ${ad ?? "isimsiz"}")
+  ad = "Mustafa"
+  if ad != none {
+    print("büyük harf: ${ad.upperTr()}")
+  }
+
+  print("bol(1,0) başarılı mı: ${bol(1, 0).basarili()}")
+}
+
+fn if_bos(adet: Int) -> String {
+  if adet == 0 {
+    return "tükendi"
+  }
+  return "var"
+}

@@ -1,0 +1,736 @@
+"""JavaScript kod üreteci.
+
+Denetlenmiş AST'yi okunabilir, `"use strict"` altında çalışan JavaScript'e
+çevirir. Tip notları (`node.ty`, `node.resolved`) kod seçimlerini yönlendirir:
+örneğin `Int` bölmesi `$idiv`, `Float` bölmesi düz `/` olur.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from .. import nar_ast as A
+from ..checker import Checker
+from ..types import (
+    FLOAT, INT, STRING, EnumT, ListT, MapT, OptT, Prim, StructT, Type,
+    unwrap_optional,
+)
+
+RUNTIME_PATH = Path(__file__).resolve().parent.parent / "runtime" / "nar_runtime.js"
+
+JS_RESERVED = {
+    "abstract", "arguments", "await", "boolean", "break", "byte", "case",
+    "catch", "char", "class", "const", "continue", "debugger", "default",
+    "delete", "do", "double", "else", "enum", "eval", "export", "extends",
+    "false", "final", "finally", "float", "for", "function", "goto", "if",
+    "implements", "import", "in", "instanceof", "int", "interface", "let",
+    "long", "native", "new", "null", "package", "private", "protected",
+    "public", "return", "short", "static", "super", "switch", "synchronized",
+    "this", "throw", "throws", "transient", "true", "try", "typeof", "var",
+    "void", "volatile", "while", "with", "yield", "undefined", "NaN",
+    "Infinity", "globalThis", "console", "process", "Math", "Map", "Array",
+    "Object", "String", "Number", "Boolean", "JSON", "Symbol", "Promise",
+}
+
+# Metin metotları → JS karşılığı. `{0}` alıcı, `{1}`.. argümanlar.
+STRING_METHODS = {
+    "len": "$len({0})",
+    "upper": "{0}.toUpperCase()",
+    "lower": "{0}.toLowerCase()",
+    "upperTr": "$upperTr({0})",
+    "lowerTr": "$lowerTr({0})",
+    "trim": "{0}.trim()",
+    "split": "$strSplit({0}, {1})",
+    "contains": "{0}.includes({1})",
+    "replace": "{0}.split({1}).join({2})",
+    "startsWith": "{0}.startsWith({1})",
+    "endsWith": "{0}.endsWith({1})",
+    "slice": "$strSlice({0}, {1}, {2})",
+    "charAt": "$strGet({0}, {1})",
+    "indexOf": "$strIndexOf({0}, {1})",
+    "repeat": "$strRepeat({0}, {1})",
+}
+
+LIST_METHODS = {
+    "len": "$len({0})",
+    "push": "{0}.push({1})",
+    "pop": "$listPop({0})",
+    "contains": "$listContains({0}, {1})",
+    "indexOf": "$listIndexOf({0}, {1})",
+    "slice": "$listSlice({0}, {1}, {2})",
+    "reverse": "$listReverse({0})",
+    "sort": "$listSort({0})",
+    "first": "$listFirst({0})",
+    "last": "$listLast({0})",
+    "map": "{0}.map({1})",
+    "filter": "{0}.filter({1})",
+    "reduce": "$listReduce({0}, {1}, {2})",
+    "join": "{0}.join({1})",
+}
+
+MAP_METHODS = {
+    "len": "$len({0})",
+    "get": "$mapGet({0}, {1})",
+    "set": "{0}.set({1}, {2})",
+    "has": "{0}.has({1})",
+    "remove": "$mapRemove({0}, {1})",
+    "keys": "$mapKeys({0})",
+    "values": "$mapValues({0})",
+}
+
+
+def js_string(text: str) -> str:
+    """Metni JSON kaçışlarıyla JS literaline çevirir (Unicode korunur)."""
+    out = ['"']
+    for ch in text:
+        if ch == '"':
+            out.append('\\"')
+        elif ch == "\\":
+            out.append("\\\\")
+        elif ch == "\n":
+            out.append("\\n")
+        elif ch == "\r":
+            out.append("\\r")
+        elif ch == "\t":
+            out.append("\\t")
+        elif ord(ch) < 0x20:
+            out.append(f"\\u{ord(ch):04x}")
+        elif ch in (" ", " "):
+            out.append(f"\\u{ord(ch):04x}")
+        else:
+            out.append(ch)
+    out.append('"')
+    return "".join(out)
+
+
+def type_code(ty: Type | None) -> str:
+    """Tipin çalışma zamanı biçimleyicisine geçirilecek JS gösterimi."""
+    if ty is None:
+        return "undefined"
+    if isinstance(ty, Prim):
+        return js_string(ty.name)
+    if isinstance(ty, OptT):
+        return f'["o", {type_code(ty.inner)}]'
+    if isinstance(ty, ListT):
+        return f'["l", {type_code(ty.elem)}]'
+    if isinstance(ty, MapT):
+        return f'["m", {type_code(ty.key)}, {type_code(ty.value)}]'
+    if isinstance(ty, (StructT, EnumT)):
+        return js_string(ty.name)
+    return "undefined"
+
+
+class JsBackend:
+    def __init__(self, module: A.Module, checker: Checker) -> None:
+        self.module = module
+        self.checker = checker
+        self.lines: list[str] = []
+        self.indent = 0
+        self.tmp = 0
+
+    # ------------------------------------------------------------ yardımcılar
+    def write(self, text: str = "") -> None:
+        self.lines.append(("  " * self.indent + text) if text else "")
+
+    def name(self, ident: str) -> str:
+        return f"{ident}_" if ident in JS_RESERVED else ident
+
+    def fresh(self, prefix: str = "t") -> str:
+        self.tmp += 1
+        return f"${prefix}{self.tmp}"
+
+    # ------------------------------------------------------------------ giriş
+    def emit(self) -> str:
+        self.write(RUNTIME_PATH.read_text(encoding="utf-8").rstrip())
+        self.write()
+        self.write("// " + "-" * 66)
+        self.write("// Nar kaynağından üretildi — elle düzenlemeyin.")
+        self.write("// " + "-" * 66)
+        self.write()
+
+        for item in self.module.items:
+            if isinstance(item, A.StructDecl):
+                self.emit_struct(item)
+            elif isinstance(item, A.EnumDecl):
+                self.emit_enum(item)
+
+        for item in self.module.items:
+            if isinstance(item, A.FnDecl):
+                self.emit_fn(item)
+
+        globals_ = [i for i in self.module.items if isinstance(i, A.LetStmt)]
+        if globals_:
+            for item in globals_:
+                self.emit_let(item)
+            self.write()
+
+        self.write("$bootstrap(main);")
+        return "\n".join(self.lines) + "\n"
+
+    # ------------------------------------------------------------ bildirimler
+    def emit_struct(self, decl: A.StructDecl) -> None:
+        cls = self.name(decl.name)
+        field_names = [self.name(f.name) for f in decl.fields]
+        self.write(f"class {cls} {{")
+        self.indent += 1
+        self.write(f"constructor({', '.join(field_names)}) {{")
+        self.indent += 1
+        for f in field_names:
+            self.write(f"this.{f} = {f};")
+        if not field_names:
+            self.write("// alansız struct")
+        self.indent -= 1
+        self.write("}")
+        for m in decl.methods:
+            self.write()
+            self.emit_method(m)
+        self.indent -= 1
+        self.write("}")
+        self.write(f"{cls}.$narName = {js_string(decl.name)};")
+        pairs = ", ".join(
+            f"{js_string(f.name)}: {type_code(f.ty)}" for f in decl.fields
+        )
+        self.write(f"$defType({js_string(decl.name)}, {{ fields: {{{pairs}}} }});")
+        self.write()
+
+    def emit_enum(self, decl: A.EnumDecl) -> None:
+        cls = self.name(decl.name)
+        self.write(f"class {cls} {{")
+        self.indent += 1
+        self.write("constructor(tag, values) {")
+        self.indent += 1
+        self.write("this.$tag = tag;")
+        self.write("this.$values = values;")
+        self.indent -= 1
+        self.write("}")
+
+        for v in decl.variants:
+            self.write()
+            if v.payload:
+                args = ", ".join(f"v{i}" for i in range(len(v.payload)))
+                self.write(f"static {self.name(v.name)}({args}) {{")
+                self.indent += 1
+                self.write(f"return new {cls}({js_string(v.name)}, [{args}]);")
+                self.indent -= 1
+                self.write("}")
+            else:
+                self.write(f"static get {self.name(v.name)}() {{")
+                self.indent += 1
+                self.write(f"return new {cls}({js_string(v.name)}, []);")
+                self.indent -= 1
+                self.write("}")
+
+        for m in decl.methods:
+            self.write()
+            self.emit_method(m)
+        self.indent -= 1
+        self.write("}")
+        self.write(f"{cls}.$narName = {js_string(decl.name)};")
+        pairs = ", ".join(
+            f"{js_string(v.name)}: [{', '.join(type_code(t) for t in v.tys)}]"
+            for v in decl.variants
+        )
+        self.write(f"$defType({js_string(decl.name)}, {{ variants: {{{pairs}}} }});")
+        self.write()
+
+    def emit_method(self, decl: A.FnDecl) -> None:
+        params = ", ".join(self.name(p.name) for p in decl.params)
+        self.write(f"{self.name(decl.name)}({params}) {{")
+        self.indent += 1
+        self.emit_body(decl.body)
+        self.indent -= 1
+        self.write("}")
+
+    def emit_fn(self, decl: A.FnDecl) -> None:
+        params = ", ".join(self.name(p.name) for p in decl.params)
+        self.write(f"function {self.name(decl.name)}({params}) {{")
+        self.indent += 1
+        self.emit_body(decl.body)
+        self.indent -= 1
+        self.write("}")
+        self.write()
+
+    def emit_body(self, block: A.Block) -> None:
+        for stmt in block.stmts:
+            self.emit_stmt(stmt)
+
+    # ---------------------------------------------------------------- deyimler
+    def emit_block(self, block: A.Block) -> None:
+        self.write("{")
+        self.indent += 1
+        self.emit_body(block)
+        self.indent -= 1
+        self.write("}")
+
+    def emit_stmt(self, stmt: A.Stmt) -> None:
+        if isinstance(stmt, A.LetStmt):
+            self.emit_let(stmt)
+
+        elif isinstance(stmt, A.ExprStmt):
+            self.write(self.expr(stmt.expr) + ";")
+
+        elif isinstance(stmt, A.Assign):
+            self.emit_assign(stmt)
+
+        elif isinstance(stmt, A.Return):
+            if stmt.value is None:
+                self.write("return;")
+            else:
+                self.write(f"return {self.expr(stmt.value)};")
+
+        elif isinstance(stmt, A.If):
+            self.emit_if(stmt)
+
+        elif isinstance(stmt, A.While):
+            self.write(f"while ({self.expr(stmt.cond)}) {{")
+            self.indent += 1
+            self.emit_body(stmt.body)
+            self.indent -= 1
+            self.write("}")
+
+        elif isinstance(stmt, A.For):
+            self.emit_for(stmt)
+
+        elif isinstance(stmt, A.Match):
+            self.emit_match(stmt)
+
+        elif isinstance(stmt, A.Break):
+            self.write("break;")
+
+        elif isinstance(stmt, A.Continue):
+            self.write("continue;")
+
+        else:  # pragma: no cover
+            raise AssertionError(f"üretilemeyen deyim: {type(stmt).__name__}")
+
+    def emit_let(self, stmt: A.LetStmt) -> None:
+        keyword = "let" if stmt.mutable else "const"
+        target = self.name(stmt.name)
+        if stmt.value is None:
+            self.write(f"let {target};")
+        else:
+            self.write(f"{keyword} {target} = {self.expr(stmt.value)};")
+
+    def emit_assign(self, stmt: A.Assign) -> None:
+        value = self.expr(stmt.value)
+        op = stmt.op
+
+        # Liste ve eşleme dizinine atama sınır/kap kontrolünden geçer.
+        if isinstance(stmt.target, A.Index):
+            obj_ty = stmt.target.obj.ty
+            obj = self.expr(stmt.target.obj)
+            idx = self.expr(stmt.target.index)
+            if op != "=":
+                current = self.index_read(obj_ty, obj, idx)
+                value = self.binary_js(op[0], stmt.target.ty, current, value)
+            if isinstance(obj_ty, MapT):
+                self.write(f"{obj}.set({idx}, {value});")
+            else:
+                self.write(f"$listSet({obj}, {idx}, {value});")
+            return
+
+        target = self.expr(stmt.target)
+        if op == "=":
+            self.write(f"{target} = {value};")
+        else:
+            self.write(f"{target} = {self.binary_js(op[0], stmt.target.ty, target, value)};")
+
+    def emit_if(self, stmt: A.If) -> None:
+        self.write(f"if ({self.expr(stmt.cond)}) {{")
+        self.indent += 1
+        self.emit_body(stmt.then)
+        self.indent -= 1
+        if stmt.otherwise is None:
+            self.write("}")
+        elif isinstance(stmt.otherwise, A.If):
+            self.write("} else {")
+            self.indent += 1
+            self.emit_if(stmt.otherwise)
+            self.indent -= 1
+            self.write("}")
+        else:
+            self.write("} else {")
+            self.indent += 1
+            self.emit_body(stmt.otherwise)
+            self.indent -= 1
+            self.write("}")
+
+    def emit_for(self, stmt: A.For) -> None:
+        if stmt.kind == "range":
+            rng = stmt.iterable
+            assert isinstance(rng, A.RangeExpr)
+            var = self.name(stmt.names[0])
+            end_var = self.fresh("son")
+            self.write(f"const {end_var} = {self.expr(rng.end)};")
+            cmp = "<=" if rng.inclusive else "<"
+            self.write(f"for (let {var} = {self.expr(rng.start)}; {var} {cmp} {end_var}; {var}++) {{")
+        elif stmt.kind == "map":
+            k, v = (self.name(n) for n in stmt.names)
+            self.write(f"for (const [{k}, {v}] of {self.expr(stmt.iterable)}) {{")
+        elif stmt.kind == "string":
+            var = self.name(stmt.names[0])
+            self.write(f"for (const {var} of {self.expr(stmt.iterable)}) {{")
+        else:
+            var = self.name(stmt.names[0])
+            self.write(f"for (const {var} of {self.expr(stmt.iterable)}) {{")
+
+        self.indent += 1
+        self.emit_body(stmt.body)
+        self.indent -= 1
+        self.write("}")
+
+    def emit_match(self, stmt: A.Match) -> None:
+        subject_var = self.fresh("m")
+        self.write("{")
+        self.indent += 1
+        self.write(f"const {subject_var} = {self.expr(stmt.subject)};")
+
+        first = True
+        closed = False
+        for arm in stmt.arms:
+            test, bindings = self.pattern_test(arm.pattern, subject_var, stmt.subject.ty)
+            if test is None:  # her şeyi kapsayan dal
+                if first:
+                    self.write("{")
+                else:
+                    self.write("} else {")
+                self.indent += 1
+                for line in bindings:
+                    self.write(line)
+                self.emit_arm_body(arm)
+                self.indent -= 1
+                self.write("}")
+                closed = True
+                break
+
+            keyword = "if" if first else "} else if"
+            self.write(f"{keyword} ({test}) {{")
+            self.indent += 1
+            for line in bindings:
+                self.write(line)
+            self.emit_arm_body(arm)
+            self.indent -= 1
+            first = False
+
+        if not closed:
+            self.write("} else {")
+            self.indent += 1
+            self.write('$panic("eşleşen match dalı yok: " + $str(' + subject_var + "));")
+            self.indent -= 1
+            self.write("}")
+
+        self.indent -= 1
+        self.write("}")
+
+    def emit_arm_body(self, arm: A.MatchArm) -> None:
+        if isinstance(arm.body, A.Block):
+            self.emit_body(arm.body)
+        elif isinstance(arm.body, A.Stmt):
+            self.emit_stmt(arm.body)
+        else:  # pragma: no cover
+            self.write(self.expr(arm.body) + ";")
+
+    def pattern_test(self, pat: A.Pattern, subject: str, subject_ty: Type | None):
+        """(koşul, bağlama satırları) döndürür. Koşul None ise dal her zaman eşleşir."""
+        if isinstance(pat, A.WildcardPat):
+            return None, []
+
+        if isinstance(pat, A.BindPat):
+            enum_name = pat.__dict__.get("as_enum")
+            if enum_name is not None:  # yüksüz varyant adı
+                return f"{subject}.$tag === {js_string(pat.name)}", []
+            return None, [f"const {self.name(pat.name)} = {subject};"]
+
+        if isinstance(pat, A.LiteralPat):
+            if isinstance(pat.value, A.NoneLit):
+                return f"{subject} === null", []
+            return f"$eq({subject}, {self.expr(pat.value)})", []
+
+        if isinstance(pat, A.EnumPat):
+            tests = [f"{subject}.$tag === {js_string(pat.variant)}"]
+            bindings: list[str] = []
+            for i, sub in enumerate(pat.subpatterns):
+                slot = f"{subject}.$values[{i}]"
+                if isinstance(sub, A.WildcardPat):
+                    continue
+                if isinstance(sub, A.BindPat) and sub.__dict__.get("as_enum") is None:
+                    bindings.append(f"const {self.name(sub.name)} = {slot};")
+                    continue
+                sub_test, sub_bind = self.pattern_test(sub, slot, None)
+                if sub_test is not None:
+                    tests.append(sub_test)
+                bindings.extend(sub_bind)
+            return " && ".join(tests), bindings
+
+        raise AssertionError(f"üretilemeyen desen: {type(pat).__name__}")  # pragma: no cover
+
+    # ---------------------------------------------------------------- ifadeler
+    def expr(self, node: A.Expr) -> str:
+        if isinstance(node, A.IntLit):
+            return str(node.value)
+
+        if isinstance(node, A.FloatLit):
+            text = repr(node.value)
+            return text if ("." in text or "e" in text or "n" in text) else text + ".0"
+
+        if isinstance(node, A.BoolLit):
+            return "true" if node.value else "false"
+
+        if isinstance(node, A.NoneLit):
+            return "null"
+
+        if isinstance(node, A.StringLit):
+            return self.string_lit(node)
+
+        if isinstance(node, A.SelfExpr):
+            return "this"
+
+        if isinstance(node, A.Ident):
+            return self.name(node.name)
+
+        if isinstance(node, A.ListLit):
+            return "[" + ", ".join(self.expr(i) for i in node.items) + "]"
+
+        if isinstance(node, A.MapLit):
+            pairs = ", ".join(f"[{self.expr(k)}, {self.expr(v)}]" for k, v in node.entries)
+            return f"new Map([{pairs}])"
+
+        if isinstance(node, A.StructLit):
+            return self.struct_lit(node)
+
+        if isinstance(node, A.Unary):
+            inner = self.expr(node.operand)
+            return f"(!{inner})" if node.op == "!" else f"(-{inner})"
+
+        if isinstance(node, A.Binary):
+            return self.binary(node)
+
+        if isinstance(node, A.Unwrap):
+            where = f"{node.span.line}:{node.span.col}"
+            return f"$unwrap({self.expr(node.operand)}, {js_string(where)})"
+
+        if isinstance(node, A.Index):
+            return self.index_read(node.obj.ty, self.expr(node.obj), self.expr(node.index))
+
+        if isinstance(node, A.FieldAccess):
+            return self.field(node)
+
+        if isinstance(node, A.Call):
+            return self.call(node)
+
+        if isinstance(node, A.Lambda):
+            return self.lambda_(node)
+
+        if isinstance(node, A.RangeExpr):  # pragma: no cover - checker engelliyor
+            raise AssertionError("aralık yalnızca 'for' içinde kullanılabilir")
+
+        raise AssertionError(f"üretilemeyen ifade: {type(node).__name__}")  # pragma: no cover
+
+    def string_lit(self, node: A.StringLit) -> str:
+        if len(node.parts) == 1 and isinstance(node.parts[0], str):
+            return js_string(node.parts[0])
+
+        chunks: list[str] = ["`"]
+        for part in node.parts:
+            if isinstance(part, str):
+                chunks.append(
+                    part.replace("\\", "\\\\").replace("`", "\\`").replace("${", "\\${")
+                )
+            else:
+                chunks.append("${" + self.to_string(part) + "}")
+        chunks.append("`")
+        return "".join(chunks)
+
+    def to_string(self, node: A.Expr) -> str:
+        """Bir ifadeyi metne çevirirken tipe uygun biçimleyiciyi seçer."""
+        code = self.expr(node)
+        ty = node.ty
+        if ty == STRING:
+            return code
+        if ty is not None and unwrap_optional(ty) == FLOAT:
+            return f"$strFloat({code})"
+        tc = type_code(ty)
+        if tc == "undefined":
+            return f"$str({code})"
+        return f"$fmt({code}, {tc}, false)"
+
+    def struct_lit(self, node: A.StructLit) -> str:
+        st = self.checker.structs.get(node.type_name)
+        given = dict(node.fields)
+        if st is None:  # pragma: no cover - checker hata verdi
+            args = ", ".join(self.expr(v) for _, v in node.fields)
+        else:
+            args = ", ".join(
+                self.expr(given[f]) if f in given else "null" for f in st.fields
+            )
+        return f"new {self.name(node.type_name)}({args})"
+
+    def binary(self, node: A.Binary) -> str:
+        left = self.expr(node.left)
+        right = self.expr(node.right)
+
+        if node.op == "??":
+            return f"({left} ?? {right})"
+        if node.op in ("&&", "||"):
+            return f"({left} {node.op} {right})"
+        if node.op in ("==", "!="):
+            operand_ty = node.left.ty
+            if self.needs_deep_eq(operand_ty) or self.needs_deep_eq(node.right.ty):
+                call = f"$eq({left}, {right})"
+                return f"(!{call})" if node.op == "!=" else call
+            return f"({left} {'===' if node.op == '==' else '!=='} {right})"
+
+        return self.binary_js(node.op, node.ty, left, right, node.left.ty)
+
+    def binary_js(self, op: str, result_ty: Type | None, left: str, right: str,
+                  operand_ty: Type | None = None) -> str:
+        base = unwrap_optional(operand_ty if operand_ty is not None else result_ty)
+        if op == "/":
+            return f"$idiv({left}, {right})" if base == INT else f"({left} / {right})"
+        if op == "%":
+            return f"$imod({left}, {right})" if base == INT else f"({left} % {right})"
+        if op == "+" and isinstance(base, ListT):
+            # JavaScript'te dizi toplaması metne çevirir; birleştirme gerekir.
+            return f"$listConcat({left}, {right})"
+        return f"({left} {op} {right})"
+
+    @staticmethod
+    def needs_deep_eq(ty: Type | None) -> bool:
+        base = unwrap_optional(ty) if ty is not None else None
+        return isinstance(base, (StructT, EnumT, ListT, MapT))
+
+    def index_read(self, obj_ty: Type | None, obj: str, idx: str) -> str:
+        base = unwrap_optional(obj_ty) if obj_ty is not None else None
+        if isinstance(base, MapT):
+            return f"$mapGet({obj}, {idx})"
+        if base == STRING:
+            return f"$strGet({obj}, {idx})"
+        return f"$listGet({obj}, {idx})"
+
+    def field(self, node: A.FieldAccess) -> str:
+        resolved = node.__dict__.get("resolved")
+
+        if resolved == "enum_variant":
+            enum_name = self.name(node.__dict__["enum_name"])
+            return f"{enum_name}.{self.name(node.name)}"
+
+        obj = self.expr(node.obj)
+        if node.safe:
+            return f"{obj}?.{self.name(node.name)}"
+        return f"{obj}.{self.name(node.name)}"
+
+    def lambda_(self, node: A.Lambda) -> str:
+        params = ", ".join(self.name(p.name) for p in node.params)
+        if isinstance(node.body, A.Block):
+            saved, self.lines = self.lines, []
+            saved_indent, self.indent = self.indent, 1
+            self.emit_body(node.body)
+            body_lines = self.lines
+            self.lines, self.indent = saved, saved_indent
+            pad = "  " * self.indent
+            inner = "\n".join(pad + line for line in body_lines)
+            return f"(({params}) => {{\n{inner}\n{pad}}})"
+        return f"(({params}) => {self.expr(node.body)})"
+
+    # ----------------------------------------------------------------- çağrılar
+    def call(self, node: A.Call) -> str:
+        resolved = node.__dict__.get("resolved")
+
+        if resolved == "builtin":
+            return self.builtin_call(node)
+
+        callee = node.callee
+        if isinstance(callee, A.FieldAccess):
+            inner = callee.__dict__.get("resolved")
+
+            if inner == "enum_variant":
+                enum_name = self.name(callee.__dict__["enum_name"])
+                args = ", ".join(self.expr(a) for a in node.args)
+                return f"{enum_name}.{self.name(callee.name)}({args})"
+
+            if inner == "builtin_method":
+                return self.builtin_method_call(node, callee)
+
+            obj = self.expr(callee.obj)
+            args = ", ".join(self.expr(a) for a in node.args)
+            sep = "?." if callee.safe else "."
+            return f"{obj}{sep}{self.name(callee.name)}({args})"
+
+        args = ", ".join(self.expr(a) for a in node.args)
+        return f"{self.expr(callee)}({args})"
+
+    def builtin_method_call(self, node: A.Call, callee: A.FieldAccess) -> str:
+        base = unwrap_optional(callee.obj.ty) if callee.obj.ty is not None else None
+        if base == STRING:
+            table = STRING_METHODS
+        elif isinstance(base, MapT):
+            table = MAP_METHODS
+        else:
+            table = LIST_METHODS
+
+        template = table.get(callee.name)
+        if template is None:  # pragma: no cover - checker engelliyor
+            raise AssertionError(f"bilinmeyen yerleşik metot: {callee.name}")
+
+        obj = self.expr(callee.obj)
+        args = [self.expr(a) for a in node.args]
+
+        if callee.safe:
+            tmp = self.fresh("o")
+            inner = template.format(tmp, *args)
+            return f"$opt({obj}, ({tmp}) => {inner})"
+
+        # Alıcı karmaşık bir ifadeyse şablonda birden çok kez geçmediği için
+        # doğrudan yerleştirmek güvenlidir (tüm şablonlar {0}'ı bir kez kullanır).
+        return template.format(obj, *args)
+
+    def builtin_call(self, node: A.Call) -> str:
+        name = node.callee.name  # type: ignore[union-attr]
+        args = node.args
+
+        if name == "print":
+            return f"console.log({self.to_string(args[0])})"
+
+        if name == "str":
+            return self.to_string(args[0])
+
+        if name == "len":
+            return f"$len({self.expr(args[0])})"
+
+        if name in ("int", "float"):
+            conv = node.__dict__.get("conv")
+            code = self.expr(args[0])
+            if conv == "parse":
+                return f"$parseIntOpt({code})" if name == "int" else f"$parseFloatOpt({code})"
+            return f"$toInt({code})" if name == "int" else f"$toFloat({code})"
+
+        if name == "abs":
+            return f"Math.abs({self.expr(args[0])})"
+        if name == "min":
+            return f"Math.min({self.expr(args[0])}, {self.expr(args[1])})"
+        if name == "max":
+            return f"Math.max({self.expr(args[0])}, {self.expr(args[1])})"
+        if name == "sqrt":
+            return f"Math.sqrt({self.expr(args[0])})"
+        if name == "pow":
+            return f"Math.pow({self.expr(args[0])}, {self.expr(args[1])})"
+        if name == "floor":
+            return f"Math.floor({self.expr(args[0])})"
+        if name == "ceil":
+            return f"Math.ceil({self.expr(args[0])})"
+        if name == "round":
+            return f"Math.round({self.expr(args[0])})"
+        if name == "random":
+            return "Math.random()"
+        if name == "panic":
+            return f"$panic({self.expr(args[0])})"
+        if name == "assert":
+            cond = self.expr(args[0])
+            msg = self.expr(args[1]) if len(args) > 1 else js_string("assert başarısız")
+            return f"$assert({cond}, {msg})"
+
+        raise AssertionError(f"bilinmeyen yerleşik: {name}")  # pragma: no cover
+
+
+def generate(module: A.Module, checker: Checker) -> str:
+    return JsBackend(module, checker).emit()

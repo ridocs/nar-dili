@@ -1,0 +1,108 @@
+// Biraz daha gerçek bir program: yapılacaklar listesi.
+// Modül içe aktarma, struct, enum, opsiyonel ve liste işlemlerini bir arada
+// kullanır.
+
+import "metin_araclari.nar"
+
+enum Oncelik {
+  Dusuk
+  Orta
+  Yuksek
+
+  fn etiket() -> String {
+    match self {
+      Oncelik.Dusuk -> return "düşük"
+      Oncelik.Orta -> return "orta"
+      Oncelik.Yuksek -> return "YÜKSEK"
+    }
+  }
+
+  fn agirlik() -> Int {
+    match self {
+      Oncelik.Dusuk -> return 1
+      Oncelik.Orta -> return 2
+      Oncelik.Yuksek -> return 3
+    }
+  }
+}
+
+struct Gorev {
+  baslik: String
+  oncelik: Oncelik
+  var bitti: Bool
+
+  fn tamamla() {
+    self.bitti = true
+  }
+
+  fn satir() -> String {
+    var kutu = "[ ]"
+    if self.bitti {
+      kutu = "[x]"
+    }
+    return "${kutu} ${basligaCevir(self.baslik)}  (${self.oncelik.etiket()})"
+  }
+}
+
+struct Liste {
+  ad: String
+  var gorevler: [Gorev]
+
+  fn ekle(baslik: String, oncelik: Oncelik) {
+    self.gorevler.push(Gorev { baslik: baslik, oncelik: oncelik, bitti: false })
+  }
+
+  fn bul(baslik: String) -> Gorev? {
+    for g in self.gorevler {
+      if g.baslik == baslik {
+        return g
+      }
+    }
+    return none
+  }
+
+  fn kalan() -> Int {
+    return self.gorevler.filter(|g| !g.bitti).len()
+  }
+
+  fn agirlikToplami() -> Int {
+    return self.gorevler.map(|g| g.oncelik.agirlik()).reduce(|a, b| a + b, 0)
+  }
+
+  fn yazdir() {
+    print(tekrarla("─", 44))
+    print("  ${self.ad}  —  ${self.kalan()} / ${self.gorevler.len()} kaldı")
+    print(tekrarla("─", 44))
+    for g in self.gorevler {
+      print("  " + g.satir())
+    }
+    print(tekrarla("─", 44))
+  }
+}
+
+fn main() {
+  let liste = Liste { ad: "Nar v0.1", gorevler: [] }
+
+  liste.ekle("lexer yaz", Oncelik.Yuksek)
+  liste.ekle("parser yaz", Oncelik.Yuksek)
+  liste.ekle("tip denetleyici", Oncelik.Yuksek)
+  liste.ekle("kod üreteci", Oncelik.Orta)
+  liste.ekle("belgeleri gözden geçir", Oncelik.Dusuk)
+
+  liste.bul("lexer yaz")?.tamamla()
+  liste.bul("parser yaz")?.tamamla()
+  liste.bul("tip denetleyici")?.tamamla()
+
+  liste.yazdir()
+
+  print("ağırlık toplamı: ${liste.agirlikToplami()}")
+
+  let eksik = liste.bul("olmayan görev")
+  print("olmayan görev: ${eksik?.baslik ?? "bulunamadı"}")
+
+  // Modülden gelen yardımcılar
+  print("")
+  print("'kek' palindrom mu: ${palindromMu("kek")}")
+  print("'Ey Edip Adana da pide ye' palindrom mu: ${palindromMu("Ey Edip Adana da pide ye")}")
+  print("ters: ${tersCevir("Merhaba")}")
+}

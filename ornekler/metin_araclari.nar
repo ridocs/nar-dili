@@ -1,0 +1,29 @@
+// Başka dosyalardan içe aktarılabilen küçük bir yardımcı modül.
+
+fn tersCevir(s: String) -> String {
+  var sonuc = ""
+  for harf in s {
+    sonuc = harf + sonuc
+  }
+  return sonuc
+}
+
+fn palindromMu(s: String) -> Bool {
+  let temiz = s.lowerTr().replace(" ", "")
+  return temiz == tersCevir(temiz)
+}
+
+fn basligaCevir(s: String) -> String {
+  var parcalar: [String] = []
+  for kelime in s.split(" ") {
+    if kelime.len() == 0 {
+      continue
+    }
+    parcalar.push(kelime.charAt(0).upperTr() + kelime.slice(1, kelime.len()).lowerTr())
+  }
+  return parcalar.join(" ")
+}
+
+fn tekrarla(s: String, kez: Int) -> String {
+  return s.repeat(kez)
+}

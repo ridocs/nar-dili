@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+# Nar derleyicisi — Linux/macOS/Git Bash başlatıcı.
+# Kullanım:  ./nar run ornekler/merhaba.nar
+# Betiğin bulunduğu dizin PYTHONPATH'e eklenir, böylece her yerden çağrılabilir.
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PYTHONIOENCODING=utf-8 \
+PYTHONPATH="$DIR${PYTHONPATH:+:$PYTHONPATH}" \
+exec python -m narc "$@"
