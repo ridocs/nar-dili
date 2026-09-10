@@ -278,10 +278,15 @@ fn metinOku(d: Durum) -> MetinSonucu {
     if c == "$" && d.bakIleri(1) == "{" {
       ham += d.ilerle()          // $
       ham += d.ilerle()          // {
+      // Gömmenin içi de token metnine girer; çözümleyici onu yeniden
+      // tarayıp ifadeye çevirir.
+      let icBas = d.i
       let hata = gommeAtla(d, satir, sutun)
       if hata != none {
         return MetinSonucu.Hata(hata!)
       }
+      // gommeAtla kapatan `}` üzerinden geçmiştir; onu metne ayrıca ekleriz.
+      ham += d.kaynak.slice(icBas, d.i - 1)
       ham += "}"
       continue
     }

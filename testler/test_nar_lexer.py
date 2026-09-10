@@ -52,7 +52,8 @@ def nar_ile_tokenlestir(betik: Path, kaynaklar: list[str]) -> list:
         "      return {hata: h.mesaj, satir: h.satir, sutun: h.sutun};\n"
         "    }\n"
         "    return {tokenlar: s.$values[0].map(\n"
-        "      (t) => [t.tur, t.satir, t.sutun])};\n"
+        "      (t) => [t.tur, t.satir, t.sutun]),\n"
+        "      metinler: s.$values[0].map((t) => t.metin)};\n"
         "  });\n"
         "  process.stdout.write(JSON.stringify(cikti));\n"
         "});\n"
@@ -100,6 +101,33 @@ class NarLexerTesti(unittest.TestCase):
                     alinan, beklenen,
                     f"{ad}: token dizileri ayrışıyor\n"
                     f"ilk fark: {self._ilk_fark(alinan, beklenen)}",
+                )
+                self._metinleri_karsilastir(ad, kaynak, nar["metinler"])
+
+    def _metinleri_karsilastir(self, ad: str, kaynak: str, nar_metinleri: list):
+        """Token'ın ham metni de tutmalı — tür ve konum aynı olup metin
+        bozuk olabilir.
+
+        Python lexer'ı ham metni saklamaz (değeri çözümlenmiş tutar), bu
+        yüzden karşılaştırma metnin doğrudan okunabildiği türlerle sınırlı:
+        tanımlayıcılar, anahtar kelimeler ve operatörler. Metin literalinde
+        ise ham metnin kaynakta gerçekten geçtiği doğrulanır — `${...}`
+        gömmesinin içeriği bir kez bu yüzden sessizce düşmüştü.
+        """
+        for tok, metin in zip(python_tokenize(kaynak, "t.nar"), nar_metinleri):
+            if tok.kind == "ident":
+                self.assertEqual(
+                    metin, tok.value,
+                    f"{ad}: tanımlayıcı metni ayrışıyor",
+                )
+            elif tok.kind == "string":
+                self.assertTrue(
+                    metin.startswith('"') and metin.endswith('"'),
+                    f"{ad}: metin literali tırnaklarıyla saklanmalı: {metin!r}",
+                )
+                self.assertIn(
+                    metin, kaynak,
+                    f"{ad}: metin literalinin ham hâli kaynakta yok: {metin!r}",
                 )
 
     @staticmethod
