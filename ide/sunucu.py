@@ -37,7 +37,7 @@ NODE = shutil.which("node")
 # IDE'nin araçları — renklendirici, biçimlendirici ve düzenleme yardımcıları —
 # Nar diliyle yazılmıştır. Sunucu onları istendiğinde derleyip servis eder;
 # kaynak değişirse kendiliğinden yenilenir.
-ARACLAR_NAR = KOK / "araclar" / "ide_araclari.nar"
+ARACLAR_NAR = KOK / "araclar" / "ide_uygulamasi.nar"
 _araclar_onbellek: dict[str, object] = {"imza": None, "js": ""}
 
 
@@ -53,7 +53,7 @@ def _araclar_imzasi() -> tuple:
 
 
 def araclar_js() -> str:
-    """`araclar/ide_araclari.nar` dosyasını kütüphane olarak derler."""
+    """`araclar/ide_uygulamasi.nar` dosyasını kütüphane olarak derler."""
     if not ARACLAR_NAR.exists():
         return "/* ide_araclari.nar bulunamadı */"
 
@@ -223,7 +223,7 @@ class Islem(BaseHTTPRequestHandler):
             self._metin(ARAYUZ.read_text(encoding="utf-8"))
             return
 
-        if yol == "/nar-araclari.js":
+        if yol == "/nar-ide.js":
             self._metin(araclar_js(), "application/javascript; charset=utf-8")
             return
 

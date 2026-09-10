@@ -720,10 +720,10 @@ class Checker:
                 return inner.inner
             if isinstance(inner, (AnyT, NoneT)):
                 return ANY
-            self.error(
-                f"'!' yalnızca opsiyonel değere uygulanır ('{inner}' opsiyonel değil)",
-                node.span,
-            )
+            # Değer zaten opsiyonel değilse `!` bir şey yapmaz. Bu genelde
+            # akış daraltmasının işini görünmez biçimde yapmasından olur
+            # (`if x != none { x!.f() }`); hata saymak kafa karıştırır.
+            node.__dict__["gereksiz"] = True
             return inner
 
         if isinstance(node, A.Index):

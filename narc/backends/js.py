@@ -594,6 +594,10 @@ class JsBackend:
             return self.binary(node)
 
         if isinstance(node, A.Unwrap):
+            # Değer zaten opsiyonel değilse açma işlemi gereksizdir; kontrolü
+            # üretmeyip doğrudan değeri kullanırız.
+            if node.__dict__.get("gereksiz"):
+                return self.expr(node.operand)
             where = f"{node.span.line}:{node.span.col}"
             return f"$unwrap({self.expr(node.operand)}, {js_string(where)})"
 
