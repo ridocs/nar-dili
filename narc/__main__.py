@@ -18,6 +18,7 @@ from pathlib import Path
 from . import __version__
 from .bicim import BicimHatasi, bicimlendir
 from .diagnostics import NarError, NarErrors
+from .masaustu_paket import paketle
 from .driver import compile_file, to_html
 
 
@@ -56,8 +57,10 @@ def build_parser() -> argparse.ArgumentParser:
         sub = subs.add_parser(name, help=help_text)
         sub.add_argument("file", type=Path, help="kaynak .nar dosyası")
         if name in ("build", "emit"):
-            sub.add_argument("--target", default="js", choices=["js", "web"],
-                             help="çıktı hedefi (varsayılan: js)")
+            sub.add_argument("--target", default="js",
+                             choices=["js", "web", "masaustu"],
+                             help="çıktı hedefi: js (Node), web (tek HTML), "
+                                  "masaustu (kendi penceresinde açılan uygulama)")
         if name in ("build", "emit", "check"):
             sub.add_argument("--kutuphane", action="store_true",
                              help="kütüphane olarak derle: 'main' gerekmez, "
@@ -123,6 +126,20 @@ def main(argv: list[str] | None = None) -> int:
 
     target = getattr(args, "target", "js")
     title = args.file.stem
+
+    if target == "masaustu":
+        if args.command == "emit":
+            sys.stdout.write(compilation.to_js())
+            return 0
+        hedef = args.out or (args.file.parent / "cikti" / title)
+        dosyalar = paketle(compilation.to_js(), Path(hedef), title, args.file.name)
+        print(f"masaüstü uygulaması yazıldı: {hedef}")
+        for d in dosyalar:
+            print(f"  {d.name}")
+        print()
+        print(f"çalıştırmak için:  {Path(hedef) / 'baslat.cmd'}")
+        return 0
+
     output = to_html(compilation, title) if target == "web" else compilation.to_js()
 
     if args.command == "emit":

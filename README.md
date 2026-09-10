@@ -12,6 +12,22 @@ Statik tipli, `null`'ı olmayan, derlenen bir programlama dili.
 çalışan örneklerle. Üretmek için: `python site/uret.py`, sonra
 `cikti/site/index.html` dosyasını tarayıcında aç.
 
+## Hangi hedefler çalışıyor?
+
+| Hedef | Komut | Durum |
+|---|---|---|
+| Terminal / Node | `nar run program.nar` | ✅ |
+| Web sayfası | `nar build program.nar --target web` | ✅ |
+| Masaüstü uygulaması | `nar build program.nar --target masaustu` | ✅ |
+| Android / iOS | Capacitor ile paketleme | ⏳ planlanıyor |
+| Native ikili (Linux) | C ya da Dart arka ucu | ⏳ planlanıyor |
+
+Masaüstü hedefi kendi başına çalışan bir klasör üretir: içinde programın
+HTML'i, onu kendi penceresinde açan bir başlatıcı ve Windows için
+`baslat.cmd` bulunur. Gereken tek şey Python; `pip install pywebview`
+kuruluysa gerçek bir yerel pencerede, değilse tarayıcının uygulama
+penceresinde açılır.
+
 ---
 
 ## Nasıl denerim?
@@ -65,6 +81,9 @@ nar.cmd run ornekler\merhaba.nar        # Windows
 
 # Tarayıcıda açılan tek dosyalık HTML üret
 ./nar build ornekler/merhaba.nar --target web -o cikti/merhaba.html
+
+# Masaüstü uygulaması olarak paketle (kendi penceresinde açılır)
+./nar build ornekler/sayac_web.nar --target masaustu -o cikti/sayacim
 
 # Üretilen kodu ekrana yaz (ne ürettiğini görmek için)
 ./nar emit ornekler/merhaba.nar
