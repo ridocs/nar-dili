@@ -164,10 +164,13 @@ def renklendir(kaynak: str) -> str:
 
 
 def kod_blogu(kaynak: str, dil_etiketi: str = "nar") -> str:
+    # Nar dışındaki bloklar (kabuk komutları) renklendirilmez: Nar
+    # renklendiricisi onları yanlış boyar.
+    govde = renklendir(kaynak) if dil_etiketi == "nar" else html.escape(kaynak)
     return (
         '<div class="kod-kutu">'
         f'<button class="kopyala" type="button" data-kod="{html.escape(kaynak)}">kopyala</button>'
-        f'<pre class="kod" data-dil="{dil_etiketi}"><code>{renklendir(kaynak)}</code></pre>'
+        f'<pre class="kod" data-dil="{dil_etiketi}"><code>{govde}</code></pre>'
         "</div>"
     )
 
@@ -188,7 +191,7 @@ def konu_html(konu: dict) -> str:
         f'<article class="konu" id="{konu["id"]}">',
         f'<h3><a class="capa" href="#{konu["id"]}">{html.escape(konu["baslik"])}</a></h3>',
         f'<div class="aciklama">{konu["aciklama"].strip()}</div>',
-        kod_blogu(konu["kod"]),
+        kod_blogu(konu["kod"], konu.get("dil", "nar")),
     ]
 
     if konu.get("calistirma", True):

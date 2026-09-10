@@ -122,7 +122,9 @@ fn kapsayiciOgesi(cocuklar: [Gorunum], yon: String) -> Element {
     ["display", "flex"],
     ["flex-direction", yon],
     ["gap", "10px"],
-    ["align-items", if yon == "row" { "center" } else { "flex-start" }]
+    ["align-items", if yon == "row" { "center" } else { "flex-start" }],
+    // Dar ekranda (telefon) satır sığmazsa alt alta insin, taşmasın.
+    ["flex-wrap", if yon == "row" { "wrap" } else { "nowrap" }]
   ])
   for c in cocuklar {
     e.ekle(ogeYap(c))

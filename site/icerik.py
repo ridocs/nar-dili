@@ -1515,6 +1515,86 @@ fn gorevListesi(gorevler: [Gorev]) -> Gorunum {
         ],
     },
 
+    # ------------------------------------------------------------------ hedefler
+    {
+        "id": "hedefler",
+        "baslik": "Uygulamayı dağıtmak",
+        "konular": [
+            {
+                "id": "hedef-nedir",
+                "baslik": "Aynı koddan dört hedef",
+                "aciklama": """
+Yazdığın Nar programı tek bir kaynaktır; hangi ortama gideceğini
+<code>--target</code> seçer.
+<table class="ref">
+<tr><td><code>nar run program.nar</code></td><td>Terminalde çalıştırır (Node.js)</td></tr>
+<tr><td><code>nar build program.nar --target web</code></td><td>Tek dosyalık HTML sayfası</td></tr>
+<tr><td><code>nar build program.nar --target masaustu</code></td><td>Kendi penceresinde açılan uygulama</td></tr>
+<tr><td><code>nar build program.nar --target mobil</code></td><td>Android ve iOS projesi</td></tr>
+</table>
+<p>Sayfayla konuşan işlemler (<code>bul</code>, <code>olustur</code>) terminalde
+sessizce boş döner; yani aynı kod her hedefte çöküp kalmaz.</p>
+""",
+                "kod": '''// Aynı program dört hedefte de çalışır.
+fn main() {
+  let kutu = bul("#uygulama")
+  if kutu == none {
+    print("terminaldeyiz")
+    return
+  }
+  kutu!.metinYaz("tarayıcıdayız")
+}''',
+                "calistirma": False,
+            },
+            {
+                "id": "hedef-masaustu",
+                "baslik": "Masaüstü uygulaması",
+                "aciklama": """
+<code>--target masaustu</code> kendi başına çalışan bir klasör üretir:
+programın HTML'i, onu kendi penceresinde açan bir başlatıcı ve Windows
+için bir <code>.cmd</code> dosyası.
+<p>Kullanıcının bilgisayarında yalnızca <strong>Python</strong> olması yeter.
+<code>pip install pywebview</code> yapılmışsa gerçek bir uygulama penceresi
+açılır; yoksa tarayıcının adres çubuksuz uygulama penceresi kullanılır.</p>
+""",
+                "kod": '''nar build ornekler/yapilacaklar_uygulamasi.nar --target masaustu
+
+# üretilen klasör:
+#   index.html    programın kendisi
+#   baslat.py     pencereyi açan başlatıcı
+#   baslat.cmd    Windows kısayolu
+#   BENIOKU.md''',
+                "dil": "kabuk",
+                "calistirma": False,
+            },
+            {
+                "id": "hedef-mobil",
+                "baslik": "Android ve iOS",
+                "aciklama": """
+<code>--target mobil</code> bir <strong>Capacitor</strong> projesi üretir.
+Capacitor, uygulamanı gerçek bir mobil uygulamanın içine koyar; mağazaya
+yüklenebilir.
+<p>Üretilen sayfa telefon için hazırlanmıştır: çentikli ekranlarda güvenli
+alan boşluğu bırakır, dokunma hedefleri parmakla basılacak boyuttadır
+(44 piksel) ve çift dokunmayla yakınlaştırma kapalıdır.</p>
+<p><strong>Önce telefon olmadan dene:</strong> üretilen
+<code>www/index.html</code> dosyası tarayıcıda doğrudan açılır.</p>
+<p><strong>Dürüst not:</strong> Android paketi için Android Studio, iOS için
+macOS + Xcode gerekir. Bu paketleyici projeyi hazır eder ama derlemez;
+üretilen proje bir cihazda denenmemiştir.</p>
+""",
+                "kod": '''nar build ornekler/yapilacaklar_uygulamasi.nar --target mobil
+
+cd cikti/yapilacaklar_uygulamasi-mobil
+npm install
+npx cap add android
+npx cap open android     # Android Studio açılır, ▶ ile çalıştır''',
+                "dil": "kabuk",
+                "calistirma": False,
+            },
+        ],
+    },
+
     # ---------------------------------------------------------- program düzeni
     {
         "id": "duzen",

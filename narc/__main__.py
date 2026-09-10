@@ -19,6 +19,7 @@ from . import __version__
 from .bicim import BicimHatasi, bicimlendir
 from .diagnostics import NarError, NarErrors
 from .masaustu_paket import paketle
+from .mobil_paket import paketle as mobil_paketle
 from .driver import compile_file, to_html
 
 
@@ -58,9 +59,10 @@ def build_parser() -> argparse.ArgumentParser:
         sub.add_argument("file", type=Path, help="kaynak .nar dosyası")
         if name in ("build", "emit"):
             sub.add_argument("--target", default="js",
-                             choices=["js", "web", "masaustu"],
+                             choices=["js", "web", "masaustu", "mobil"],
                              help="çıktı hedefi: js (Node), web (tek HTML), "
-                                  "masaustu (kendi penceresinde açılan uygulama)")
+                                  "masaustu (kendi penceresinde açılan uygulama), "
+                                  "mobil (Android/iOS projesi)")
         if name in ("build", "emit", "check"):
             sub.add_argument("--kutuphane", action="store_true",
                              help="kütüphane olarak derle: 'main' gerekmez, "
@@ -138,6 +140,21 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {d.name}")
         print()
         print(f"çalıştırmak için:  {Path(hedef) / 'baslat.cmd'}")
+        return 0
+
+    if target == "mobil":
+        if args.command == "emit":
+            sys.stdout.write(compilation.to_js())
+            return 0
+        hedef = args.out or (args.file.parent / "cikti" / (title + "-mobil"))
+        dosyalar = mobil_paketle(compilation.to_js(), Path(hedef), title, args.file.name)
+        print(f"mobil proje yazıldı: {hedef}")
+        for d in dosyalar:
+            print(f"  {d.relative_to(Path(hedef))}")
+        print()
+        print("önce tarayıcıda dene:  " + str(Path(hedef) / "www" / "index.html"))
+        print("Android için:          npm install && npx cap add android")
+        print(f"ayrıntılar:            {Path(hedef) / 'BENIOKU.md'}")
         return 0
 
     output = to_html(compilation, title) if target == "web" else compilation.to_js()

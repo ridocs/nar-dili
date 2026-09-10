@@ -7,7 +7,7 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 
 ## Son güncelleme
 
-**2026-09-11 01:20** — Arayüz (UI) katmanı bitti; sırada mobil hedef ve self-hosting parser.
+**2026-09-11 01:45** — Mobil hedef bitti; sırada self-hosting parser.
 
 ## Şu ana kadar biten
 
@@ -36,9 +36,10 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 | v0.6 | **Çıplak enum varyantları**: Hava.Yagmurlu yerine Yagmurlu | ✅ |
 | v0.6 | **Arayüz katmanı** (araclar/arayuz.nar): Gorunum ağacı, Uygulama<D> | ✅ |
 | v0.6 | Sahte DOM (testler/sahte_dom.js): arayüz tarayıcısız test ediliyor | ✅ |
+| v0.6 | **Mobil hedef**: nar build --target mobil (Capacitor projesi) | ⚠️ cihazda denenmedi |
 
-**Testler:** 215, hepsi geçiyor · `python -m unittest discover -s testler`
-**Son commit:** `4f2efed` (bir sonraki: arayüz katmanı)
+**Testler:** 222, hepsi geçiyor · `python -m unittest discover -s testler`
+**Son commit:** `609c56f` (bir sonraki: mobil hedef)
 **Nar ile yazılan kod:** ~2450 satır (`araclar/`, `derleyici/`, `ornekler/`, `testler/nar/`)
 
 ## Sırada (öncelik sırasıyla)
@@ -48,9 +49,12 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 - [x] ~~**3. UI katmanı**~~ — dil özelliği olarak değil, Nar ile yazılmış
       kütüphane olarak yapıldı: `araclar/arayuz.nar`. Generic ve arayüzler
       hazır olduğu için dile yeni sözdizimi eklemeye gerek kalmadı.
-- [ ] **4. Mobil hedef** — Capacitor ile Android/iOS paketleme. Not: bu
-      makinede Android Studio yok, üretilen paket doğrulanamaz; dürüstlük
-      gereği "üretildi ama cihazda denenmedi" diye işaretlenmeli.
+- [x] ~~**4. Mobil hedef**~~ — `nar build --target mobil` Capacitor projesi
+      üretiyor. **Doğrulanan:** dosyalar eksiksiz, JSON'lar geçerli, uygulama
+      kimliği Android/iOS kuralına uyuyor, sayfa 280px'e kadar taşmıyor,
+      dokunma hedefleri 44px (tarayıcıda ölçüldü).
+      **Doğrulanmayan:** gerçek bir Android/iOS cihazında çalıştırma —
+      bu makinede Android Studio ve Xcode yok.
 - [ ] **5. Self-hosting'e devam** — lexer bitti (`derleyici/lexer.nar`,
       Python'unkiyle token token karşılaştırılıyor). Sırada **parser**:
       `derleyici/ast.nar` + `derleyici/parser.nar`. Aynı doğrulama yöntemi
