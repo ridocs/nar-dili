@@ -156,12 +156,45 @@ class Parser:
             ty = A.OptionalType(span, ty)
         return ty
 
+    def parse_type_params(self) -> list[str]:
+        """Bildirimdeki tip parametreleri: `struct Kutu<T, U>` → ["T", "U"]"""
+        if not self.at("<"):
+            return []
+        self.advance()
+        adlar: list[str] = []
+        while True:
+            adlar.append(self.expect("ident", "tip parametresi adı").value)
+            if not self.match(","):
+                break
+        self.expect(">", "tip parametrelerini kapatan '>'")
+        if not adlar:
+            raise NarError("tip parametre listesi boş olamaz", self.cur.span)
+        return adlar
+
+    def parse_type_args(self) -> list[A.TypeExpr]:
+        """Kullanımdaki tip argümanları: `Kutu<Int>` → [Int]
+
+        `<` her zaman tip argümanı demek değildir (`a < b` de olabilir);
+        bu yüzden yalnızca tip bağlamında çağrılır.
+        """
+        if not self.at("<"):
+            return []
+        self.advance()
+        args: list[A.TypeExpr] = []
+        while True:
+            args.append(self.parse_type())
+            if not self.match(","):
+                break
+        self.expect(">", "tip argümanlarını kapatan '>'")
+        return args
+
     def parse_base_type(self) -> A.TypeExpr:
         tok = self.cur
 
         if tok.kind == "ident":
             self.advance()
-            return A.NamedType(tok.span, tok.value)
+            args = self.parse_type_args()
+            return A.NamedType(tok.span, tok.value, args)
 
         if tok.kind == "[":
             self.advance()
@@ -195,6 +228,7 @@ class Parser:
     def parse_fn(self, is_method: bool = False, owner: str | None = None) -> A.FnDecl:
         span = self.expect("fn").span
         name = self.expect("ident", "fonksiyon adı").value
+        type_params = self.parse_type_params()
         self.expect("(", "'('")
         params = self.parse_params()
         self.expect(")", "')'")
@@ -210,7 +244,8 @@ class Parser:
             body = A.Block(span, [A.Return(value.span, value)])
         else:
             body = self.parse_block()
-        return A.FnDecl(span, name, params, ret_type, body, is_method, owner)
+        return A.FnDecl(span, name, params, ret_type, body, is_method, owner,
+                        type_params)
 
     def parse_params(self) -> list[A.Param]:
         params: list[A.Param] = []
@@ -230,6 +265,7 @@ class Parser:
     def parse_struct(self) -> A.StructDecl:
         span = self.expect("struct").span
         name = self.expect("ident", "struct adı").value
+        type_params = self.parse_type_params()
         self.expect("{", "'{'")
         self.skip_newlines()
 
@@ -248,11 +284,12 @@ class Parser:
             self.skip_newlines()
 
         self.expect("}", "'}'")
-        return A.StructDecl(span, name, fields, methods)
+        return A.StructDecl(span, name, fields, methods, type_params)
 
     def parse_enum(self) -> A.EnumDecl:
         span = self.expect("enum").span
         name = self.expect("ident", "enum adı").value
+        type_params = self.parse_type_params()
         self.expect("{", "'{'")
         self.skip_newlines()
 
@@ -273,7 +310,7 @@ class Parser:
             self.skip_newlines()
 
         self.expect("}", "'}'")
-        return A.EnumDecl(span, name, variants, methods)
+        return A.EnumDecl(span, name, variants, methods, type_params)
 
     # ------------------------------------------------------------- deyimler
     def parse_block(self) -> A.Block:
@@ -540,6 +577,10 @@ class Parser:
             elif tok.kind == "{" and self._struct_literal_ahead(expr):
                 expr = self.parse_struct_literal(expr)
 
+            elif tok.kind == "<" and self._generic_struct_literal_ahead(expr):
+                type_args = self.parse_type_args()
+                expr = self.parse_struct_literal(expr, type_args)
+
             else:
                 break
 
@@ -562,8 +603,35 @@ class Parser:
             return True
         return self.peek(j).kind == "ident" and self.peek(j + 1).kind == ":"
 
-    def parse_struct_literal(self, type_expr: A.Expr) -> A.StructLit:
+    def _generic_struct_literal_ahead(self, expr: A.Expr) -> bool:
+        """`Kutu<Int> {` mi, yoksa `a < b` mi?
+
+        `<` hem karşılaştırma hem tip argümanı listesi olabilir. Ayrım için
+        tip listesini denemeli okur; `>` ardından `{` gelmiyorsa geri sarar.
+        """
+        if self.no_struct_lit:
+            return False
+        if not isinstance(expr, A.Ident) or not expr.name[:1].isupper():
+            return False
+
+        kayit = self.pos
+        try:
+            self.parse_type_args()
+        except NarError:
+            self.pos = kayit
+            return False
+
+        j = 0
+        while self.peek(j).kind == "newline":
+            j += 1
+        uygun = self.peek(j).kind == "{"
+        self.pos = kayit
+        return uygun
+
+    def parse_struct_literal(self, type_expr: A.Expr,
+                             type_args: list | None = None) -> A.StructLit:
         assert isinstance(type_expr, A.Ident)
+        self.skip_newlines()
         span = self.expect("{", "'{'").span
         self.skip_newlines()
         fields: list[tuple[str, A.Expr]] = []
@@ -585,7 +653,7 @@ class Parser:
 
         self.skip_newlines()
         self.expect("}", "'}'")
-        return A.StructLit(span, type_expr.name, fields)
+        return A.StructLit(span, type_expr.name, fields, type_args or [])
 
     def parse_args(self) -> list[A.Expr]:
         args: list[A.Expr] = []

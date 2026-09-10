@@ -27,6 +27,8 @@ class TypeExpr(Node):
 @dataclass
 class NamedType(TypeExpr):
     name: str = ""
+    # `Kutu<Int>` gibi kullanımlarda tip argümanları
+    args: list[TypeExpr] = field(default_factory=list)
 
 
 @dataclass
@@ -107,6 +109,8 @@ class MapLit(Expr):
 class StructLit(Expr):
     type_name: str = ""
     fields: list[tuple[str, Expr]] = field(default_factory=list)
+    # `Kutu<Int> { ... }` biçiminde açıkça yazılan tip argümanları
+    type_args: list = field(default_factory=list)
 
 
 @dataclass
@@ -300,6 +304,7 @@ class FnDecl(Node):
     body: Block = None  # type: ignore[assignment]
     is_method: bool = False
     owner: Optional[str] = None  # metotsa sahibi olan tipin adı
+    type_params: list[str] = field(default_factory=list)
     ty: object = field(default=None, init=False, repr=False)
 
 
@@ -316,6 +321,7 @@ class StructDecl(Node):
     name: str = ""
     fields: list[FieldDecl] = field(default_factory=list)
     methods: list[FnDecl] = field(default_factory=list)
+    type_params: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -330,6 +336,7 @@ class EnumDecl(Node):
     name: str = ""
     variants: list[VariantDecl] = field(default_factory=list)
     methods: list[FnDecl] = field(default_factory=list)
+    type_params: list[str] = field(default_factory=list)
 
 
 @dataclass

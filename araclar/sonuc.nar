@@ -1,0 +1,82 @@
+// Sonuç tipi — işlem başarılı mı, değilse neden başarısız?
+//
+// Nar'da hata fırlatma (`try`/`catch`) yoktur. Bir işlem başarısız
+// olabiliyorsa bunu **dönüş tipinde** söyler; çağıran da `match` yazmak
+// zorunda kalır. Böylece hata görmezden gelinemez.
+//
+//     fn bol(a: Int, b: Int) -> Sonuc<Int, String> {
+//       if b == 0 {
+//         return Sonuc.Hata("sıfıra bölünemez")
+//       }
+//       return Sonuc.Tamam(a / b)
+//     }
+//
+//     match bol(10, 2) {
+//       Sonuc.Tamam(n) -> print("sonuç:", n)
+//       Sonuc.Hata(m) -> print("olmadı:", m)
+//     }
+//
+// Bir kütüphanedir: `main` içermez.
+
+enum Sonuc<T, H> {
+  Tamam(T)
+  Hata(H)
+
+  fn iyiMi() -> Bool = match self {
+    Sonuc.Tamam(_) -> true
+    Sonuc.Hata(_) -> false
+  }
+
+  fn kotuMu() -> Bool = !self.iyiMi()
+
+  // Değeri verir; hata durumunda `none` döner.
+  fn deger() -> T? = match self {
+    Sonuc.Tamam(d) -> d
+    Sonuc.Hata(_) -> none
+  }
+
+  // Hatayı verir; başarı durumunda `none` döner.
+  fn hata() -> H? = match self {
+    Sonuc.Tamam(_) -> none
+    Sonuc.Hata(h) -> h
+  }
+
+  // Değeri verir, hata varsa verilen yedeği kullanır.
+  fn degerYoksa(yedek: T) -> T = match self {
+    Sonuc.Tamam(d) -> d
+    Sonuc.Hata(_) -> yedek
+  }
+}
+
+// Başarılı sonucun içindeki değeri dönüştürür; hata olduğu gibi taşınır.
+fn sonucDonustur<T, H, U>(s: Sonuc<T, H>, islev: (T) -> U) -> Sonuc<U, H> = match s {
+  Sonuc.Tamam(d) -> Sonuc.Tamam(islev(d))
+  Sonuc.Hata(h) -> Sonuc.Hata(h)
+}
+
+// Hata mesajını dönüştürür; başarı olduğu gibi taşınır.
+fn hatayiDonustur<T, H, G>(s: Sonuc<T, H>, islev: (H) -> G) -> Sonuc<T, G> = match s {
+  Sonuc.Tamam(d) -> Sonuc.Tamam(d)
+  Sonuc.Hata(h) -> Sonuc.Hata(islev(h))
+}
+
+// Bir liste içindeki sonuçların hepsi başarılıysa değerleri toplar;
+// ilk hatada durup onu döndürür.
+fn hepsiTamamMi<T, H>(liste: [Sonuc<T, H>]) -> Sonuc<[T], H> {
+  var degerler: [T] = []
+  for s in liste {
+    match s {
+      Sonuc.Tamam(d) -> degerler.push(d)
+      Sonuc.Hata(h) -> return Sonuc.Hata(h)
+    }
+  }
+  return Sonuc.Tamam(degerler)
+}
+
+// Opsiyonel bir değeri sonuca çevirir: yoksa verilen hatayı üretir.
+fn olmayaniHataYap<T, H>(deger: T?, hata: H) -> Sonuc<T, H> {
+  if deger == none {
+    return Sonuc.Hata(hata)
+  }
+  return Sonuc.Tamam(deger!)
+}

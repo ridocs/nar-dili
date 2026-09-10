@@ -795,6 +795,195 @@ fn main() {
         ],
     },
 
+    # -------------------------------------------------------------- generic
+    {
+        "id": "generic",
+        "baslik": "Her tiple çalışan kod",
+        "konular": [
+            {
+                "id": "generic-giris",
+                "baslik": "Tip parametreleri",
+                "aciklama": """
+Bazen bir yapı ya da fonksiyon, içindeki değerin <em>ne olduğuna</em>
+bakmadan çalışır: bir kutu hem sayı hem metin taşıyabilir.
+<p>Böyle durumlarda tipe bir <strong>parametre</strong> verilir. Aşağıdaki
+<code>T</code> "herhangi bir tip" demektir; kullanırken hangisi olduğu
+belli olur.</p>
+<p>Faydası: aynı kodu her tip için yeniden yazmazsın, ama tip güvenliği
+kaybolmaz — <code>Kutu&lt;Int&gt;</code> içine metin koyamazsın.</p>
+""",
+                "kod": '''struct Kutu<T> {
+  deger: T
+  fn al() -> T = self.deger
+}
+
+fn main() {
+  let sayiKutusu = Kutu { deger: 5 }
+  let metinKutusu = Kutu { deger: "merhaba" }
+
+  print(sayiKutusu.al())
+  print(metinKutusu.al())
+
+  // Tipi açıkça da yazabilirsin
+  let acik = Kutu<Float> { deger: 2.5 }
+  print(acik.deger)
+}''',
+                "tam": '''struct Kutu<T> {
+  deger: T
+  fn al() -> T = self.deger
+}
+
+fn main() {
+  let sayiKutusu = Kutu { deger: 5 }
+  let metinKutusu = Kutu { deger: "merhaba" }
+  print(sayiKutusu.al())
+  print(metinKutusu.al())
+  let acik = Kutu<Float> { deger: 2.5 }
+  print(acik.deger)
+}''',
+            },
+            {
+                "id": "generic-fonksiyon",
+                "baslik": "Her tiple çalışan fonksiyonlar",
+                "aciklama": """
+Fonksiyonlar da tip parametresi alabilir. Tip, verdiğin değerden
+kendiliğinden anlaşılır — yazmana gerek yoktur.
+""",
+                "kod": '''fn ilk<T>(liste: [T]) -> T? {
+  if liste.len() == 0 {
+    return none
+  }
+  return liste[0]
+}
+
+fn ikiKat<T>(x: T) -> [T] = [x, x]
+
+fn main() {
+  print(ilk([3, 4, 5]) ?? 0)
+  print(ilk(["a", "b"]) ?? "yok")
+
+  let bos: [Int] = []
+  print(ilk(bos) ?? -1)
+
+  print(ikiKat(7))
+  print(ikiKat("x"))
+}''',
+                "tam": '''fn ilk<T>(liste: [T]) -> T? {
+  if liste.len() == 0 {
+    return none
+  }
+  return liste[0]
+}
+
+fn ikiKat<T>(x: T) -> [T] = [x, x]
+
+fn main() {
+  print(ilk([3, 4, 5]) ?? 0)
+  print(ilk(["a", "b"]) ?? "yok")
+  let bos: [Int] = []
+  print(ilk(bos) ?? -1)
+  print(ikiKat(7))
+  print(ikiKat("x"))
+}''',
+            },
+            {
+                "id": "sonuc-tipi",
+                "baslik": "Hata yönetimi: Sonuç tipi",
+                "aciklama": """
+Nar'da hata fırlatma (<code>try</code>/<code>catch</code>) yoktur. Bir işlem
+başarısız olabiliyorsa bunu <strong>dönüş tipinde</strong> söyler.
+<p>Çağıran <code>match</code> yazmak zorunda kaldığı için hatayı görmezden
+gelemez. Unutursan program çalışmaz — derleyici hangi durumu ele almadığını
+söyler.</p>
+<p>Hazır tanım <code>araclar/sonuc.nar</code> dosyasındadır; kendin de
+yazabilirsin, çünkü sıradan bir <code>enum</code>'dur.</p>
+""",
+                "kod": '''enum Sonuc<T, H> {
+  Tamam(T)
+  Hata(H)
+}
+
+fn bol(a: Int, b: Int) -> Sonuc<Int, String> {
+  if b == 0 {
+    return Sonuc.Hata("sıfıra bölünemez")
+  }
+  return Sonuc.Tamam(a / b)
+}
+
+fn main() {
+  for bolen in [4, 0] {
+    match bol(100, bolen) {
+      Sonuc.Tamam(deger) -> print("100 / ${bolen} = ${deger}")
+      Sonuc.Hata(mesaj) -> print("olmadı: ${mesaj}")
+    }
+  }
+}''',
+                "tam": '''enum Sonuc<T, H> {
+  Tamam(T)
+  Hata(H)
+}
+
+fn bol(a: Int, b: Int) -> Sonuc<Int, String> {
+  if b == 0 {
+    return Sonuc.Hata("sıfıra bölünemez")
+  }
+  return Sonuc.Tamam(a / b)
+}
+
+fn main() {
+  for bolen in [4, 0] {
+    match bol(100, bolen) {
+      Sonuc.Tamam(deger) -> print("100 / ${bolen} = ${deger}")
+      Sonuc.Hata(mesaj) -> print("olmadı: ${mesaj}")
+    }
+  }
+}''',
+            },
+            {
+                "id": "generic-ozyineli",
+                "baslik": "Kendine başvuran tipler",
+                "aciklama": """
+Bir tip kendi içinde yine kendini taşıyabilir. Bağlı liste ve ağaç gibi
+yapılar böyle kurulur.
+""",
+                "kod": '''enum Agac<T> {
+  Yaprak(T)
+  Dal([Agac<T>])
+}
+
+fn topla(a: Agac<Int>) -> Int = match a {
+  Agac.Yaprak(n) -> n
+  Agac.Dal(dallar) -> dallar.map(|d| topla(d)).toplam()
+}
+
+fn main() {
+  let agac = Agac.Dal([
+    Agac.Yaprak(1),
+    Agac.Dal([Agac.Yaprak(2), Agac.Yaprak(3)])
+  ])
+  print("yaprakların toplamı:", topla(agac))
+}''',
+                "tam": '''enum Agac<T> {
+  Yaprak(T)
+  Dal([Agac<T>])
+}
+
+fn topla(a: Agac<Int>) -> Int = match a {
+  Agac.Yaprak(n) -> n
+  Agac.Dal(dallar) -> dallar.map(|d| topla(d)).toplam()
+}
+
+fn main() {
+  let agac = Agac.Dal([
+    Agac.Yaprak(1),
+    Agac.Dal([Agac.Yaprak(2), Agac.Yaprak(3)])
+  ])
+  print("yaprakların toplamı:", topla(agac))
+}''',
+            },
+        ],
+    },
+
     # -------------------------------------------------------------- güvenlik
     {
         "id": "opsiyonel",

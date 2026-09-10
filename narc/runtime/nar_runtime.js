@@ -111,6 +111,7 @@ function $fmt(v, t, quoted) {
 
   if (Array.isArray(t)) {
     if (t[0] === "o") return $fmt(v, t[1], quoted);
+    if (t[0] === "u") return $fmtGenerik(v, t[1], t[2], quoted);
     if (t[0] === "l") return "[" + v.map((x) => $fmt(x, t[1], true)).join(", ") + "]";
     if (t[0] === "m") {
       const parts = [];
@@ -157,6 +158,45 @@ function $fmt(v, t, quoted) {
   const fieldTypes = def && def.fields ? def.fields : {};
   const shown = keys.map((k) => k + ": " + $fmt(v[k], fieldTypes[k], true));
   return name + " { " + shown.join(", ") + " }";
+}
+
+// Uygulanmış generic tip: şablondaki tip parametreleri (T, U…) verilen
+// argümanlarla değiştirilerek alan tipleri bulunur.
+function $genericEsleme(def, argler) {
+  const esleme = Object.create(null);
+  const params = (def && def.params) || [];
+  for (let i = 0; i < params.length; i++) esleme[params[i]] = argler[i];
+  return esleme;
+}
+
+function $tipiCoz(tip, esleme) {
+  if (typeof tip === "string" && esleme[tip] !== undefined) return esleme[tip];
+  if (Array.isArray(tip)) {
+    if (tip[0] === "l") return ["l", $tipiCoz(tip[1], esleme)];
+    if (tip[0] === "o") return ["o", $tipiCoz(tip[1], esleme)];
+    if (tip[0] === "m") return ["m", $tipiCoz(tip[1], esleme), $tipiCoz(tip[2], esleme)];
+    if (tip[0] === "u") return ["u", tip[1], tip[2].map((a) => $tipiCoz(a, esleme))];
+  }
+  return tip;
+}
+
+function $fmtGenerik(v, ad, argler, quoted) {
+  const def = $types[ad];
+  if (!def) return $fmt(v, undefined, quoted);
+  const esleme = $genericEsleme(def, argler);
+
+  if (v.$tag !== undefined) {
+    const yuk = def.variants ? def.variants[v.$tag] : undefined;
+    if (!v.$values || v.$values.length === 0) return ad + "." + v.$tag;
+    const shown = v.$values.map((x, i) =>
+      $fmt(x, yuk ? $tipiCoz(yuk[i], esleme) : undefined, true));
+    return ad + "." + v.$tag + "(" + shown.join(", ") + ")";
+  }
+
+  const alanlar = def.fields || {};
+  const shown = Object.keys(v).map(
+    (k) => k + ": " + $fmt(v[k], $tipiCoz(alanlar[k], esleme), true));
+  return ad + " { " + shown.join(", ") + " }";
 }
 
 function $str(v) {

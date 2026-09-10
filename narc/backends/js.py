@@ -13,7 +13,7 @@ from .. import nar_ast as A
 from ..checker import Checker
 from ..types import (
     ELEMENT, FLOAT, INT, OLAY, STRING, EnumT, ListT, MapT, OptT, Prim, StructT, Type,
-    unwrap_optional,
+    TypeVar, unwrap_optional,
 )
 
 RUNTIME_PATH = Path(__file__).resolve().parent.parent / "runtime" / "nar_runtime.js"
@@ -172,6 +172,13 @@ def type_code(ty: Type | None) -> str:
     if isinstance(ty, MapT):
         return f'["m", {type_code(ty.key)}, {type_code(ty.value)}]'
     if isinstance(ty, (StructT, EnumT)):
+        if ty.type_args:
+            # Uygulanmış generic: tip argümanları da taşınır ki çalışma
+            # zamanı alan tiplerini (örneğin Float'ı) bilebilsin.
+            argler = ", ".join(type_code(a) for a in ty.type_args)
+            return f'["u", {js_string(ty.name)}, [{argler}]]'
+        return js_string(ty.name)
+    if isinstance(ty, TypeVar):
         return js_string(ty.name)
     return "undefined"
 
@@ -275,7 +282,9 @@ class JsBackend:
         pairs = ", ".join(
             f"{js_string(f.name)}: {type_code(f.ty)}" for f in decl.fields
         )
-        self.write(f"$defType({js_string(decl.name)}, {{ fields: {{{pairs}}} }});")
+        params = ", ".join(js_string(p) for p in decl.type_params)
+        self.write(f"$defType({js_string(decl.name)}, "
+                   f"{{ params: [{params}], fields: {{{pairs}}} }});")
         self.write()
 
     def emit_enum(self, decl: A.EnumDecl) -> None:
@@ -315,7 +324,9 @@ class JsBackend:
             f"{js_string(v.name)}: [{', '.join(type_code(t) for t in v.tys)}]"
             for v in decl.variants
         )
-        self.write(f"$defType({js_string(decl.name)}, {{ variants: {{{pairs}}} }});")
+        params = ", ".join(js_string(p) for p in decl.type_params)
+        self.write(f"$defType({js_string(decl.name)}, "
+                   f"{{ params: [{params}], variants: {{{pairs}}} }});")
         self.write()
 
     def emit_method(self, decl: A.FnDecl) -> None:

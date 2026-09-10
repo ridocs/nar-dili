@@ -17,7 +17,9 @@ from .types import (
     ANY, BOOL, ELEMENT, FLOAT, INT, NEVER, NONE, NUMERIC, OLAY, ORDERED,
     PRIMITIVES, STRING, VOID,
     AnyT, EnumT, FnT, ListT, MapT, NeverT, NoneT, OptT, Prim, RangeT, StructT,
-    Type, assignable, common_type, is_optional, unwrap_optional,
+    Type, TypeVar, assignable, birlestir, common_type, is_optional, subst,
+    tipdegiskeni_var_mi, tipdegiskenleri, tipdegiskenlerini_serbest_birak,
+    unwrap_optional, uygula_enum, uygula_struct,
 )
 
 BUILTIN_NAMES = {
@@ -89,6 +91,8 @@ class Checker:
         self.current_ret: Type = VOID
         self.self_type: Type | None = None
         self.loop_depth = 0
+        # Kapsamdaki tip parametreleri: `struct Kutu<T>` içindeyken {"T": T}
+        self.tip_degiskenleri: dict[str, Type] = {}
 
     # ------------------------------------------------------------ giriş noktası
     def check(self) -> None:
@@ -108,11 +112,13 @@ class Checker:
             if isinstance(item, A.StructDecl):
                 if item.name in self.structs or item.name in self.enums:
                     self.error(f"'{item.name}' tipi zaten tanımlı", item.span)
-                self.structs[item.name] = StructT(item.name)
+                self.structs[item.name] = StructT(
+                    item.name, type_params=tuple(item.type_params))
             elif isinstance(item, A.EnumDecl):
                 if item.name in self.structs or item.name in self.enums:
                     self.error(f"'{item.name}' tipi zaten tanımlı", item.span)
-                self.enums[item.name] = EnumT(item.name)
+                self.enums[item.name] = EnumT(
+                    item.name, type_params=tuple(item.type_params))
 
         # b) tip takma adları
         for item in self.module.items:
@@ -125,6 +131,7 @@ class Checker:
         for item in self.module.items:
             if isinstance(item, A.StructDecl):
                 st = self.structs[item.name]
+                onceki = self.tip_kapsami_ac(item.type_params)
                 for f in item.fields:
                     if f.name in st.fields:
                         self.error(f"'{item.name}' içinde '{f.name}' alanı yinelendi", f.span)
@@ -136,9 +143,11 @@ class Checker:
                     st.methods[m.name] = self.fn_signature(m)
                     if m.name in st.fields:
                         self.error(f"'{m.name}' hem alan hem metot olamaz", m.span)
+                self.tip_kapsami_kapat(onceki)
 
             elif isinstance(item, A.EnumDecl):
                 et = self.enums[item.name]
+                onceki = self.tip_kapsami_ac(item.type_params)
                 for v in item.variants:
                     if v.name in et.variants:
                         self.error(f"'{item.name}' içinde '{v.name}' varyantı yinelendi", v.span)
@@ -146,6 +155,7 @@ class Checker:
                     et.variants[v.name] = tuple(v.tys)
                 for m in item.methods:
                     et.methods[m.name] = self.fn_signature(m)
+                self.tip_kapsami_kapat(onceki)
 
         # d) serbest fonksiyonlar
         for item in self.module.items:
@@ -175,6 +185,7 @@ class Checker:
             self.error("'main' parametre almamalı", self.fn_decls["main"].span)
 
     def fn_signature(self, decl: A.FnDecl) -> FnT:
+        onceki = self.tip_kapsami_ac(decl.type_params)
         params = []
         seen: set[str] = set()
         for p in decl.params:
@@ -186,7 +197,61 @@ class Checker:
         ret = self.resolve_type(decl.ret_type) if decl.ret_type else VOID
         sig = FnT(tuple(params), ret)
         decl.ty = sig
+        self.tip_kapsami_kapat(onceki)
         return sig
+
+    # ------------------------------------------------------ generic yardımcı
+    def genel_tipi_uygula(self, sablon, node: A.NamedType, struct_mu: bool) -> Type:
+        """`Kutu<Int>` gibi bir kullanımı çözer, sayı uyuşmazlığını bildirir."""
+        beklenen = len(sablon.type_params)
+        args = [self.resolve_type(a) for a in node.args]
+
+        if beklenen == 0:
+            if args:
+                self.error(f"'{sablon.name}' tip argümanı almaz", node.span)
+            return sablon
+
+        if not args:
+            self.error(
+                f"'{sablon.name}' {beklenen} tip argümanı bekler; "
+                f"örnek: {sablon.name}<{', '.join(sablon.type_params)}>",
+                node.span,
+            )
+            args = [ANY] * beklenen
+        elif len(args) != beklenen:
+            self.error(
+                f"'{sablon.name}' {beklenen} tip argümanı bekler, "
+                f"{len(args)} verildi",
+                node.span,
+            )
+            args = (args + [ANY] * beklenen)[:beklenen]
+
+        uygula = uygula_struct if struct_mu else uygula_enum
+        return uygula(sablon, tuple(args))
+
+    def tip_kapsami_ac(self, params) -> dict:
+        """Tip parametrelerini kapsama alır, önceki kapsamı döndürür."""
+        onceki = self.tip_degiskenleri
+        if params:
+            self.tip_degiskenleri = dict(onceki)
+            for ad in params:
+                self.tip_degiskenleri[ad] = TypeVar(ad)
+        return onceki
+
+    def tip_kapsami_kapat(self, onceki: dict) -> None:
+        self.tip_degiskenleri = onceki
+
+    @staticmethod
+    def sablon_ornegi(sablon):
+        """Generic tipi kendi parametreleriyle uygular: `Kutu` → `Kutu<T>`.
+
+        Metot gövdelerinde `self`in tipi budur.
+        """
+        if not sablon.type_params:
+            return sablon
+        args = tuple(TypeVar(p) for p in sablon.type_params)
+        uygula = uygula_struct if isinstance(sablon, StructT) else uygula_enum
+        return uygula(sablon, args)
 
     # ------------------------------------------------------- tip çözümlemesi
     def resolve_type(self, node: A.TypeExpr | None) -> Type:
@@ -194,14 +259,29 @@ class Checker:
             return VOID
 
         if isinstance(node, A.NamedType):
+            # Kapsamdaki tip parametresi (T, U…) her şeyden önce gelir.
+            if node.name in self.tip_degiskenleri:
+                if node.args:
+                    self.error(f"'{node.name}' bir tip parametresi; "
+                               "tip argümanı alamaz", node.span)
+                return self.tip_degiskenleri[node.name]
+
             if node.name in PRIMITIVES:
+                if node.args:
+                    self.error(f"'{node.name}' tip argümanı almaz", node.span)
                 return PRIMITIVES[node.name]
+
             if node.name in self.structs:
-                return self.structs[node.name]
+                return self.genel_tipi_uygula(self.structs[node.name], node, True)
             if node.name in self.enums:
-                return self.enums[node.name]
+                return self.genel_tipi_uygula(self.enums[node.name], node, False)
+
             if node.name in self.aliases:
+                if node.args:
+                    self.error(f"'{node.name}' bir tip takma adı; "
+                               "tip argümanı alamaz", node.span)
                 return self.aliases[node.name]
+
             self.error(f"bilinmeyen tip: '{node.name}'", node.span)
             return ANY
 
@@ -232,13 +312,20 @@ class Checker:
             if isinstance(item, A.FnDecl):
                 self.check_fn(item, None)
             elif isinstance(item, A.StructDecl):
+                onceki = self.tip_kapsami_ac(item.type_params)
+                ornek = self.sablon_ornegi(self.structs[item.name])
                 for m in item.methods:
-                    self.check_fn(m, self.structs[item.name])
+                    self.check_fn(m, ornek)
+                self.tip_kapsami_kapat(onceki)
             elif isinstance(item, A.EnumDecl):
+                onceki = self.tip_kapsami_ac(item.type_params)
+                ornek = self.sablon_ornegi(self.enums[item.name])
                 for m in item.methods:
-                    self.check_fn(m, self.enums[item.name])
+                    self.check_fn(m, ornek)
+                self.tip_kapsami_kapat(onceki)
 
     def check_fn(self, decl: A.FnDecl, owner: Type | None) -> None:
+        onceki_tipler = self.tip_kapsami_ac(decl.type_params)
         env = self.globals.child()
         prev_ret, prev_self = self.current_ret, self.self_type
         self.current_ret = decl.ty.ret if decl.ty else VOID
@@ -259,6 +346,7 @@ class Checker:
             )
 
         self.current_ret, self.self_type = prev_ret, prev_self
+        self.tip_kapsami_kapat(onceki_tipler)
 
     # --------------------------------------------------------------- deyimler
     def check_block(self, block: A.Block, env: Env) -> None:
@@ -640,6 +728,10 @@ class Checker:
             self.error(f"{what} 'Bool' olmalı, '{ty}' bulundu", span)
 
     def check_expr(self, node: A.Expr, env: Env, expected: Type | None = None) -> Type:
+        # `Any` beklentisi "bilgi yok" demektir; sonucu Any'ye zorlamamalı.
+        # (Kısmen çözülmüş generic ipuçlarında Any yer tutucu olarak kullanılır.)
+        if isinstance(expected, AnyT):
+            expected = None
         ty = self._check_expr(node, env, expected)
         node.ty = ty
         return ty
@@ -699,7 +791,7 @@ class Checker:
             return self.check_map_lit(node, env, expected)
 
         if isinstance(node, A.StructLit):
-            return self.check_struct_lit(node, env)
+            return self.check_struct_lit(node, env, expected)
 
         if isinstance(node, A.Unary):
             return self.check_unary(node, env)
@@ -730,7 +822,7 @@ class Checker:
             return self.check_index(node, env)
 
         if isinstance(node, A.FieldAccess):
-            return self.check_field(node, env)
+            return self.check_field(node, env, expected)
 
         if isinstance(node, A.Call):
             return self.check_call(node, env, expected)
@@ -748,9 +840,12 @@ class Checker:
         return ANY
 
     def check_list_lit(self, node: A.ListLit, env: Env, expected: Type | None) -> Type:
-        hint = expected.elem if isinstance(unwrap_optional(expected) if expected else None, ListT) else None
+        hint = None
         if expected is not None and isinstance(unwrap_optional(expected), ListT):
             hint = unwrap_optional(expected).elem
+        # `Any` ipucu "bilgi yok" demektir; sonucu Any'ye zorlamamalı.
+        if isinstance(hint, AnyT):
+            hint = None
 
         if not node.items:
             if hint is None:
@@ -779,6 +874,10 @@ class Checker:
         base = unwrap_optional(expected) if expected else None
         key_hint = base.key if isinstance(base, MapT) else None
         val_hint = base.value if isinstance(base, MapT) else None
+        if isinstance(key_hint, AnyT):
+            key_hint = None
+        if isinstance(val_hint, AnyT):
+            val_hint = None
 
         if not node.entries:
             if key_hint is None or val_hint is None:
@@ -804,8 +903,12 @@ class Checker:
                 val_ty = merged
         return MapT(key_hint or key_ty, val_hint if val_hint is not None else val_ty)
 
-    def check_struct_lit(self, node: A.StructLit, env: Env) -> Type:
-        st = self.structs.get(node.type_name)
+    def check_struct_lit(self, node: A.StructLit, env: Env,
+                         expected: Type | None = None) -> Type:
+        sablon = self.structs.get(node.type_name)
+        if sablon is not None and sablon.type_params:
+            return self.check_generic_struct_lit(node, env, sablon, expected)
+        st = sablon
         if st is None:
             if node.type_name in self.enums:
                 self.error(
@@ -845,6 +948,85 @@ class Checker:
                 f"'{st.name}' için eksik alanlar: {', '.join(missing)}",
                 node.span,
             )
+        return st
+
+    def check_generic_struct_lit(self, node: A.StructLit, env: Env,
+                                 sablon: StructT, expected: Type | None) -> Type:
+        """`Kutu<Int> { ... }` ya da `Kutu { ... }` (tip çıkarımıyla)."""
+        params = sablon.type_params
+
+        # 1) Açıkça yazılmışsa doğrudan onu kullan.
+        if node.type_args:
+            args = tuple(self.resolve_type(a) for a in node.type_args)
+            if len(args) != len(params):
+                self.error(
+                    f"'{sablon.name}' {len(params)} tip argümanı bekler, "
+                    f"{len(args)} verildi",
+                    node.span,
+                )
+                args = (args + (ANY,) * len(params))[:len(params)]
+            return self.struct_alanlarini_dogrula(node, env, uygula_struct(sablon, args))
+
+        # 2) Beklenen tip aynı struct ise oradan al.
+        hedef = unwrap_optional(expected) if expected is not None else None
+        if isinstance(hedef, StructT) and hedef.name == sablon.name and hedef.type_args:
+            return self.struct_alanlarini_dogrula(node, env, hedef)
+
+        # 3) Verilen alan değerlerinden çıkar.
+        esleme: dict[str, Type] = {}
+        for ad, deger in node.fields:
+            if ad not in sablon.fields:
+                continue
+            beklenen_alan = sablon.fields[ad]
+            ipucu = subst(beklenen_alan, esleme)
+            got = self.check_expr(deger, env, None if tipdegiskeni_var_mi(ipucu) else ipucu)
+            birlestir(beklenen_alan, got, esleme)
+
+        eksik = [p for p in params if p not in esleme]
+        if eksik:
+            self.error(
+                f"'{sablon.name}' için tip argümanı çıkarılamadı: {', '.join(eksik)}",
+                node.span,
+                hint=f"açıkça yaz: {sablon.name}<{', '.join(params)}> {{ ... }}",
+            )
+            for p in eksik:
+                esleme[p] = ANY
+
+        args = tuple(esleme[p] for p in params)
+        return self.struct_alanlarini_dogrula(node, env, uygula_struct(sablon, args),
+                                              yeniden_denetleme=False)
+
+    def struct_alanlarini_dogrula(self, node: A.StructLit, env: Env, st: StructT,
+                                  yeniden_denetleme: bool = True) -> Type:
+        """Alanların verilip verilmediğini ve tiplerini doğrular."""
+        given: set[str] = set()
+        for ad, deger in node.fields:
+            if ad not in st.fields:
+                self.error(
+                    f"'{st.name}' tipinde '{ad}' alanı yok",
+                    deger.span,
+                    hint=f"var olan alanlar: {', '.join(st.fields) or 'yok'}",
+                )
+                if yeniden_denetleme:
+                    self.check_expr(deger, env)
+                continue
+            if ad in given:
+                self.error(f"'{ad}' alanı iki kez verildi", deger.span)
+            given.add(ad)
+            if yeniden_denetleme:
+                got = self.check_expr(deger, env, st.fields[ad])
+            else:
+                got = deger.ty if deger.ty is not None else ANY
+            if not assignable(st.fields[ad], got):
+                self.error(
+                    f"'{st.name}.{ad}': '{st.fields[ad]}' bekleniyordu, "
+                    f"'{got}' bulundu",
+                    deger.span,
+                )
+
+        eksik = [f for f in st.fields if f not in given]
+        if eksik:
+            self.error(f"'{st.name}' için eksik alanlar: {', '.join(eksik)}", node.span)
         return st
 
     def check_unary(self, node: A.Unary, env: Env) -> Type:
@@ -976,23 +1158,48 @@ class Checker:
         self.error(f"'{obj}' dizinlenemez", node.span)
         return ANY
 
-    def check_field(self, node: A.FieldAccess, env: Env) -> Type:
+    def check_field(self, node: A.FieldAccess, env: Env,
+                    beklenen: Type | None = None) -> Type:
         # Enum varyantı: `Sonuc.Tamam` / `Sonuc.Bos`
         if isinstance(node.obj, A.Ident) and env.lookup(node.obj.name) is None:
             name = node.obj.name
             if name in self.enums:
-                et = self.enums[name]
-                if node.name not in et.variants:
+                sablon = self.enums[name]
+                if node.name not in sablon.variants:
                     self.error(
                         f"'{name}' içinde '{node.name}' varyantı yok",
                         node.span,
-                        hint=f"var olanlar: {', '.join(et.variants)}",
+                        hint=f"var olanlar: {', '.join(sablon.variants)}",
                     )
                     return ANY
                 node.__dict__["resolved"] = "enum_variant"
                 node.__dict__["enum_name"] = name
-                payload = et.variants[node.name]
-                return FnT(payload, et) if payload else et
+
+                if not sablon.type_params:
+                    payload = sablon.variants[node.name]
+                    return FnT(payload, sablon) if payload else sablon
+
+                # Generic enum: beklenen tip biliniyorsa doğrudan uygula.
+                hedef = unwrap_optional(beklenen) if beklenen is not None else None
+                if isinstance(hedef, EnumT) and hedef.name == name and hedef.type_args:
+                    payload = hedef.variants[node.name]
+                    return FnT(payload, hedef) if payload else hedef
+
+                # Bilinmiyorsa tip değişkenleriyle bırak; çağrı yerinde çıkarılır.
+                ornek = self.sablon_ornegi(sablon)
+                payload = ornek.variants[node.name]
+                if payload:
+                    return FnT(payload, ornek)
+                acikta = tipdegiskenleri(ornek) - set(self.tip_degiskenleri)
+                if not acikta:
+                    return ornek
+                self.error(
+                    f"'{name}.{node.name}' için tip argümanı çıkarılamıyor",
+                    node.span,
+                    hint=f"tipi yaz, örnek: let x: {name}"
+                         f"<{', '.join(sablon.type_params)}> = {name}.{node.name}",
+                )
+                return ANY
 
         obj = self.check_expr(node.obj, env)
 
@@ -1084,7 +1291,11 @@ class Checker:
                     self.check_expr(a, env)
                 return self.structs[callee.name]
 
-        fn_ty = self.check_expr(callee, env)
+        if isinstance(callee, A.FieldAccess):
+            fn_ty = self.check_field(callee, env, expected)
+            callee.ty = fn_ty
+        else:
+            fn_ty = self.check_expr(callee, env)
 
         if isinstance(fn_ty, AnyT):
             for a in node.args:
@@ -1113,6 +1324,15 @@ class Checker:
                 node.__dict__["variant"] = callee.name
         elif isinstance(callee, A.Ident):
             node.__dict__["resolved"] = "func"
+
+        # İmzada tip değişkeni varsa (generic fonksiyon ya da generic enum
+        # yapıcısı) tip argümanları çıkarılır.
+        if any(tipdegiskeni_var_mi(p) for p in fn_ty.params) or \
+                tipdegiskeni_var_mi(fn_ty.ret):
+            ret = self.generic_cagri_coz(node, fn_ty, env, expected)
+            if isinstance(callee, A.FieldAccess) and callee.safe:
+                return ret if isinstance(ret, OptT) else OptT(ret)
+            return ret
 
         self.check_args(node, fn_ty, env)
 
@@ -1238,6 +1458,75 @@ class Checker:
                 node.args[0].span,
             )
         return init
+
+    def generic_cagri_coz(self, node: A.Call, fn_ty: FnT, env: Env,
+                          expected: Type | None) -> Type:
+        """Tip değişkeni içeren bir çağrıyı çözer.
+
+        Hem generic fonksiyonlar (`ilk([1,2])`) hem generic enum yapıcıları
+        (`Sonuc.Tamam(5)`) için kullanılır. Tip argümanları önce beklenen
+        tipten, sonra verilen argümanlardan çıkarılır.
+        """
+        esleme: dict[str, Type] = {}
+
+        # Beklenen tip biliniyorsa ondan başla: dönüş tipini oraya oturt.
+        if expected is not None and tipdegiskeni_var_mi(fn_ty.ret):
+            birlestir(fn_ty.ret, unwrap_optional(expected), esleme)
+
+        if len(node.args) != len(fn_ty.params):
+            self.error(
+                f"{len(fn_ty.params)} argüman bekleniyordu, {len(node.args)} verildi",
+                node.span,
+                hint=f"imza: {fn_ty}",
+            )
+
+        for arg, param in zip(node.args, fn_ty.params):
+            cozulmus = subst(param, esleme)
+            if not tipdegiskeni_var_mi(cozulmus):
+                ipucu = cozulmus
+            elif isinstance(cozulmus, FnT):
+                # Lambda beklenen yerde kısmi ipucu da işe yarar: `(T) -> U`
+                # içinde T biliniyorsa parametrenin tipi oradan gelir, dönüş
+                # tipi ise gövdeden çıkarılır.
+                ipucu = tipdegiskenlerini_serbest_birak(
+                    cozulmus, set(self.tip_degiskenleri))
+            else:
+                # Başka yerlerde yer tutucu koymak gerçek tipi siler; ipucusuz
+                # bırakıp değerin kendi tipini çıkarmasına izin veririz.
+                ipucu = None
+            got = self.check_expr(arg, env, ipucu)
+            if not birlestir(param, got, esleme):
+                self.error(
+                    f"argüman tipi uyuşmuyor: '{subst(param, esleme)}' "
+                    f"bekleniyordu, '{got}' bulundu",
+                    arg.span,
+                )
+        for extra in node.args[len(fn_ty.params):]:
+            self.check_expr(extra, env)
+
+        # Çözülemeyen tip değişkeni kaldıysa bildir. Fonksiyonun kendi tip
+        # parametreleri (kapsamdakiler) çözülmüş sayılır: `fn f<U>() -> Kutu<U>`
+        # içinde U geçerli bir tiptir.
+        cozulmus_params = tuple(subst(p, esleme) for p in fn_ty.params)
+        ret = subst(fn_ty.ret, esleme)
+        acikta = tipdegiskenleri(ret) - set(self.tip_degiskenleri)
+        if acikta:
+            self.error(
+                f"tip argümanı çıkarılamadı: {', '.join(sorted(acikta))}",
+                node.span,
+                hint="sonucun tipini yazarak belirt, örnek: let x: Sonuc<Int, String> = ...",
+            )
+            return ANY
+
+        # Argümanları çözülmüş imzaya göre bir kez daha doğrula.
+        for arg, param in zip(node.args, cozulmus_params):
+            if arg.ty is not None and not assignable(param, arg.ty):
+                self.error(
+                    f"argüman tipi uyuşmuyor: '{param}' bekleniyordu, "
+                    f"'{arg.ty}' bulundu",
+                    arg.span,
+                )
+        return ret
 
     def check_args(self, node: A.Call, fn_ty: FnT, env: Env) -> None:
         if len(node.args) != len(fn_ty.params):

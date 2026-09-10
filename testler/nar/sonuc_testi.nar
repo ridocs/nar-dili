@@ -1,0 +1,81 @@
+// Sonuç tipinin testleri — Nar diliyle yazılmıştır.
+
+import "../../araclar/sonuc.nar"
+
+var gecen = 0
+
+fn dogrula(kosul: Bool, ad: String) {
+  assert(kosul, "BAŞARISIZ: " + ad)
+  gecen += 1
+}
+
+fn bol(a: Int, b: Int) -> Sonuc<Int, String> {
+  if b == 0 {
+    return Sonuc.Hata("sıfıra bölünemez")
+  }
+  return Sonuc.Tamam(a / b)
+}
+
+fn sayiyaCevir(m: String) -> Sonuc<Int, String> {
+  let n = int(m)
+  if n == none {
+    return Sonuc.Hata("'" + m + "' sayı değil")
+  }
+  return Sonuc.Tamam(n!)
+}
+
+fn main() {
+  // --- temel davranış ---
+  dogrula(bol(10, 2).iyiMi(), "başarılı sonuç iyi")
+  dogrula(bol(1, 0).kotuMu(), "hatalı sonuç kötü")
+  dogrula((bol(10, 2).deger() ?? 0) == 5, "değer alınır")
+  dogrula(bol(1, 0).deger() == none, "hatada değer none")
+  dogrula((bol(1, 0).hata() ?? "") == "sıfıra bölünemez", "hata mesajı alınır")
+  dogrula(bol(10, 2).hata() == none, "başarıda hata none")
+  dogrula(bol(1, 0).degerYoksa(-1) == -1, "yedek değer kullanılır")
+  dogrula(bol(9, 3).degerYoksa(-1) == 3, "başarıda yedek kullanılmaz")
+
+  // --- match ile ayrıştırma ---
+  var mesaj = ""
+  match bol(7, 0) {
+    Sonuc.Tamam(n) -> mesaj = "tamam ${n}"
+    Sonuc.Hata(h) -> mesaj = "hata ${h}"
+  }
+  dogrula(mesaj == "hata sıfıra bölünemez", "match ile hata dalı")
+
+  // --- dönüştürme ---
+  let ikiKat = sonucDonustur(bol(10, 2), |n| n * 2)
+  dogrula((ikiKat.deger() ?? 0) == 10, "başarılı sonuç dönüştürülür")
+
+  let hataliDonustu = sonucDonustur(bol(1, 0), |n| n * 2)
+  dogrula(hataliDonustu.kotuMu(), "hata dönüştürmede korunur")
+
+  let metneCevir = sonucDonustur(bol(8, 2), |n| "sayı: ${n}")
+  dogrula((metneCevir.deger() ?? "") == "sayı: 4", "tip değiştiren dönüşüm")
+
+  let buyukHata = hatayiDonustur(bol(1, 0), |h| h.upperTr())
+  dogrula((buyukHata.hata() ?? "") == "SIFIRA BÖLÜNEMEZ", "hata dönüştürülür")
+
+  // --- toplu işlem ---
+  let hepsiIyi = hepsiTamamMi([sayiyaCevir("1"), sayiyaCevir("2")])
+  dogrula(hepsiIyi.iyiMi(), "hepsi başarılıysa tamam")
+  dogrula(diziUzunlugu(hepsiIyi) == 2, "toplanan değerler doğru")
+
+  let biriKotu = hepsiTamamMi([sayiyaCevir("1"), sayiyaCevir("abc"), sayiyaCevir("3")])
+  dogrula(biriKotu.kotuMu(), "biri başarısızsa hata")
+  dogrula((biriKotu.hata() ?? "") == "'abc' sayı değil", "ilk hata döner")
+
+  // --- opsiyonelden sonuca ---
+  let varOlan = olmayaniHataYap(5, "yok")
+  dogrula((varOlan.deger() ?? 0) == 5, "dolu opsiyonel tamam olur")
+
+  let bosOlan: Sonuc<Int, String> = olmayaniHataYap(none, "değer yok")
+  dogrula(bosOlan.kotuMu(), "boş opsiyonel hata olur")
+
+  print("tüm Sonuc testleri geçti (${gecen} doğrulama)")
+}
+
+fn diziUzunlugu(s: Sonuc<[Int], String>) -> Int = match s {
+  Sonuc.Tamam(l) -> l.len()
+  Sonuc.Hata(_) -> 0
+}
