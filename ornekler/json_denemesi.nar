@@ -1,0 +1,42 @@
+// JSON kütüphanesinin kullanımı.
+// Kütüphanenin kendisi de Nar ile yazılmıştır: araclar/json.nar
+
+import "../araclar/json.nar"
+
+fn main() {
+  let metin = "{\"ad\": \"Nar\", \"surum\": 0.2, \"hazir\": true, \"etiketler\": [\"dil\", \"derleyici\"], \"sayilar\": [1, 2, 3], \"bos\": null}"
+
+  let veri = jsonOku(metin)
+  if veri == none {
+    print("JSON okunamadı")
+    return
+  }
+
+  print("ad:", metinAl(alan(veri, "ad")) ?? "yok")
+  print("sürüm:", sayiAl(alan(veri, "surum")) ?? 0.0)
+  print("hazır mı:", mantikAl(alan(veri, "hazir")) ?? false)
+  print("ilk etiket:", metinAl(dizin(alan(veri, "etiketler"), 0)) ?? "yok")
+  print("etiket sayısı:", diziAl(alan(veri, "etiketler")).len())
+
+  // Olmayan alan sessizce none döner, program çökmez
+  print("olmayan alan:", metinAl(alan(veri, "yok")) ?? "(yok)")
+  print("yanlış tip:", metinAl(alan(veri, "surum")) ?? "(sayı, metin değil)")
+
+  // Yeniden yazma
+  print("")
+  print("geri yazıldı:")
+  print(jsonYaz(veri!))
+
+  // Elle JSON kurma
+  print("")
+  let yeni = Json.Nesne({
+    "mesaj": Json.Metin("merhaba"),
+    "adet": Json.Sayi(3.0),
+    "liste": Json.Dizi([Json.Mantik(true), Json.Bos])
+  })
+  print("elle kurulan:", jsonYaz(yeni))
+
+  // Bozuk girdi
+  print("")
+  print("bozuk girdi sonucu:", jsonOku("{bozuk") == none)
+}

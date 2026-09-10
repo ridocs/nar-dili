@@ -12,7 +12,7 @@ from pathlib import Path
 from .. import nar_ast as A
 from ..checker import Checker
 from ..types import (
-    ELEMENT, FLOAT, INT, STRING, EnumT, ListT, MapT, OptT, Prim, StructT, Type,
+    ELEMENT, FLOAT, INT, OLAY, STRING, EnumT, ListT, MapT, OptT, Prim, StructT, Type,
     unwrap_optional,
 )
 
@@ -105,6 +105,23 @@ ELEMENT_METHODS = {
     "odaklan": "{0}.focus()",
     "bul": "$ogeBul({0}, {1})",
     "bulHepsi": "$ogeBulHepsi({0}, {1})",
+    "secimBasi": "({0}.selectionStart || 0)",
+    "secimSonu": "({0}.selectionEnd || 0)",
+    "secimYap": "{0}.setSelectionRange({1}, {2})",
+    "yaziEkle": "$ogeYaziEkle({0}, {1})",
+    "kaydirmaUst": "({0}.scrollTop || 0)",
+    "kaydirmaUstYaz": "{0}.scrollTop = {1}",
+    "kaydirmaSol": "({0}.scrollLeft || 0)",
+}
+
+OLAY_METHODS = {
+    "tus": "({0}.key || \"\")",
+    "ctrl": "(({0}.ctrlKey || {0}.metaKey) === true)",
+    "shift": "({0}.shiftKey === true)",
+    "alt": "({0}.altKey === true)",
+    "engelle": "{0}.preventDefault()",
+    "durdur": "{0}.stopPropagation()",
+    "kaynak": "($olayKaynagi({0}))",
 }
 
 MAP_METHODS = {
@@ -776,6 +793,8 @@ class JsBackend:
             table = STRING_METHODS
         elif base == ELEMENT:
             table = ELEMENT_METHODS
+        elif base == OLAY:
+            table = OLAY_METHODS
         elif isinstance(base, MapT):
             table = MAP_METHODS
         else:

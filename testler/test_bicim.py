@@ -61,10 +61,21 @@ class BicimlendiriciTesti(unittest.TestCase):
         self.assertIn("  })", sonuc)
 
     def test_ic_ice_liste(self):
+        # Devam satırlarının kendi aralarındaki hizalaması korunur; hepsi
+        # yalnızca açılış satırıyla aynı miktarda kayar.
         sonuc = bicimlendir("fn main() {\nlet a = [[\n1\n]]\n}\n")
-        self.assertIn("  let a = [[", sonuc)
-        self.assertIn("    1", sonuc)
-        self.assertIn("  ]]", sonuc)
+        satirlar = sonuc.splitlines()
+        self.assertIn("  let a = [[", satirlar)
+        self.assertIn("  1", satirlar)
+        self.assertIn("  ]]", satirlar)
+
+    def test_devam_satirlari_goreli_kalir(self):
+        # Yazar girinti vermişse o girinti korunur (bloğa göre kaydırılır).
+        sonuc = bicimlendir("fn main() {\nlet a = [\n  1,\n]\n}\n")
+        satirlar = sonuc.splitlines()
+        self.assertIn("  let a = [", satirlar)
+        self.assertIn("    1,", satirlar)
+        self.assertIn("  ]", satirlar)
 
     def test_satir_sonu_bosluklari_atilir(self):
         self.esit('fn main() {\n  print("a")   \n}\n', 'fn main() {\n  print("a")\n}\n')
@@ -82,6 +93,39 @@ class BicimlendiriciTesti(unittest.TestCase):
 
     def test_yorumdaki_parantez_sayilmaz(self):
         sonuc = bicimlendir('fn main() {\n// burada bir { var\nprint("a")\n}\n')
+        self.assertIn('  print("a")', sonuc)
+
+    def test_devam_satirlari_korunur(self):
+        # Çok satırlı koşulun hizalaması bozulmamalı, yalnızca blokla
+        # birlikte kaymalı.
+        sonuc = bicimlendir(
+            "fn main() {\n"
+            "var i = 0\n"
+            "while i < 10 && (i % 2 == 0 ||\n"
+            "                 i % 3 == 0) {\n"
+            "i += 1\n"
+            "}\n"
+            "}\n"
+        )
+        satirlar = sonuc.splitlines()
+        self.assertIn("  while i < 10 && (i % 2 == 0 ||", satirlar)
+        # Devam satırı açılış parantezine göre hizalı kalmalı
+        devam = [s for s in satirlar if "i % 3" in s][0]
+        acilis = [s for s in satirlar if "i % 2" in s][0]
+        self.assertEqual(devam.index("i % 3"), acilis.index("(") + 1)
+
+    def test_cok_satirli_liste_girintilenir(self):
+        sonuc = bicimlendir("fn main() {\nlet l = [\n  1,\n  2,\n]\n}\n")
+        satirlar = sonuc.splitlines()
+        self.assertIn("  let l = [", satirlar)
+        self.assertIn("    1,", satirlar)
+        self.assertIn("  ]", satirlar)
+
+    def test_blok_yorumu_ici_korunur(self):
+        sonuc = bicimlendir(
+            "fn main() {\n/* birinci\n     ikinci\n   son */\nprint(\"a\")\n}\n"
+        )
+        self.assertIn("     ikinci", sonuc)
         self.assertIn('  print("a")', sonuc)
 
     def test_kararli(self):

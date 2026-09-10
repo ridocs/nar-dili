@@ -134,12 +134,14 @@ VOID = Prim("Void")
 # Sayfadaki bir öğe. Yalnızca tarayıcı hedefinde anlamlıdır; Node ile
 # çalıştırılan bir programda `bul(...)` her zaman `none` döner.
 ELEMENT = Prim("Element")
+# Bir olayın ayrıntıları: hangi tuşa basıldı, Ctrl basılı mıydı...
+OLAY = Prim("Olay")
 NONE = NoneT()
 NEVER = NeverT()
 ANY = AnyT()
 
 PRIMITIVES = {"Int": INT, "Float": FLOAT, "Bool": BOOL, "String": STRING,
-              "Void": VOID, "Element": ELEMENT}
+              "Void": VOID, "Element": ELEMENT, "Olay": OLAY}
 NUMERIC = (INT, FLOAT)
 ORDERED = (INT, FLOAT, STRING)
 
@@ -168,6 +170,21 @@ def assignable(target: Type, source: Type) -> bool:
         # T?? gibi iç içe opsiyoneller düzleştirilir
         if isinstance(source, OptT) and assignable(target.inner, source.inner):
             return True
+
+    # Daha az parametre alan bir fonksiyon, daha çok parametre bekleyen yere
+    # verilebilir; fazlası yok sayılır. Olay dinleyicilerinde işe yarar:
+    # `dinle("click", || { ... })` yazmak için olayı almak zorunda kalmazsın.
+    if isinstance(target, FnT) and isinstance(source, FnT):
+        if len(source.params) <= len(target.params):
+            eslesiyor = all(
+                assignable(s, t)
+                for s, t in zip(source.params, target.params[:len(source.params)])
+            )
+            if eslesiyor and assignable(target.ret, source.ret):
+                return True
+            # Dönüş değeri kullanılmıyorsa (Void bekleniyorsa) tip serbesttir.
+            if eslesiyor and isinstance(target.ret, Prim) and target.ret.name == "Void":
+                return True
     return False
 
 

@@ -1,0 +1,86 @@
+// JSON kütüphanesinin testleri — Nar diliyle yazılmıştır.
+//
+// `assert(kosul, mesaj)` yanlışsa programı durdurur; Python test paketi
+// bu dosyayı çalıştırıp çıkış kodunu kontrol eder.
+//
+//     nar run testler/nar/json_testi.nar
+
+import "../../araclar/json.nar"
+
+var gecen = 0
+
+fn dogrula(kosul: Bool, ad: String) {
+  assert(kosul, "BAŞARISIZ: " + ad)
+  gecen += 1
+}
+
+fn main() {
+  // --- temel tipler ---
+  dogrula(jsonOku("null") != none, "null okunur")
+  dogrula(mantikAl(jsonOku("true")) ?? false, "true okunur")
+  dogrula(!(mantikAl(jsonOku("false")) ?? true), "false okunur")
+  dogrula((sayiAl(jsonOku("42")) ?? 0.0) == 42.0, "tam sayı okunur")
+  dogrula((sayiAl(jsonOku("-3.5")) ?? 0.0) == -3.5, "negatif ondalık okunur")
+  dogrula((sayiAl(jsonOku("1e3")) ?? 0.0) == 1000.0, "üslü sayı okunur")
+  dogrula((metinAl(jsonOku("\"merhaba\"")) ?? "") == "merhaba", "metin okunur")
+
+  // --- kaçış dizileri ---
+  let kacisli = metinAl(jsonOku("\"satır\\nsonu\"")) ?? ""
+  dogrula(kacisli.contains("\n"), "\\n kaçışı çözülür")
+  let tirnakli = metinAl(jsonOku("\"iç \\\"tırnak\\\"\"")) ?? ""
+  dogrula(tirnakli.contains("\""), "\\\" kaçışı çözülür")
+
+  // --- diziler ---
+  let dizi = jsonOku("[1, 2, 3]")
+  dogrula(diziAl(dizi).len() == 3, "dizi uzunluğu doğru")
+  dogrula((sayiAl(dizin(dizi, 1)) ?? 0.0) == 2.0, "dizi dizini çalışır")
+  dogrula(dizin(dizi, 9) == none, "dizi sınırı aşınca none")
+  dogrula(diziAl(jsonOku("[]")).len() == 0, "boş dizi okunur")
+
+  // --- nesneler ---
+  let nesne = jsonOku("{\"a\": 1, \"b\": \"iki\", \"c\": {\"ic\": true}}")
+  dogrula((sayiAl(alan(nesne, "a")) ?? 0.0) == 1.0, "nesne alanı okunur")
+  dogrula((metinAl(alan(nesne, "b")) ?? "") == "iki", "metin alanı okunur")
+  dogrula(alan(nesne, "yok") == none, "olmayan alan none")
+  dogrula(mantikAl(alan(alan(nesne, "c"), "ic")) ?? false, "iç içe alan okunur")
+  dogrula(alan(jsonOku("{}"), "x") == none, "boş nesne")
+
+  // --- yanlış tip istemek none döndürür, çökmez ---
+  dogrula(metinAl(alan(nesne, "a")) == none, "sayıdan metin istenince none")
+  dogrula(sayiAl(alan(nesne, "b")) == none, "metinden sayı istenince none")
+  dogrula(diziAl(alan(nesne, "a")).len() == 0, "sayıdan dizi istenince boş")
+
+  // --- bozuk girdiler ---
+  dogrula(jsonOku("{bozuk") == none, "kapatılmamış nesne reddedilir")
+  dogrula(jsonOku("[1, 2") == none, "kapatılmamış dizi reddedilir")
+  dogrula(jsonOku("") == none, "boş girdi reddedilir")
+  dogrula(jsonOku("{\"a\": }") == none, "eksik değer reddedilir")
+  dogrula(jsonOku("1 2") == none, "fazladan içerik reddedilir")
+
+  // --- boşluk toleransı ---
+  dogrula(jsonOku("  {  \"a\" :  1  }  ") != none, "boşluklar hoş görülür")
+
+  // --- gidiş-dönüş: yaz, oku, aynı olmalı ---
+  let ozgun = Json.Nesne({
+    "metin": Json.Metin("değer"),
+    "sayi": Json.Sayi(3.5),
+    "mantik": Json.Mantik(false),
+    "bos": Json.Bos,
+    "dizi": Json.Dizi([Json.Sayi(1.0), Json.Metin("iki")])
+  })
+  let yazilan = jsonYaz(ozgun)
+  let geri = jsonOku(yazilan)
+  dogrula(geri != none, "yazılan JSON geri okunabilir")
+  dogrula((metinAl(alan(geri, "metin")) ?? "") == "değer", "gidiş-dönüş: metin")
+  dogrula((sayiAl(alan(geri, "sayi")) ?? 0.0) == 3.5, "gidiş-dönüş: sayı")
+  dogrula(diziAl(alan(geri, "dizi")).len() == 2, "gidiş-dönüş: dizi")
+  dogrula(jsonYaz(geri!) == yazilan, "iki kez yazınca aynı sonuç")
+
+  // --- kaçış gerektiren metin gidiş-dönüşü ---
+  let zor = Json.Metin("tırnak \" ters \\ satır \n son")
+  let zorGeri = jsonOku(jsonYaz(zor))
+  dogrula((metinAl(zorGeri) ?? "") == "tırnak \" ters \\ satır \n son",
+          "kaçış gerektiren metin gidiş-dönüşü")
+
+  print("tüm JSON testleri geçti (${gecen} doğrulama)")
+}

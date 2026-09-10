@@ -1,0 +1,363 @@
+// JSON okuma ve yazma — Nar diliyle yazılmıştır.
+//
+// JSON, programların birbirine veri göndermek için kullandığı yaygın bir
+// metin biçimidir. Bu kütüphane onu Nar değerlerine çevirir ve geri yazar.
+//
+//     let veri = jsonOku(metin)
+//     if veri != none {
+//       let ad = metinAl(alan(veri!, "ad"))
+//     }
+//
+// Bir kütüphanedir: `main` içermez.
+
+import "tarayici.nar"
+
+// Bir JSON değeri. Kendi içinde yine JSON değerleri taşıyabilir —
+// bu yüzden tip kendine başvurur.
+enum Json {
+  Metin(String)
+  Sayi(Float)
+  Mantik(Bool)
+  Bos
+  Dizi([Json])
+  Nesne({String: Json})
+}
+
+// Okuma sırasında metinde nerede olduğumuzu tutar.
+struct Okuyucu {
+  metin: String
+  var konum: Int
+
+  fn bitti() -> Bool = self.konum >= self.metin.len()
+
+  fn bak() -> String = karakter(self.metin, self.konum)
+
+  fn ilerle() {
+    self.konum += 1
+  }
+
+  fn bosluklariAtla() {
+    while !self.bitti() && bosluktanMi(self.bak()) {
+      self.ilerle()
+    }
+  }
+
+  // Beklenen karakter oradaysa tüketir ve true döner.
+  fn tuket(beklenen: String) -> Bool {
+    if self.bak() == beklenen {
+      self.ilerle()
+      return true
+    }
+    return false
+  }
+
+  // Verilen kelime bu konumda mı (true, false, null için).
+  fn kelimeMi(kelime: String) -> Bool {
+    let son = min(self.konum + kelime.len(), self.metin.len())
+    return self.metin.slice(self.konum, son) == kelime
+  }
+}
+
+// --- okuma ----------------------------------------------------------------
+
+fn jsonOku(metin: String) -> Json? {
+  let o = Okuyucu { metin: metin, konum: 0 }
+  o.bosluklariAtla()
+  let sonuc = degerOku(o)
+  if sonuc == none {
+    return none
+  }
+  o.bosluklariAtla()
+  // Sonda artık metin kalmışsa girdi bozuktur.
+  if !o.bitti() {
+    return none
+  }
+  return sonuc
+}
+
+fn degerOku(o: Okuyucu) -> Json? {
+  o.bosluklariAtla()
+  if o.bitti() {
+    return none
+  }
+
+  let c = o.bak()
+
+  if c == "\"" {
+    let s = metinOku(o)
+    if s == none {
+      return none
+    }
+    return Json.Metin(s!)
+  }
+  if c == "{" {
+    return nesneOku(o)
+  }
+  if c == "[" {
+    return diziOku(o)
+  }
+  if o.kelimeMi("true") {
+    o.konum += 4
+    return Json.Mantik(true)
+  }
+  if o.kelimeMi("false") {
+    o.konum += 5
+    return Json.Mantik(false)
+  }
+  if o.kelimeMi("null") {
+    o.konum += 4
+    return Json.Bos
+  }
+  if rakamMi(c) || c == "-" {
+    return sayiOku(o)
+  }
+  return none
+}
+
+fn metinOku(o: Okuyucu) -> String? {
+  if !o.tuket("\"") {
+    return none
+  }
+  var sonuc = ""
+  while !o.bitti() {
+    let c = o.bak()
+    if c == "\"" {
+      o.ilerle()
+      return sonuc
+    }
+    if c == "\\" {
+      o.ilerle()
+      if o.bitti() {
+        return none
+      }
+      let k = o.bak()
+      o.ilerle()
+      if k == "n" {
+        sonuc += "\n"
+      } else {
+        if k == "t" {
+          sonuc += "\t"
+        } else {
+          if k == "r" {
+            sonuc += "\r"
+          } else {
+            if k == "u" {
+              // \uXXXX — dört onaltılık basamak atlanır, yerine soru işareti
+              o.konum += 4
+              sonuc += "?"
+            } else {
+              sonuc += k
+            }
+          }
+        }
+      }
+      continue
+    }
+    sonuc += c
+    o.ilerle()
+  }
+  return none
+}
+
+fn sayiOku(o: Okuyucu) -> Json? {
+  let bas = o.konum
+  if o.bak() == "-" {
+    o.ilerle()
+  }
+  while !o.bitti() && (rakamMi(o.bak()) || o.bak() == "." ||
+                       o.bak() == "e" || o.bak() == "E" ||
+                       o.bak() == "+" || o.bak() == "-") {
+    o.ilerle()
+  }
+  let ham = o.metin.slice(bas, o.konum)
+  let sayi = float(ham)
+  if sayi == none {
+    return none
+  }
+  return Json.Sayi(sayi!)
+}
+
+fn diziOku(o: Okuyucu) -> Json? {
+  if !o.tuket("[") {
+    return none
+  }
+  var ogeler: [Json] = []
+  o.bosluklariAtla()
+
+  if o.tuket("]") {
+    return Json.Dizi(ogeler)
+  }
+
+  while true {
+    let oge = degerOku(o)
+    if oge == none {
+      return none
+    }
+    ogeler.push(oge!)
+    o.bosluklariAtla()
+
+    if o.tuket(",") {
+      continue
+    }
+    if o.tuket("]") {
+      return Json.Dizi(ogeler)
+    }
+    return none
+  }
+  return none
+}
+
+fn nesneOku(o: Okuyucu) -> Json? {
+  if !o.tuket("{") {
+    return none
+  }
+  var kayitlar: {String: Json} = {}
+  o.bosluklariAtla()
+
+  if o.tuket("}") {
+    return Json.Nesne(kayitlar)
+  }
+
+  while true {
+    o.bosluklariAtla()
+    let anahtar = metinOku(o)
+    if anahtar == none {
+      return none
+    }
+    o.bosluklariAtla()
+    if !o.tuket(":") {
+      return none
+    }
+    let deger = degerOku(o)
+    if deger == none {
+      return none
+    }
+    kayitlar.set(anahtar!, deger!)
+    o.bosluklariAtla()
+
+    if o.tuket(",") {
+      continue
+    }
+    if o.tuket("}") {
+      return Json.Nesne(kayitlar)
+    }
+    return none
+  }
+  return none
+}
+
+// --- yazma ----------------------------------------------------------------
+
+fn jsonYaz(d: Json) -> String = match d {
+  Json.Metin(s) -> metinKacir(s)
+  Json.Sayi(n) -> sayiYaz(n)
+  Json.Mantik(b) -> str(b)
+  Json.Bos -> "null"
+  Json.Dizi(l) -> "[" + l.map(|e| jsonYaz(e)).join(",") + "]"
+  Json.Nesne(m) -> nesneYaz(m)
+}
+
+fn sayiYaz(n: Float) -> String {
+  // Tam sayı değerler ondalıksız yazılır: 3.0 yerine 3
+  let tam = int(n)
+  if float(tam) == n {
+    return str(tam)
+  }
+  return str(n)
+}
+
+fn nesneYaz(m: {String: Json}) -> String {
+  var parcalar: [String] = []
+  for (anahtar, deger) in m {
+    parcalar.push(metinKacir(anahtar) + ":" + jsonYaz(deger))
+  }
+  return "{" + parcalar.join(",") + "}"
+}
+
+fn metinKacir(s: String) -> String {
+  var sonuc = s.replace("\\", "\\\\")
+  sonuc = sonuc.replace("\"", "\\\"")
+  sonuc = sonuc.replace("\n", "\\n")
+  sonuc = sonuc.replace("\t", "\\t")
+  sonuc = sonuc.replace("\r", "\\r")
+  return "\"" + sonuc + "\""
+}
+
+// --- kolay erişim ---------------------------------------------------------
+// Bu yardımcılar `none` değerleri sessizce taşır, böylece zincirleme
+// erişimde her adımda kontrol yazmak gerekmez.
+
+fn alan(d: Json?, ad: String) -> Json? {
+  if d == none {
+    return none
+  }
+  return match d! {
+    Json.Nesne(m) -> m.get(ad)
+    _ -> none
+  }
+}
+
+fn dizin(d: Json?, i: Int) -> Json? {
+  if d == none {
+    return none
+  }
+  return match d! {
+    Json.Dizi(l) -> ogeAl(l, i)
+    _ -> none
+  }
+}
+
+fn ogeAl(l: [Json], i: Int) -> Json? {
+  if i < 0 || i >= l.len() {
+    return none
+  }
+  return l[i]
+}
+
+fn metinAl(d: Json?) -> String? {
+  if d == none {
+    return none
+  }
+  return match d! {
+    Json.Metin(s) -> s
+    _ -> none
+  }
+}
+
+fn sayiAl(d: Json?) -> Float? {
+  if d == none {
+    return none
+  }
+  return match d! {
+    Json.Sayi(n) -> n
+    _ -> none
+  }
+}
+
+fn tamSayiAl(d: Json?) -> Int? {
+  let n = sayiAl(d)
+  if n == none {
+    return none
+  }
+  return int(n!)
+}
+
+fn mantikAl(d: Json?) -> Bool? {
+  if d == none {
+    return none
+  }
+  return match d! {
+    Json.Mantik(b) -> b
+    _ -> none
+  }
+}
+
+fn diziAl(d: Json?) -> [Json] {
+  if d == none {
+    return []
+  }
+  return match d! {
+    Json.Dizi(l) -> l
+    _ -> []
+  }
+}

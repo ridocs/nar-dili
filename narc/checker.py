@@ -14,8 +14,8 @@ from __future__ import annotations
 from . import nar_ast as A
 from .diagnostics import NarError, NarErrors, duzenle
 from .types import (
-    ANY, BOOL, ELEMENT, FLOAT, INT, NEVER, NONE, NUMERIC, ORDERED, PRIMITIVES,
-    STRING, VOID,
+    ANY, BOOL, ELEMENT, FLOAT, INT, NEVER, NONE, NUMERIC, OLAY, ORDERED,
+    PRIMITIVES, STRING, VOID,
     AnyT, EnumT, FnT, ListT, MapT, NeverT, NoneT, OptT, Prim, RangeT, StructT,
     Type, assignable, common_type, is_optional, unwrap_optional,
 )
@@ -1480,6 +1480,8 @@ def _member_hint(base: Type) -> str | None:
         names = _BUILTIN_MEMBER_NAMES["String"]
     elif base == ELEMENT:
         names = _BUILTIN_MEMBER_NAMES["Element"]
+    elif base == OLAY:
+        names = _BUILTIN_MEMBER_NAMES["Olay"]
     if not names:
         return None
     return f"kullanılabilir: {', '.join(sorted(names))}"
@@ -1558,6 +1560,17 @@ def builtin_method(base: Type, name: str) -> FnT | None:
 
         return table.get(name)
 
+    if base == OLAY:
+        return {
+            "tus": FnT((), STRING),        # basılan tuşun adı: "a", "Enter"…
+            "ctrl": FnT((), BOOL),
+            "shift": FnT((), BOOL),
+            "alt": FnT((), BOOL),
+            "engelle": FnT((), VOID),      # tarayıcının varsayılan işini iptal et
+            "durdur": FnT((), VOID),       # olayın yukarı yayılmasını durdur
+            "kaynak": FnT((), OptT(ELEMENT)),  # olayın geldiği öğe
+        }.get(name)
+
     if base == ELEMENT:
         return {
             "metin": FnT((), STRING),
@@ -1572,8 +1585,18 @@ def builtin_method(base: Type, name: str) -> FnT | None:
             "ozellik": FnT((STRING,), OptT(STRING)),
             "ozellikYaz": FnT((STRING, STRING), VOID),
             "stil": FnT((STRING, STRING), VOID),
-            "dinle": FnT((STRING, FnT((), VOID)), VOID),
+            # Dinleyici olayı almak zorunda değil: `|| { ... }` da geçerlidir
+            # (tip sistemi daha az parametreli fonksiyonu kabul eder).
+            "dinle": FnT((STRING, FnT((OLAY,), VOID)), VOID),
             "ekle": FnT((ELEMENT,), VOID),
+            # Metin kutusu (input / textarea) için imleç ve kaydırma erişimi
+            "secimBasi": FnT((), INT),
+            "secimSonu": FnT((), INT),
+            "secimYap": FnT((INT, INT), VOID),
+            "yaziEkle": FnT((STRING,), VOID),   # imleç konumuna metin yazar
+            "kaydirmaUst": FnT((), INT),
+            "kaydirmaUstYaz": FnT((INT,), VOID),
+            "kaydirmaSol": FnT((), INT),
             "cikar": FnT((), VOID),
             "temizle": FnT((), VOID),
             "odaklan": FnT((), VOID),
@@ -1609,7 +1632,9 @@ _BUILTIN_MEMBER_NAMES = {
     "Element": ["metin", "metinYaz", "html", "htmlYaz", "deger", "degerYaz",
                 "sinifEkle", "sinifSil", "sinifVarMi", "ozellik", "ozellikYaz",
                 "stil", "dinle", "ekle", "cikar", "temizle", "odaklan",
-                "bul", "bulHepsi"],
+                "bul", "bulHepsi", "secimBasi", "secimSonu", "secimYap",
+                "yaziEkle", "kaydirmaUst", "kaydirmaUstYaz", "kaydirmaSol"],
+    "Olay": ["tus", "ctrl", "shift", "alt", "engelle", "durdur", "kaynak"],
 }
 
 

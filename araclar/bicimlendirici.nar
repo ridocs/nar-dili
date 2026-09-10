@@ -4,8 +4,12 @@
 // değiştirmez: yalnızca satır başlarındaki girinti, satır sonlarındaki
 // fazlalık boşluk ve arka arkaya gelen boş satırlar düzeltilir.
 //
-// Metin literalleri ve yorumlar olduğu gibi bırakılır — içlerindeki
-// süslü parantezler girinti sayımına katılmaz.
+// Nasıl çalışır: kaynak taranırken açık parantezler bir yığında tutulur.
+//   - Yığının tepesi "{" ise satır bir blok içindedir → yeniden girintilenir.
+//   - Tepesi "(" ya da "[" ise satır bir **devam satırıdır** (çok satırlı
+//     koşul, hizalanmış argüman listesi) → yazarın hizalaması korunur.
+// Metin literalleri ve yorumlar taranırken atlanır; içlerindeki parantezler
+// sayılmaz.
 //
 //     nar fmt dosya.nar          yerinde düzenler
 //     nar fmt dosya.nar --goster ekrana yazar
@@ -14,97 +18,11 @@ import "tarayici.nar"
 
 let GIRINTI = "  "
 
-// Bir satırdaki parantez dengesini ve satırın nasıl başladığını anlatır.
-struct SatirBilgisi {
-  acilan: Int        // satır sonunda kaç seviye artmalı (negatif olabilir)
-  bastaKapanan: Int  // satırın kendisi kaç seviye geri çekilmeli
-  bosMu: Bool
+// Bir satır tarandıktan sonra ulaşılan durum.
+struct TaramaDurumu {
+  var yorumDerinligi: Int
 }
 
-// Satırı tarayıp parantez dengesini çıkarır; metin ve yorum içindekiler
-// sayılmaz. Süslü parantez, köşeli parantez ve normal parantez sayılır.
-fn satiriIncele(satir: String) -> SatirBilgisi {
-  let n = satir.len()
-  var i = 0
-  var denge = 0
-  var enDusuk = 0
-  var icerikVar = false
-
-  while i < n {
-    let c = karakter(satir, i)
-    let d = karakter(satir, i + 1)
-
-    if c == "/" && d == "/" {
-      // satır yorumu: geri kalanı yok say
-      i = n
-      continue
-    }
-    if c == "/" && d == "*" {
-      let son = blokYorumuSonu(satir, i)
-      icerikVar = true
-      i = son
-      continue
-    }
-    if c == "\"" {
-      let son = metinSonu(satir, i)
-      icerikVar = true
-      i = son
-      continue
-    }
-
-    if c == "{" || c == "[" || c == "(" {
-      denge += 1
-      icerikVar = true
-    } else {
-      if c == "}" || c == "]" || c == ")" {
-        denge -= 1
-        if denge < enDusuk {
-          enDusuk = denge
-        }
-        icerikVar = true
-      } else {
-        if !bosluktanMi(c) {
-          icerikVar = true
-        }
-      }
-    }
-    i += 1
-  }
-
-  // Bir satır birden çok parantez açsa bile girinti tek seviye artar.
-  // Örnek:  dinle("click", || {      <- hem "(" hem "{" açılır
-  // İnsanlar burada iki değil bir seviye içeri girer; kapanışta da
-  // simetrik olması için aynı sınır uygulanır.
-  var acilan = 0
-  if denge > 0 {
-    acilan = 1
-  }
-  if denge < 0 {
-    acilan = -1
-  }
-
-  // Satır kapanışla başlıyorsa (örneğin "}" ya da "} else {") o satırın
-  // kendisi bir seviye geri çekilir.
-  var bastaKapanan = 0
-  if enDusuk < 0 {
-    bastaKapanan = 1
-  }
-
-  return SatirBilgisi {
-    acilan: acilan,
-    bastaKapanan: bastaKapanan,
-    bosMu: !icerikVar
-  }
-}
-
-fn girintiUret(seviye: Int) -> String {
-  if seviye <= 0 {
-    return ""
-  }
-  return GIRINTI.repeat(seviye)
-}
-
-// Satır sonundaki boşlukları atar. Nar'da sağdan kırpma yok, elle yapılır.
 fn sagdanKirp(s: String) -> String {
   var son = s.len()
   while son > 0 && bosluktanMi(karakter(s, son - 1)) {
@@ -122,82 +40,157 @@ fn soldanKirp(s: String) -> String {
   return s.slice(bas, n)
 }
 
-// Çok satırlı metin literali ya da blok yorumu içinde miyiz?
-// Bu durumda satır olduğu gibi bırakılır.
-fn blokYorumundaMi(kaynak: String, satirBasi: Int) -> Bool {
+fn girintiUret(seviye: Int) -> String {
+  if seviye <= 0 {
+    return ""
+  }
+  return GIRINTI.repeat(seviye)
+}
+
+// Satırın baştaki boşluk sayısı.
+fn bastakiBosluk(satir: String) -> Int {
+  var n = 0
+  let uzunluk = satir.len()
+  while n < uzunluk {
+    let c = karakter(satir, n)
+    if c != " " && c != "\t" {
+      return n
+    }
+    n += 1
+  }
+  return uzunluk
+}
+
+// Devam satırlarını, açılış satırının kaydığı kadar kaydırır; böylece
+// yazarın hizalaması bloğa göre doğru yerde kalır.
+fn kaydir(satir: String, miktar: Int) -> String {
+  if miktar == 0 {
+    return satir
+  }
+  if miktar > 0 {
+    return " ".repeat(miktar) + satir
+  }
+  let atilacak = min(0 - miktar, bastakiBosluk(satir))
+  return satir.slice(atilacak, satir.len())
+}
+
+// Yığındaki süslü parantez sayısı — blok girinti seviyesi budur.
+fn blokSayisi(yigin: [String]) -> Int {
+  var n = 0
+  for p in yigin {
+    if p == "{" {
+      n += 1
+    }
+  }
+  return n
+}
+
+// Satır bir devam satırı mı? (açık parantez var ve en içteki blok değil)
+fn devamMi(yigin: [String]) -> Bool {
+  if yigin.len() == 0 {
+    return false
+  }
+  return (yigin.last() ?? "{") != "{"
+}
+
+// Satırı tarar; yığını ve yorum derinliğini yerinde günceller.
+// Metin ve yorum içindeki parantezler sayılmaz.
+fn satiriTara(satir: String, yigin: [String], durum: TaramaDurumu) {
+  let n = satir.len()
   var i = 0
-  var derinlik = 0
-  while i < satirBasi {
-    let c = karakter(kaynak, i)
-    let d = karakter(kaynak, i + 1)
-    if derinlik == 0 && c == "/" && d == "/" {
-      i = satirYorumuSonu(kaynak, i)
+
+  while i < n {
+    let c = karakter(satir, i)
+    let d = karakter(satir, i + 1)
+
+    // Blok yorumunun içindeysek yalnızca kapanışı arıyoruz.
+    if durum.yorumDerinligi > 0 {
+      if c == "*" && d == "/" {
+        durum.yorumDerinligi -= 1
+        i += 2
+        continue
+      }
+      if c == "/" && d == "*" {
+        durum.yorumDerinligi += 1
+        i += 2
+        continue
+      }
+      i += 1
       continue
     }
-    if derinlik == 0 && c == "\"" {
-      i = metinSonu(kaynak, i)
-      continue
+
+    if c == "/" && d == "/" {
+      return          // satır yorumu: geri kalanı yok say
     }
     if c == "/" && d == "*" {
-      derinlik += 1
+      durum.yorumDerinligi += 1
       i += 2
       continue
     }
-    if c == "*" && d == "/" && derinlik > 0 {
-      derinlik -= 1
-      i += 2
+    if c == "\"" {
+      i = metinSonu(satir, i)
       continue
+    }
+
+    if c == "{" || c == "(" || c == "[" {
+      yigin.push(c)
+    }
+    if c == "}" || c == ")" || c == "]" {
+      if yigin.len() > 0 {
+        yigin.pop()
+      }
     }
     i += 1
   }
-  return derinlik > 0
+}
+
+// Satır bir kapanışla mı başlıyor? Öyleyse kendi girintisi bir azalır.
+fn kapanislaBasliyorMu(satir: String) -> Bool {
+  let c = karakter(satir, 0)
+  return c == "}" || c == ")" || c == "]"
 }
 
 fn bicimlendir(kaynak: String) -> String {
   let satirlar = kaynak.split("\n")
   var sonuc: [String] = []
-  var seviye = 0
+  var yigin: [String] = []
+  let durum = TaramaDurumu { yorumDerinligi: 0 }
   var ardisikBos = 0
-  var konum = 0
+  // Devam satırları, açılış satırıyla aynı miktarda kaydırılır.
+  var kayma = 0
 
   for ham in satirlar {
-    let satirUzunlugu = ham.len()
-
-    // Blok yorumunun ortasındaki satırlar olduğu gibi korunur.
-    if blokYorumundaMi(kaynak, konum) {
-      sonuc.push(sagdanKirp(ham))
-      konum += satirUzunlugu + 1
-      ardisikBos = 0
-      continue
-    }
-
+    // Blok yorumunun ortası ve devam satırları olduğu gibi korunur.
+    let korunacak = durum.yorumDerinligi > 0 || devamMi(yigin)
     let satir = sagdanKirp(soldanKirp(ham))
 
-    if satir.len() == 0 {
+    if satir.len() == 0 && !korunacak {
       ardisikBos += 1
       // Arka arkaya en fazla bir boş satır bırakılır.
       if ardisikBos <= 1 && sonuc.len() > 0 {
         sonuc.push("")
       }
-      konum += satirUzunlugu + 1
+      satiriTara(satir, yigin, durum)
       continue
     }
 
     ardisikBos = 0
-    let bilgi = satiriIncele(satir)
 
-    var buSatirinSeviyesi = seviye - bilgi.bastaKapanan
-    if buSatirinSeviyesi < 0 {
-      buSatirinSeviyesi = 0
+    if korunacak {
+      sonuc.push(sagdanKirp(kaydir(ham, kayma)))
+    } else {
+      var seviye = blokSayisi(yigin)
+      if kapanislaBasliyorMu(satir) {
+        seviye -= 1
+      }
+      if seviye < 0 {
+        seviye = 0
+      }
+      kayma = (seviye * GIRINTI.len()) - bastakiBosluk(ham)
+      sonuc.push(girintiUret(seviye) + satir)
     }
 
-    sonuc.push(girintiUret(buSatirinSeviyesi) + satir)
-
-    seviye = seviye + bilgi.acilan
-    if seviye < 0 {
-      seviye = 0
-    }
-    konum += satirUzunlugu + 1
+    satiriTara(satir, yigin, durum)
   }
 
   // Sondaki boş satırları at, tek bir satır sonu bırak.

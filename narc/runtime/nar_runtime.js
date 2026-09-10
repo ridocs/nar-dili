@@ -462,6 +462,24 @@ function $ogeStil(oge, ad, deger) {
   oge.style.setProperty(ad, deger);
 }
 
+function $ogeYaziEkle(oge, metin) {
+  // İmleç konumuna metin yazar; geri alma yığınını korumak için
+  // setRangeText kullanılır.
+  const bas = oge.selectionStart || 0;
+  const son = oge.selectionEnd || 0;
+  if (typeof oge.setRangeText === "function") {
+    oge.setRangeText(metin, bas, son, "end");
+  } else {
+    oge.value = oge.value.slice(0, bas) + metin + oge.value.slice(son);
+  }
+}
+
+function $olayKaynagi(olay) {
+  const hedef = olay.target;
+  if (typeof Element !== "undefined" && hedef instanceof Element) return hedef;
+  return null;
+}
+
 function $zamanla(ms, islev) {
   if (typeof setTimeout === "undefined") $panic("zamanla() bu ortamda yok");
   setTimeout(islev, ms);
