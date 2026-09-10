@@ -28,7 +28,7 @@ from narc import __version__  # noqa: E402
 from narc.checker import Checker  # noqa: E402
 from narc.backends import js as js_backend  # noqa: E402
 from narc.diagnostics import NarError  # noqa: E402
-from narc.highlight import renklendir  # noqa: E402
+from narc.renk import RenkHatasi, renklendir_toplu  # noqa: E402
 from narc.parser import parse  # noqa: E402
 
 from icerik import (  # noqa: E402
@@ -141,6 +141,28 @@ def kontrastlari_dogrula() -> list[str]:
 
 
 # --------------------------------------------------------------------- HTML
+# Renklendirme, Nar ile yazılmış renklendiriciye yaptırılır (IDE ile aynı
+# kaynak). Node sürecini her blok için açmamak adına hepsi bir kerede
+# renklendirilip burada saklanır.
+_RENKLER: dict[str, str] = {}
+
+
+def renkleri_hazirla() -> None:
+    kaynaklar = []
+    for bolum in BOLUMLER:
+        for konu in bolum["konular"]:
+            kaynaklar.append(konu["kod"])
+    benzersiz = list(dict.fromkeys(kaynaklar))
+    for kaynak, boyali in zip(benzersiz, renklendir_toplu(benzersiz)):
+        _RENKLER[kaynak] = boyali
+
+
+def renklendir(kaynak: str) -> str:
+    if kaynak not in _RENKLER:
+        _RENKLER[kaynak] = renklendir_toplu([kaynak])[0]
+    return _RENKLER[kaynak]
+
+
 def kod_blogu(kaynak: str, dil_etiketi: str = "nar") -> str:
     return (
         '<div class="kod-kutu">'
