@@ -7,7 +7,7 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 
 ## Son güncelleme
 
-**2026-09-11 00:50** — Generic tipler ve masaüstü hedefi bitti; interface'e geçiliyor.
+**2026-09-11 01:20** — Arayüz (UI) katmanı bitti; sırada mobil hedef ve self-hosting parser.
 
 ## Şu ana kadar biten
 
@@ -30,26 +30,34 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 | v0.4 | **Generic tipler**: struct/enum/fn tip parametreleri, çıkarım | ✅ |
 | v0.4 | Sonuc<T, H> standart kütüphanesi (Nar ile) | ✅ |
 | v0.4 | **Masaüstü hedefi**: nar build --target masaustu | ✅ |
+| v0.5 | **Arayüzler (interface)**: nominal uyum, generic sınırlama | ✅ |
+| v0.5 | Standart kütüphane: dosya, girdi, zaman | ✅ |
+| v0.5 | **Self-hosting adım 1**: lexer Nar diliyle (derleyici/lexer.nar) | ✅ |
+| v0.6 | **Çıplak enum varyantları**: Hava.Yagmurlu yerine Yagmurlu | ✅ |
+| v0.6 | **Arayüz katmanı** (araclar/arayuz.nar): Gorunum ağacı, Uygulama<D> | ✅ |
+| v0.6 | Sahte DOM (testler/sahte_dom.js): arayüz tarayıcısız test ediliyor | ✅ |
 
-**Testler:** 178, hepsi geçiyor · `python -m unittest discover -s testler`
-**Son commit:** `d74b0af`
-**Nar ile yazılan kod:** ~1703 satır (`araclar/`, `testler/nar/`)
+**Testler:** 215, hepsi geçiyor · `python -m unittest discover -s testler`
+**Son commit:** `4f2efed` (bir sonraki: arayüz katmanı)
+**Nar ile yazılan kod:** ~2450 satır (`araclar/`, `derleyici/`, `ornekler/`, `testler/nar/`)
 
 ## Sırada (öncelik sırasıyla)
 
-- [ ] **1. interface (trait)** — ortak davranış tanımı.
-      `interface Yazdirilabilir { fn yaz() -> String }` ve
-      `struct X: Yazdirilabilir { ... }`. Generic ile birleşince
-      `fn hepsiniYaz<T: Yazdirilabilir>(l: [T])` yazılabilir olur.
-- [ ] **2. Standart kütüphane** — dosya okuma/yazma (Node hedefi), tarih/saat,
-      daha fazla matematik.
-- [ ] **3. UI katmanı** — `component` / `view`. DOM bağlaması hazır olduğu
-      için artık üstüne kurulabilir.
+- [x] ~~**1. interface (trait)**~~ — bitti.
+- [x] ~~**2. Standart kütüphane**~~ — bitti.
+- [x] ~~**3. UI katmanı**~~ — dil özelliği olarak değil, Nar ile yazılmış
+      kütüphane olarak yapıldı: `araclar/arayuz.nar`. Generic ve arayüzler
+      hazır olduğu için dile yeni sözdizimi eklemeye gerek kalmadı.
 - [ ] **4. Mobil hedef** — Capacitor ile Android/iOS paketleme. Not: bu
       makinede Android Studio yok, üretilen paket doğrulanamaz; dürüstlük
       gereği "üretildi ama cihazda denenmedi" diye işaretlenmeli.
-- [ ] **5. Self-hosting'e doğru** — derleyicinin parçalarını Nar'a taşımak.
-      Lexer iyi bir başlangıç: `araclar/tarayici.nar` zaten yarı yolda.
+- [ ] **5. Self-hosting'e devam** — lexer bitti (`derleyici/lexer.nar`,
+      Python'unkiyle token token karşılaştırılıyor). Sırada **parser**:
+      `derleyici/ast.nar` + `derleyici/parser.nar`. Aynı doğrulama yöntemi
+      kullanılabilir — iki parser'ın ürettiği ağaçları karşılaştır.
+- [ ] **6. IDE'yi arayüz kütüphanesiyle yeniden yaz** — IDE şu an DOM'a elle
+      çiziyor; `Gorunum` ağacına taşınırsa hem kütüphane gerçek bir yükte
+      denenmiş olur hem de IDE kodu kısalır.
 
 ## Devam etmek için
 

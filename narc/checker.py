@@ -106,6 +106,9 @@ class Checker:
         self.kutuphane = kutuphane
         self.structs: dict[str, StructT] = {}
         self.enums: dict[str, EnumT] = {}
+        # Varyant adı -> onu tanımlayan enum adları. Tek sahibi olan
+        # varyantlar enum adı yazılmadan da kullanılabilir.
+        self.varyant_sahipleri: dict[str, list[str]] = {}
         self.interfaces: dict[str, InterfaceT] = {}
         # Kapsamdaki tip parametrelerinin arayüz sınırlamaları
         self.tip_sinirlari: dict[str, list[str]] = {}
@@ -201,6 +204,11 @@ class Checker:
                 for m in item.methods:
                     et.methods[m.name] = self.fn_signature(m)
                 self.tip_kapsami_kapat(onceki)
+
+        # c2) çıplak varyant adları için indeks
+        for ad, et in self.enums.items():
+            for v in et.variants:
+                self.varyant_sahipleri.setdefault(v, []).append(ad)
 
         # d) serbest fonksiyonlar
         for item in self.module.items:
@@ -858,6 +866,10 @@ class Checker:
         if isinstance(node, A.Ident):
             binding = env.lookup(node.name)
             if binding is None:
+                # Enum adı yazılmadan kullanılan varyant: `Cizgi`
+                sahip = self.varyant_sahibi_bul(node.name, expected, node.span)
+                if sahip is not None:
+                    return self.varyant_tipi(node, sahip, node.name, expected)
                 if node.name in self.structs or node.name in self.enums:
                     self.error(
                         f"'{node.name}' bir tip adı, değer değil",
@@ -1260,48 +1272,83 @@ class Checker:
         self.error(f"'{obj}' dizinlenemez", node.span)
         return ANY
 
+    def varyant_tipi(self, node: A.Expr, enum_adi: str, varyant: str,
+                     beklenen: Type | None) -> Type:
+        """Bir enum varyantına başvurunun tipi.
+
+        Yüklü varyant bir yapıcı işlevdir (`FnT`), yüksüz varyant doğrudan
+        değerdir. `node` üzerine arka ucun okuduğu işaretler bırakılır.
+        """
+        sablon = self.enums[enum_adi]
+        node.__dict__["resolved"] = "enum_variant"
+        node.__dict__["enum_name"] = enum_adi
+
+        if not sablon.type_params:
+            payload = sablon.variants[varyant]
+            return FnT(payload, sablon) if payload else sablon
+
+        # Generic enum: beklenen tip biliniyorsa doğrudan uygula.
+        hedef = unwrap_optional(beklenen) if beklenen is not None else None
+        if isinstance(hedef, EnumT) and hedef.name == enum_adi and hedef.type_args:
+            payload = hedef.variants[varyant]
+            return FnT(payload, hedef) if payload else hedef
+
+        # Bilinmiyorsa tip değişkenleriyle bırak; çağrı yerinde çıkarılır.
+        ornek = self.sablon_ornegi(sablon)
+        payload = ornek.variants[varyant]
+        if payload:
+            return FnT(payload, ornek)
+        acikta = tipdegiskenleri(ornek) - set(self.tip_degiskenleri)
+        if not acikta:
+            return ornek
+        self.error(
+            f"'{enum_adi}.{varyant}' için tip argümanı çıkarılamıyor",
+            node.span,
+            hint=f"tipi yaz, örnek: let x: {enum_adi}"
+                 f"<{', '.join(sablon.type_params)}> = {enum_adi}.{varyant}",
+        )
+        return ANY
+
+    def varyant_sahibi_bul(self, ad: str, beklenen: Type | None,
+                              span) -> str | None:
+        """`Metin("a")` gibi enum adı yazılmadan kullanılan varyantın sahibi.
+
+        Beklenen tip bir enum'a işaret ediyorsa o kazanır; yoksa varyant adı
+        yalnızca tek bir enum'da geçiyorsa o seçilir. Birden çok enum aynı adı
+        taşıyorsa karar programcınındır ve hata verilir.
+        """
+        adaylar = self.varyant_sahipleri.get(ad)
+        if not adaylar:
+            return None
+
+        hedef = unwrap_optional(beklenen) if beklenen is not None else None
+        if isinstance(hedef, EnumT) and hedef.name in adaylar:
+            return hedef.name
+
+        if len(adaylar) == 1:
+            return adaylar[0]
+
+        self.error(
+            f"'{ad}' varyantı birden çok enum'da var: {', '.join(sorted(adaylar))}",
+            span,
+            hint=f"enum adını yaz, örnek: {sorted(adaylar)[0]}.{ad}",
+        )
+        return None
+
     def check_field(self, node: A.FieldAccess, env: Env,
                     beklenen: Type | None = None) -> Type:
         # Enum varyantı: `Sonuc.Tamam` / `Sonuc.Bos`
         if isinstance(node.obj, A.Ident) and env.lookup(node.obj.name) is None:
             name = node.obj.name
             if name in self.enums:
-                sablon = self.enums[name]
-                if node.name not in sablon.variants:
+                if node.name not in self.enums[name].variants:
                     self.error(
                         f"'{name}' içinde '{node.name}' varyantı yok",
                         node.span,
-                        hint=f"var olanlar: {', '.join(sablon.variants)}",
+                        hint=f"var olanlar: {', '.join(self.enums[name].variants)}",
                     )
                     return ANY
-                node.__dict__["resolved"] = "enum_variant"
-                node.__dict__["enum_name"] = name
-
-                if not sablon.type_params:
-                    payload = sablon.variants[node.name]
-                    return FnT(payload, sablon) if payload else sablon
-
-                # Generic enum: beklenen tip biliniyorsa doğrudan uygula.
-                hedef = unwrap_optional(beklenen) if beklenen is not None else None
-                if isinstance(hedef, EnumT) and hedef.name == name and hedef.type_args:
-                    payload = hedef.variants[node.name]
-                    return FnT(payload, hedef) if payload else hedef
-
-                # Bilinmiyorsa tip değişkenleriyle bırak; çağrı yerinde çıkarılır.
-                ornek = self.sablon_ornegi(sablon)
-                payload = ornek.variants[node.name]
-                if payload:
-                    return FnT(payload, ornek)
-                acikta = tipdegiskenleri(ornek) - set(self.tip_degiskenleri)
-                if not acikta:
-                    return ornek
-                self.error(
-                    f"'{name}.{node.name}' için tip argümanı çıkarılamıyor",
-                    node.span,
-                    hint=f"tipi yaz, örnek: let x: {name}"
-                         f"<{', '.join(sablon.type_params)}> = {name}.{node.name}",
-                )
-                return ANY
+                return self.varyant_tipi(node, name, node.name, beklenen)
 
         obj = self.check_expr(node.obj, env)
 
@@ -1424,6 +1471,14 @@ class Checker:
         if isinstance(callee, A.FieldAccess):
             fn_ty = self.check_field(callee, env, expected)
             callee.ty = fn_ty
+        elif isinstance(callee, A.Ident) and env.lookup(callee.name) is None                 and callee.name not in self.functions:
+            # Enum adı yazılmadan çağrılan varyant: `Metin("a")`
+            sahip = self.varyant_sahibi_bul(callee.name, expected, callee.span)
+            if sahip is None:
+                fn_ty = self.check_expr(callee, env)
+            else:
+                fn_ty = self.varyant_tipi(callee, sahip, callee.name, expected)
+                callee.ty = fn_ty
         else:
             fn_ty = self.check_expr(callee, env)
 
@@ -1453,7 +1508,12 @@ class Checker:
                 node.__dict__["enum_name"] = callee.__dict__.get("enum_name")
                 node.__dict__["variant"] = callee.name
         elif isinstance(callee, A.Ident):
-            node.__dict__["resolved"] = "func"
+            if callee.__dict__.get("resolved") == "enum_variant":
+                node.__dict__["resolved"] = "enum_variant"
+                node.__dict__["enum_name"] = callee.__dict__["enum_name"]
+                node.__dict__["variant"] = callee.name
+            else:
+                node.__dict__["resolved"] = "func"
 
         # İmzada tip değişkeni varsa (generic fonksiyon ya da generic enum
         # yapıcısı) tip argümanları çıkarılır.

@@ -1,0 +1,220 @@
+// Bildirimsel arayüz kütüphanesi — Nar diliyle yazılmıştır.
+//
+// Sayfayı elle kurmak yerine "ne görünmesi gerektiğini" tarif edersin;
+// kütüphane onu çizer. Durum değişince görünüm kendiliğinden yenilenir.
+//
+//     fn ciz(sayi: Int) -> Gorunum = Sutun([
+//       Baslik("Sayaç"),
+//       Metin(str(sayi)),
+//       Dugme("Artır", || { uygulama.degistir(uygulama.durum + 1) })
+//     ])
+//
+// Yalnızca tarayıcı hedefinde anlamlıdır (nar build --target web ya da
+// --target masaustu).
+//
+// Bir kütüphanedir: `main` içermez.
+
+// Bir görünüm parçası. Kendi içinde yine görünümler taşıyabilir.
+enum Gorunum {
+  Metin(String)
+  Baslik(String)
+  Dugme(String, () -> Void)
+  Giris(String, String, (String) -> Void)   // yer tutucu, değer, değişince
+  Sutun([Gorunum])
+  Satir([Gorunum])
+  Kutu([Gorunum])
+  Bosluk(Int)
+  Cizgi
+}
+
+// --- stil ------------------------------------------------------------------
+// Tek bir sade görünüm; amaç süsleme değil, okunabilir bir varsayılan.
+
+let RENK_METIN = "#1c1917"
+let RENK_SOLUK = "#5f5751"
+let RENK_VURGU = "#a32a2f"
+let RENK_KENAR = "#e7e1dd"
+let RENK_YUZEY = "#ffffff"
+let RENK_ZEMIN = "#faf8f6"
+let YAZI = "14px/1.6 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif"
+
+fn stilVer(e: Element, kurallar: [[String]]) {
+  for k in kurallar {
+    if k.len() == 2 {
+      e.stil(k[0], k[1])
+    }
+  }
+}
+
+// --- çizim -----------------------------------------------------------------
+
+fn ogeYap(g: Gorunum) -> Element = match g {
+  Gorunum.Metin(yazi) -> metinOgesi(yazi)
+  Gorunum.Baslik(yazi) -> baslikOgesi(yazi)
+  Gorunum.Dugme(etiket, islev) -> dugmeOgesi(etiket, islev)
+  Gorunum.Giris(yerTutucu, deger, degisince) -> girisOgesi(yerTutucu, deger, degisince)
+  Gorunum.Sutun(cocuklar) -> kapsayiciOgesi(cocuklar, "column")
+  Gorunum.Satir(cocuklar) -> kapsayiciOgesi(cocuklar, "row")
+  Gorunum.Kutu(cocuklar) -> kutuOgesi(cocuklar)
+  Gorunum.Bosluk(yukseklik) -> boslukOgesi(yukseklik)
+  Gorunum.Cizgi -> cizgiOgesi()
+}
+
+fn metinOgesi(yazi: String) -> Element {
+  let e = olustur("div")
+  e.metinYaz(yazi)
+  stilVer(e, [["font", YAZI], ["color", RENK_METIN]])
+  return e
+}
+
+fn baslikOgesi(yazi: String) -> Element {
+  let e = olustur("h2")
+  e.metinYaz(yazi)
+  stilVer(e, [
+    ["font", "600 20px system-ui, sans-serif"],
+    ["color", RENK_METIN],
+    ["margin", "0 0 4px"]
+  ])
+  return e
+}
+
+fn dugmeOgesi(etiket: String, islev: () -> Void) -> Element {
+  let e = olustur("button")
+  e.metinYaz(etiket)
+  stilVer(e, [
+    ["font", YAZI],
+    ["color", RENK_METIN],
+    ["background", RENK_YUZEY],
+    ["border", "1px solid " + RENK_KENAR],
+    ["border-radius", "6px"],
+    ["padding", "7px 14px"],
+    ["cursor", "pointer"],
+    // Sütun içinde enine yayılmasın; düğme yazısı kadar yer kaplasın.
+    ["align-self", "flex-start"]
+  ])
+  e.dinle("click", islev)
+  return e
+}
+
+fn girisOgesi(yerTutucu: String, deger: String, degisince: (String) -> Void) -> Element {
+  let e = olustur("input")
+  e.ozellikYaz("placeholder", yerTutucu)
+  e.degerYaz(deger)
+  stilVer(e, [
+    ["font", YAZI],
+    ["color", RENK_METIN],
+    ["background", RENK_YUZEY],
+    ["border", "1px solid " + RENK_KENAR],
+    ["border-radius", "6px"],
+    ["padding", "7px 10px"],
+    ["min-width", "220px"],
+    ["align-self", "flex-start"]
+  ])
+  e.dinle("input", || {
+    degisince(e.deger())
+  })
+  return e
+}
+
+fn kapsayiciOgesi(cocuklar: [Gorunum], yon: String) -> Element {
+  let e = olustur("div")
+  stilVer(e, [
+    ["display", "flex"],
+    ["flex-direction", yon],
+    ["gap", "10px"],
+    ["align-items", if yon == "row" { "center" } else { "flex-start" }]
+  ])
+  for c in cocuklar {
+    e.ekle(ogeYap(c))
+  }
+  return e
+}
+
+fn kutuOgesi(cocuklar: [Gorunum]) -> Element {
+  let e = olustur("div")
+  stilVer(e, [
+    ["display", "flex"],
+    ["flex-direction", "column"],
+    ["gap", "10px"],
+    ["background", RENK_YUZEY],
+    ["border", "1px solid " + RENK_KENAR],
+    ["border-radius", "10px"],
+    ["padding", "16px"]
+  ])
+  for c in cocuklar {
+    e.ekle(ogeYap(c))
+  }
+  return e
+}
+
+fn boslukOgesi(yukseklik: Int) -> Element {
+  let e = olustur("div")
+  e.stil("height", "${yukseklik}px")
+  return e
+}
+
+fn cizgiOgesi() -> Element {
+  let e = olustur("div")
+  stilVer(e, [
+    ["height", "1px"],
+    ["background", RENK_KENAR],
+    ["margin", "4px 0"]
+  ])
+  return e
+}
+
+// --- uygulama --------------------------------------------------------------
+
+// Durumu tutar ve değiştiğinde görünümü yeniden çizer.
+//
+// `D` uygulamanın durum tipidir: bir sayı, bir struct, bir liste…
+struct Uygulama<D> {
+  var durum: D
+  gorunum: (D) -> Gorunum
+  var kokSecici: String
+
+  // Uygulamayı verilen öğenin içine çizer.
+  fn baslat(secici: String) {
+    self.kokSecici = secici
+    self.yenile()
+  }
+
+  // Durumu değiştirir ve ekranı tazeler.
+  fn degistir(yeni: D) {
+    self.durum = yeni
+    self.yenile()
+  }
+
+  fn yenile() {
+    let kok = bul(self.kokSecici)
+    if kok == none {
+      print("arayüz: '${self.kokSecici}' bulunamadı")
+      return
+    }
+    let alan = kok!
+    alan.temizle()
+    // Kütüphane tek bir açık görünüme bağlıdır. Sayfa şablonu koyu
+    // olabileceği için kök alan kendi zeminini boyar; yoksa beyaz kart
+    // siyah zeminde asılı kalır.
+    stilVer(alan, [
+      ["font", YAZI],
+      ["color", RENK_METIN],
+      ["background", RENK_ZEMIN],
+      ["padding", "20px"],
+      ["border-radius", "12px"],
+      ["max-width", "680px"]
+    ])
+    alan.ekle(ogeYap(self.gorunum(self.durum)))
+  }
+}
+
+// Kolay kurulum: durumu ve çizim işlevini verip başlatır.
+fn uygulamaBaslat<D>(secici: String, baslangic: D, gorunum: (D) -> Gorunum) -> Uygulama<D> {
+  let u = Uygulama<D> {
+    durum: baslangic,
+    gorunum: gorunum,
+    kokSecici: secici
+  }
+  u.baslat(secici)
+  return u
+}

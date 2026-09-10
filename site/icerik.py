@@ -683,6 +683,49 @@ fn main() {
 }''',
             },
             {
+                "id": "kisa-varyant",
+                "baslik": "Enum adını yazmadan",
+                "aciklama": """
+<code>Hava.Yagmurlu</code> yerine kısaca <code>Yagmurlu</code> yazabilirsin.
+Seçenek adı programda tek bir <code>enum</code>'a aitse derleyici hangisini
+kastettiğini bilir.
+<p>Aynı ad iki ayrı <code>enum</code>'da geçiyorsa derleyici sana söyler ve
+hangisi olduğunu yazmanı ister — sessizce yanlış olanı seçmez.</p>
+""",
+                "kod": '''enum Hava {
+  Gunesli
+  Yagmurlu
+  Karli
+}
+
+fn oneri(h: Hava) -> String = match h {
+  Gunesli -> "şapka al"
+  Yagmurlu -> "şemsiye al"
+  Karli -> "atkı al"
+}
+
+fn main() {
+  print(oneri(Yagmurlu))
+  print(oneri(Hava.Karli))   // uzun yazım da geçerli
+}''',
+                "tam": '''enum Hava {
+  Gunesli
+  Yagmurlu
+  Karli
+}
+
+fn oneri(h: Hava) -> String = match h {
+  Gunesli -> "şapka al"
+  Yagmurlu -> "şemsiye al"
+  Karli -> "atkı al"
+}
+
+fn main() {
+  print(oneri(Yagmurlu))
+  print(oneri(Hava.Karli))
+}''',
+            },
+            {
                 "id": "match",
                 "baslik": "match — seçeneklere göre davranmak",
                 "aciklama": """
@@ -1361,6 +1404,111 @@ her iki ortamda da güvenle çalıştırabilirsin.</p>
   e.odaklan()
 
   print(e.bul(".ic") != none)   // içinde ara
+}''',
+                "calistirma": False,
+            },
+        ],
+    },
+
+    # ------------------------------------------------------------------ arayüz
+    {
+        "id": "arayuz-katmani",
+        "baslik": "Uygulama arayüzü",
+        "konular": [
+            {
+                "id": "arayuz-nedir",
+                "baslik": "Ekranı tarif etmek",
+                "aciklama": """
+Bir önceki bölümde öğeleri tek tek oluşturup sayfaya ekledik. Uygulama
+büyüdükçe bu yorucu olur: bir şey değişince hangi öğeyi güncelleyeceğini
+takip etmen gerekir.
+<p><code>araclar/arayuz.nar</code> kütüphanesi bunu tersine çevirir:
+ekranı <strong>nasıl kuracağını</strong> değil, <strong>neye benzemesi
+gerektiğini</strong> yazarsın. Durum değişince kütüphane ekranı kendisi
+yeniler.</p>
+<p>Bu kütüphane Nar'ın kendisiyle yazılmıştır — dilin bir parçası değil,
+dille yazılmış sıradan bir dosyadır. İstersen kopyalayıp kendine göre
+değiştirebilirsin.</p>
+""",
+                "kod": '''import "araclar/arayuz.nar"
+
+// Ekran bir Gorunum ağacıdır: Sutun, Satir, Kutu içinde
+// Metin, Baslik, Dugme, Giris, Bosluk, Cizgi.
+fn ciz(sayi: Int) -> Gorunum = Kutu([
+  Baslik("Sayaç"),
+  Metin("değer: ${sayi}"),
+  Satir([
+    Dugme("azalt", || { azalt() }),
+    Dugme("artır", || { artir() })
+  ])
+])''',
+                "calistirma": False,
+            },
+            {
+                "id": "arayuz-uygulama",
+                "baslik": "Durum ve otomatik yenileme",
+                "aciklama": """
+<code>uygulamaBaslat</code> üç şey ister: çizimin yapılacağı yer, başlangıç
+durumu ve durumu görünüme çeviren fonksiyon.
+<p>Durumu <code>degistir</code> ile güncellersin; ekranı yenilemek senin
+işin değildir. Durum her tip olabilir — sayı, metin, kendi
+<code>struct</code>'ın ya da bunların listesi.</p>
+""",
+                "kod": '''import "araclar/arayuz.nar"
+
+var uygulama: Uygulama<Int>? = none
+
+fn artir() {
+  if uygulama != none {
+    uygulama!.degistir(uygulama!.durum + 1)
+  }
+}
+
+fn ciz(sayi: Int) -> Gorunum = Sutun([
+  Baslik("Sayaç"),
+  Metin("değer: ${sayi}"),
+  Dugme("artır", || { artir() })
+])
+
+fn main() {
+  // Sayfadaki <div id="uygulama"></div> içine çizer.
+  uygulama = uygulamaBaslat("#uygulama", 0, ciz)
+}''',
+                "calistirma": False,
+            },
+            {
+                "id": "arayuz-liste-uygulama",
+                "baslik": "Örnek: yapılacaklar listesi",
+                "aciklama": """
+Görünümü üreten kod sıradan Nar kodudur: <code>if</code>, <code>for</code>,
+liste işlemleri hepsi kullanılabilir. Aşağıdaki parça, listeyi görünüme
+çeviren kısımdır.
+<p>Tamamı <code>ornekler/yapilacaklar_uygulamasi.nar</code> dosyasındadır.
+Masaüstü uygulaması olarak paketlemek için:
+<code>nar build ornekler/yapilacaklar_uygulamasi.nar --target masaustu</code></p>
+""",
+                "kod": '''fn gorevSatiri(sira: Int, g: Gorev) -> Gorunum {
+  var kutu = "[ ]"
+  if g.bitti {
+    kutu = "[x]"
+  }
+  return Satir([
+    Dugme(kutu, || { gorevDegistir(sira) }),
+    Metin(g.baslik)
+  ])
+}
+
+fn gorevListesi(gorevler: [Gorev]) -> Gorunum {
+  if gorevler.len() == 0 {
+    return Metin("Henüz görev yok.")
+  }
+  var satirlar: [Gorunum] = []
+  var sira = 0
+  for g in gorevler {
+    satirlar.push(gorevSatiri(sira, g))
+    sira += 1
+  }
+  return Sutun(satirlar)
 }''',
                 "calistirma": False,
             },

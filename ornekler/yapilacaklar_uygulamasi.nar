@@ -1,0 +1,139 @@
+// Yapılacaklar listesi — bildirimsel arayüz kütüphanesiyle.
+//
+// Sayfayı elle kurmak yerine "ne görünmesi gerektiğini" tarif ediyoruz;
+// durum değişince ekran kendiliğinden yenileniyor.
+//
+// Masaüstü uygulaması olarak paketlemek için:
+//     nar build ornekler/yapilacaklar_uygulamasi.nar --target masaustu -o cikti/yapilacaklar
+//
+// Tarayıcı sayfası olarak:
+//     nar build ornekler/yapilacaklar_uygulamasi.nar --target web -o cikti/yapilacaklar.html
+
+import "../araclar/arayuz.nar"
+
+struct Gorev {
+  baslik: String
+  var bitti: Bool
+}
+
+struct Durum {
+  var gorevler: [Gorev]
+  var girdi: String
+}
+
+var uygulama: Uygulama<Durum>? = none
+
+// --- işlemler --------------------------------------------------------------
+
+fn tazele() {
+  if uygulama != none {
+    uygulama!.yenile()
+  }
+}
+
+fn gorevEkle() {
+  if uygulama == none {
+    return
+  }
+  let d = uygulama!.durum
+  let baslik = d.girdi.trim()
+  if baslik.len() == 0 {
+    return
+  }
+  d.gorevler.push(Gorev { baslik: baslik, bitti: false })
+  d.girdi = ""
+  tazele()
+}
+
+fn gorevDegistir(sira: Int) {
+  if uygulama == none {
+    return
+  }
+  let liste = uygulama!.durum.gorevler
+  if sira < 0 || sira >= liste.len() {
+    return
+  }
+  let g = liste[sira]
+  g.bitti = !g.bitti
+  tazele()
+}
+
+fn bitenleriTemizle() {
+  if uygulama == none {
+    return
+  }
+  let d = uygulama!.durum
+  d.gorevler = d.gorevler.filter(|g| !g.bitti)
+  tazele()
+}
+
+fn girdiDegisti(yeni: String) {
+  if uygulama != none {
+    uygulama!.durum.girdi = yeni
+  }
+}
+
+// --- görünüm ---------------------------------------------------------------
+
+fn gorevSatiri(sira: Int, g: Gorev) -> Gorunum {
+  var kutu = "[ ]"
+  if g.bitti {
+    kutu = "[x]"
+  }
+  return Satir([
+    Dugme(kutu, || { gorevDegistir(sira) }),
+    Metin(g.baslik)
+  ])
+}
+
+fn gorevListesi(gorevler: [Gorev]) -> Gorunum {
+  if gorevler.len() == 0 {
+    return Metin("Henüz görev yok. Yukarıdan ekleyebilirsin.")
+  }
+  var satirlar: [Gorunum] = []
+  var sira = 0
+  for g in gorevler {
+    satirlar.push(gorevSatiri(sira, g))
+    sira += 1
+  }
+  return Sutun(satirlar)
+}
+
+fn ozet(gorevler: [Gorev]) -> String {
+  let kalan = gorevler.filter(|g| !g.bitti).len()
+  return "${kalan} / ${gorevler.len()} kaldı"
+}
+
+fn gorunumCiz(d: Durum) -> Gorunum = Kutu([
+  Baslik("Yapılacaklar"),
+  Metin(ozet(d.gorevler)),
+  Cizgi,
+  Satir([
+    Giris("yeni görev...", d.girdi, |y| { girdiDegisti(y) }),
+    Dugme("Ekle", || { gorevEkle() })
+  ]),
+  Bosluk(4),
+  gorevListesi(d.gorevler),
+  Bosluk(4),
+  Dugme("Bitenleri temizle", || { bitenleriTemizle() })
+])
+
+// --- başlangıç -------------------------------------------------------------
+
+fn main() {
+  if bul("#uygulama") == none {
+    print("Bu program tarayıcıda çalıştırılmalı.")
+    print("Derle:  nar build ornekler/yapilacaklar_uygulamasi.nar --target web")
+    return
+  }
+
+  let baslangic = Durum {
+    gorevler: [
+      Gorev { baslik: "Nar ile bir uygulama yaz", bitti: true },
+      Gorev { baslik: "Arayüz kütüphanesini dene", bitti: false }
+    ],
+    girdi: ""
+  }
+
+  uygulama = uygulamaBaslat("#uygulama", baslangic, gorunumCiz)
+}

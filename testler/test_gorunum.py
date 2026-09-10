@@ -1,0 +1,201 @@
+"""Arayüz kütüphanesi (`araclar/arayuz.nar`) uçtan uca testleri.
+
+Kütüphane sayfaya çizim yaptığı için Node'da sahte bir DOM kurulur
+(`testler/sahte_dom.js`). Böylece "durum değişince ekran yenilenir" iddiası
+tarayıcı açmadan doğrulanabilir: düğmeye tıklanır, ekranın metni okunur.
+"""
+
+from __future__ import annotations
+
+import json
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+KOK = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(KOK))
+
+from narc.driver import compile_file  # noqa: E402
+
+NODE = shutil.which("node")
+SAHTE_DOM = Path(__file__).resolve().parent / "sahte_dom.js"
+ARAYUZ = KOK / "araclar" / "arayuz.nar"
+
+
+def sahnede_calistir(nar_kaynagi: str, senaryo: str) -> list:
+    """Nar programını sahte DOM'da çalıştırır; senaryonun bastığı JSON'u döndürür.
+
+    `senaryo`, program `main()`'i çalıştıktan sonra yürütülen JavaScript'tir.
+    `$dom` yardımcılarıyla tıklar, yazar ve `$yaz(...)` ile sonuç bildirir.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        kaynak = Path(tmp) / "program.nar"
+        # Kütüphaneye göreli import'un çözülebilmesi için mutlak yol yazılır.
+        kaynak.write_text(
+            nar_kaynagi.replace("@ARAYUZ@", ARAYUZ.as_posix()), encoding="utf-8",
+        )
+        kod = compile_file(kaynak).to_js()
+
+        betik = Path(tmp) / "sahne.js"
+        betik.write_text(
+            f'require({json.dumps(str(SAHTE_DOM))});\n'
+            '$dom.kokKur("uygulama");\n'
+            'const $kayit = [];\n'
+            'globalThis.$yaz = (x) => $kayit.push(x);\n'
+            '\n'
+            f'{kod}\n'
+            '\n'
+            f'{senaryo}\n'
+            'console.log("###" + JSON.stringify($kayit));\n',
+            encoding="utf-8",
+        )
+
+        sonuc = subprocess.run(
+            [NODE, str(betik)], capture_output=True, text=True, encoding="utf-8",
+        )
+
+    if sonuc.returncode != 0:
+        raise AssertionError(f"node hata verdi:\n{sonuc.stderr}")
+    for satir in sonuc.stdout.splitlines():
+        if satir.startswith("###"):
+            return json.loads(satir[3:])
+    raise AssertionError(f"senaryo sonuç bildirmedi:\n{sonuc.stdout}\n{sonuc.stderr}")
+
+
+SAYAC = '''import "@ARAYUZ@"
+
+var uygulama: Uygulama<Int>? = none
+
+fn ciz(n: Int) -> Gorunum = Sutun([
+  Baslik("Sayaç"),
+  Metin("değer: ${n}"),
+  Dugme("Artır", || {
+    if uygulama != none {
+      uygulama!.degistir(uygulama!.durum + 1)
+    }
+  })
+])
+
+fn main() {
+  uygulama = uygulamaBaslat("#uygulama", 0, ciz)
+}
+'''
+
+
+@unittest.skipIf(NODE is None, "node bulunamadı")
+class GorunumTesti(unittest.TestCase):
+    def test_ilk_cizim(self):
+        kayit = sahnede_calistir(SAYAC, '$yaz($dom.satirlar($dom.govde));')
+        self.assertEqual(kayit[0], ["Sayaç", "değer: 0", "Artır"])
+
+    def test_dugme_durumu_degistirir_ve_ekran_yenilenir(self):
+        kayit = sahnede_calistir(SAYAC, '''
+$dom.tikla($dom.dugme($dom.govde, "Artır"));
+$yaz($dom.satirlar($dom.govde));
+$dom.tikla($dom.dugme($dom.govde, "Artır"));
+$dom.tikla($dom.dugme($dom.govde, "Artır"));
+$yaz($dom.satirlar($dom.govde));
+''')
+        self.assertEqual(kayit[0], ["Sayaç", "değer: 1", "Artır"])
+        self.assertEqual(kayit[1], ["Sayaç", "değer: 3", "Artır"])
+
+    def test_giris_alani_durumu_besler(self):
+        src = '''import "@ARAYUZ@"
+
+var uygulama: Uygulama<String>? = none
+
+fn yazildi(y: String) {
+  if uygulama != none {
+    uygulama!.degistir(y)
+  }
+}
+
+fn ciz(ad: String) -> Gorunum = Sutun([
+  Giris("adın?", ad, yazildi),
+  Metin("merhaba ${ad}")
+])
+
+fn main() {
+  uygulama = uygulamaBaslat("#uygulama", "", ciz)
+}
+'''
+        kayit = sahnede_calistir(src, '''
+$dom.yaz($dom.giris($dom.govde), "Nar");
+$yaz($dom.satirlar($dom.govde));
+''')
+        self.assertEqual(kayit[0], ["<giris:Nar|adın?>", "merhaba Nar"])
+
+    def test_ic_ice_yerlesim(self):
+        src = '''import "@ARAYUZ@"
+
+fn main() {
+  uygulamaBaslat("#uygulama", 0, |_| Kutu([
+    Baslik("Kart"),
+    Cizgi,
+    Satir([Metin("sol"), Metin("sağ")]),
+    Bosluk(8),
+    Sutun([Metin("bir"), Metin("iki")])
+  ]))
+}
+'''
+        kayit = sahnede_calistir(src, '$yaz($dom.satirlar($dom.govde));')
+        self.assertEqual(kayit[0], ["Kart", "sol", "sağ", "bir", "iki"])
+
+    def test_yapilacaklar_ornegi_calisir(self):
+        """Depodaki gerçek örnek: ekle, işaretle, bitenleri temizle."""
+        kaynak = (KOK / "ornekler" / "yapilacaklar_uygulamasi.nar").read_text(
+            encoding="utf-8",
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            # Örnek dosyayı yerinde derleyip senaryoyu üstüne ekliyoruz.
+            kod = compile_file(KOK / "ornekler" / "yapilacaklar_uygulamasi.nar").to_js()
+            betik = Path(tmp) / "sahne.js"
+            betik.write_text(
+                f'require({json.dumps(str(SAHTE_DOM))});\n'
+                '$dom.kokKur("uygulama");\n'
+                'const $kayit = [];\n'
+                'globalThis.$yaz = (x) => $kayit.push(x);\n'
+                f'{kod}\n'
+                '''
+$yaz($dom.satirlar($dom.govde));
+$dom.yaz($dom.giris($dom.govde), "Süt al");
+$dom.tikla($dom.dugme($dom.govde, "Ekle"));
+$yaz($dom.satirlar($dom.govde));
+$dom.tikla($dom.govde.querySelectorAll("button")[0]);
+$dom.tikla($dom.dugme($dom.govde, "Bitenleri temizle"));
+$yaz($dom.satirlar($dom.govde));
+console.log("###" + JSON.stringify($kayit));
+''',
+                encoding="utf-8",
+            )
+            sonuc = subprocess.run(
+                [NODE, str(betik)], capture_output=True, text=True, encoding="utf-8",
+            )
+
+        self.assertEqual(sonuc.returncode, 0, sonuc.stderr)
+        kayit = next(
+            json.loads(s[3:]) for s in sonuc.stdout.splitlines() if s.startswith("###")
+        )
+
+        # 1) açılış: iki görev, biri bitmiş
+        self.assertEqual(kayit[0][:2], ["Yapılacaklar", "1 / 2 kaldı"])
+        self.assertIn("Nar ile bir uygulama yaz", kayit[0])
+
+        # 2) ekleme: yeni görev listeye girdi, sayaç ve giriş tazelendi
+        self.assertEqual(kayit[1][1], "2 / 3 kaldı")
+        self.assertIn("Süt al", kayit[1])
+        self.assertIn("<giris:|yeni görev...>", kayit[1])
+
+        # 3) ilk kutucuk işaretlenip bitenler silindi: iki görev kaldı
+        self.assertEqual(kayit[2][1], "2 / 2 kaldı")
+        self.assertNotIn("Nar ile bir uygulama yaz", kayit[2])
+
+        # örnek dosyasının kendisi hâlâ arayüz kütüphanesini kullanıyor olmalı
+        self.assertIn("arayuz.nar", kaynak)
+
+
+if __name__ == "__main__":
+    unittest.main()

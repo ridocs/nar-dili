@@ -601,6 +601,10 @@ class JsBackend:
             return "this"
 
         if isinstance(node, A.Ident):
+            # Enum adı yazılmadan kullanılan yüksüz varyant: `Cizgi`
+            if node.__dict__.get("resolved") == "enum_variant":
+                enum_name = self.name(node.__dict__["enum_name"])
+                return f"{enum_name}.{self.name(node.name)}"
             return self.name(node.name)
 
         if isinstance(node, A.ListLit):
@@ -799,6 +803,12 @@ class JsBackend:
             return self.builtin_call(node)
 
         callee = node.callee
+        if isinstance(callee, A.Ident) and resolved == "enum_variant":
+            # Enum adı yazılmadan çağrılan varyant: `Metin("a")`
+            enum_name = self.name(node.__dict__["enum_name"])
+            args = ", ".join(self.expr(a) for a in node.args)
+            return f"{enum_name}.{self.name(callee.name)}({args})"
+
         if isinstance(callee, A.FieldAccess):
             inner = callee.__dict__.get("resolved")
 

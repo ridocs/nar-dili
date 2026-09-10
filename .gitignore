@@ -4,6 +4,7 @@ cikti/
 *.js
 *.html
 !narc/runtime/*.js
+!testler/*.js
 
 # Python
 __pycache__/
