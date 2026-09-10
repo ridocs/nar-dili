@@ -541,6 +541,135 @@ function $istek(yontem, url, govde, islev) {
     .catch((e) => islev(""));
 }
 
+// --- dosya, girdi ve zaman -------------------------------------------------
+// Dosya işlemleri yalnızca Node ortamında anlamlıdır. Tarayıcıda okuma
+// `none`, yazma `false` döner; program çökmez.
+function $nodeMu() {
+  return typeof process !== "undefined" && process.versions && process.versions.node;
+}
+
+function $fs() {
+  if (!$nodeMu()) return null;
+  try {
+    return require("fs");
+  } catch (e) {
+    return null;
+  }
+}
+
+function $dosyaOku(yol) {
+  const fs = $fs();
+  if (!fs) return null;
+  try {
+    return fs.readFileSync(yol, "utf8");
+  } catch (e) {
+    return null;
+  }
+}
+
+function $dosyaYaz(yol, icerik) {
+  const fs = $fs();
+  if (!fs) return false;
+  try {
+    fs.writeFileSync(yol, icerik, "utf8");
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function $dosyaEkle(yol, icerik) {
+  const fs = $fs();
+  if (!fs) return false;
+  try {
+    fs.appendFileSync(yol, icerik, "utf8");
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function $dosyaVarMi(yol) {
+  const fs = $fs();
+  if (!fs) return false;
+  try {
+    return fs.existsSync(yol);
+  } catch (e) {
+    return false;
+  }
+}
+
+function $dosyaSil(yol) {
+  const fs = $fs();
+  if (!fs) return false;
+  try {
+    fs.unlinkSync(yol);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function $klasorListele(yol) {
+  const fs = $fs();
+  if (!fs) return [];
+  try {
+    return fs.readdirSync(yol);
+  } catch (e) {
+    return [];
+  }
+}
+
+// Girdi: ilk çağrıda tamamı okunur, sonra satır satır verilir.
+let $girdiSatirlari = null;
+let $girdiSirasi = 0;
+
+function $tumGirdi() {
+  if (!$nodeMu()) return "";
+  const fs = $fs();
+  if (!fs) return "";
+  try {
+    return fs.readFileSync(0, "utf8");
+  } catch (e) {
+    return "";
+  }
+}
+
+function $satirOku() {
+  if ($girdiSatirlari === null) {
+    const ham = $tumGirdi();
+    $girdiSatirlari = ham.length === 0 ? [] : ham.replace(/\r\n/g, "\n").split("\n");
+    // Sondaki satır sonunun yarattığı boş satırı at.
+    if ($girdiSatirlari.length > 0 &&
+        $girdiSatirlari[$girdiSatirlari.length - 1] === "") {
+      $girdiSatirlari.pop();
+    }
+  }
+  if ($girdiSirasi >= $girdiSatirlari.length) return null;
+  return $girdiSatirlari[$girdiSirasi++];
+}
+
+function $argumanlar() {
+  if (!$nodeMu()) return [];
+  return process.argv.slice(2);
+}
+
+function $cik(kod) {
+  if ($nodeMu() && process.exit) process.exit(kod);
+  $panic("çıkış istendi: " + kod);
+}
+
+function $simdi() {
+  return Date.now();
+}
+
+function $zamanMetni() {
+  const d = new Date();
+  const iki = (n) => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + iki(d.getMonth() + 1) + "-" + iki(d.getDate()) +
+         " " + iki(d.getHours()) + ":" + iki(d.getMinutes()) + ":" + iki(d.getSeconds());
+}
+
 // --- programın başlatılması ------------------------------------------------
 function $bootstrap(main) {
   try {

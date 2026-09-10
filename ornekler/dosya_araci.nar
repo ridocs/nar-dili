@@ -1,0 +1,86 @@
+// Dosyalarla çalışan küçük bir araç.
+//
+// Nar'ın dosya, zaman ve program işlemlerini gösterir. Bunlar yalnızca
+// Node hedefinde (yani `nar run` ile) anlamlıdır; tarayıcıda okuma `none`,
+// yazma `false` döner ve program çökmez.
+
+struct Rapor {
+  ad: String
+  satir: Int
+  kelime: Int
+  harf: Int
+
+  fn ozet() -> String =
+    "${self.ad}: ${self.satir} satır, ${self.kelime} kelime, ${self.harf} harf"
+}
+
+fn metniIncele(ad: String, icerik: String) -> Rapor {
+  let satirlar = icerik.split("\n")
+  var kelime = 0
+  for s in satirlar {
+    for k in s.split(" ") {
+      if k.trim().len() > 0 {
+        kelime += 1
+      }
+    }
+  }
+  return Rapor {
+    ad: ad,
+    satir: satirlar.len(),
+    kelime: kelime,
+    harf: icerik.len()
+  }
+}
+
+fn dosyayiIncele(yol: String) -> Rapor? {
+  let icerik = dosyaOku(yol)
+  if icerik == none {
+    return none
+  }
+  return metniIncele(yol, icerik!)
+}
+
+fn main() {
+  print("çalışma zamanı:", zamanMetni())
+  print("")
+
+  // 1) Geçici bir dosya yazıp okuyalım
+  let yol = "gecici-rapor.txt"
+  let metin = "Nar ile yazılmış bir dosya\nikinci satır\nüçüncü satır burada\n"
+
+  if !dosyaYaz(yol, metin) {
+    print("dosya yazılamadı — bu program 'nar run' ile çalıştırılmalı")
+    return
+  }
+
+  let rapor = dosyayiIncele(yol)
+  if rapor != none {
+    print(rapor!.ozet())
+  }
+
+  // 2) Sonuna ekleme
+  dosyaEkle(yol, "sonradan eklenen satır\n")
+  let ikinci = dosyayiIncele(yol)
+  if ikinci != none {
+    print("ekleme sonrası:", ikinci!.satir, "satır")
+  }
+
+  // 3) Olmayan dosya sessizce none döner
+  print("olmayan dosya:", dosyayiIncele("boyle-bir-dosya-yok.txt") == none)
+
+  // 4) Klasör listeleme
+  let narDosyalari = klasorListele("ornekler").icerenler(".nar")
+  print("ornekler klasöründeki program sayısı:", narDosyalari.len())
+
+  // 5) Temizlik
+  print("silindi mi:", dosyaSil(yol))
+
+  // 6) Süre ölçümü
+  let basla = simdi()
+  var toplam = 0
+  for i in 1..=200000 {
+    toplam += i
+  }
+  let gecen = simdi() - basla
+  print("200 bin toplama:", toplam, "—", gecen, "ms'den kısa sürdü:", gecen < 2000)
+}

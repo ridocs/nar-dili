@@ -21,6 +21,23 @@ let GIRINTI = "  "
 // Bir satır tarandıktan sonra ulaşılan durum.
 struct TaramaDurumu {
   var yorumDerinligi: Int
+  // Satır yarım kalan bir ifadeyle bittiyse (örneğin "=" ya da "+" ile),
+  // sonraki satır onun devamıdır ve bir kademe içeri alınır.
+  var devamBekleniyor: Bool
+  // Taranan satırın yorum ve metin dışında kalan son anlamlı karakteri.
+  var sonKarakter: String
+}
+
+// İfadenin yarım kaldığını gösteren satır sonları.
+// Virgül burada yok: virgülle biten satır zaten bir parantez ya da blok
+// içindedir ve girintisini oradan alır.
+let YARIM_BITIS = "=+*/&|"
+
+fn yarimMi(sonKarakter: String) -> Bool {
+  if sonKarakter.len() == 0 {
+    return false
+  }
+  return YARIM_BITIS.contains(sonKarakter)
 }
 
 fn sagdanKirp(s: String) -> String {
@@ -98,6 +115,7 @@ fn devamMi(yigin: [String]) -> Bool {
 fn satiriTara(satir: String, yigin: [String], durum: TaramaDurumu) {
   let n = satir.len()
   var i = 0
+  durum.sonKarakter = ""
 
   while i < n {
     let c = karakter(satir, i)
@@ -129,6 +147,7 @@ fn satiriTara(satir: String, yigin: [String], durum: TaramaDurumu) {
     }
     if c == "\"" {
       i = metinSonu(satir, i)
+      durum.sonKarakter = "\""
       continue
     }
 
@@ -139,6 +158,9 @@ fn satiriTara(satir: String, yigin: [String], durum: TaramaDurumu) {
       if yigin.len() > 0 {
         yigin.pop()
       }
+    }
+    if !bosluktanMi(c) {
+      durum.sonKarakter = c
     }
     i += 1
   }
@@ -154,7 +176,11 @@ fn bicimlendir(kaynak: String) -> String {
   let satirlar = kaynak.split("\n")
   var sonuc: [String] = []
   var yigin: [String] = []
-  let durum = TaramaDurumu { yorumDerinligi: 0 }
+  let durum = TaramaDurumu {
+    yorumDerinligi: 0,
+    devamBekleniyor: false,
+    sonKarakter: ""
+  }
   var ardisikBos = 0
   // Devam satırları, açılış satırıyla aynı miktarda kaydırılır.
   var kayma = 0
@@ -183,6 +209,10 @@ fn bicimlendir(kaynak: String) -> String {
       if kapanislaBasliyorMu(satir) {
         seviye -= 1
       }
+      // Önceki satır yarım kaldıysa bu satır onun devamıdır.
+      if durum.devamBekleniyor {
+        seviye += 1
+      }
       if seviye < 0 {
         seviye = 0
       }
@@ -191,6 +221,7 @@ fn bicimlendir(kaynak: String) -> String {
     }
 
     satiriTara(satir, yigin, durum)
+    durum.devamBekleniyor = yarimMi(durum.sonKarakter)
   }
 
   // Sondaki boş satırları at, tek bir satır sonu bırak.

@@ -28,6 +28,11 @@ BUILTIN_NAMES = {
     "pow", "floor", "ceil", "round", "random", "panic", "assert",
     # Sayfa (DOM) işlemleri — yalnızca tarayıcı hedefinde anlamlıdır.
     "bul", "bulHepsi", "olustur", "govde", "zamanla", "istek",
+    # Dosya ve program işlemleri — yalnızca Node hedefinde anlamlıdır.
+    "dosyaOku", "dosyaYaz", "dosyaEkle", "dosyaVarMi", "dosyaSil",
+    "klasorListele", "satirOku", "tumGirdi", "argumanlar", "cik",
+    # Zaman — her ortamda çalışır.
+    "simdi", "zamanMetni",
 }
 
 # Sayfa işlemlerinin imzaları. Bunlar `Element` tipiyle çalışır.
@@ -39,6 +44,24 @@ def _sayfa_imzalari() -> dict[str, FnT]:
         "govde": FnT((), ELEMENT),
         "zamanla": FnT((INT, FnT((), VOID)), VOID),
         "istek": FnT((STRING, STRING, STRING, FnT((STRING,), VOID)), VOID),
+    }
+
+
+# Dosya, girdi ve zaman işlemleri.
+def _sistem_imzalari() -> dict[str, FnT]:
+    return {
+        "dosyaOku": FnT((STRING,), OptT(STRING)),
+        "dosyaYaz": FnT((STRING, STRING), BOOL),
+        "dosyaEkle": FnT((STRING, STRING), BOOL),
+        "dosyaVarMi": FnT((STRING,), BOOL),
+        "dosyaSil": FnT((STRING,), BOOL),
+        "klasorListele": FnT((STRING,), ListT(STRING)),
+        "satirOku": FnT((), OptT(STRING)),
+        "tumGirdi": FnT((), STRING),
+        "argumanlar": FnT((), ListT(STRING)),
+        "cik": FnT((INT,), NEVER),
+        "simdi": FnT((), INT),
+        "zamanMetni": FnT((), STRING),
     }
 
 
@@ -1730,6 +1753,12 @@ class Checker:
         sayfa = _sayfa_imzalari()
         if name in sayfa:
             imza = sayfa[name]
+            self.check_args(node, imza, env)
+            return imza.ret
+
+        sistem = _sistem_imzalari()
+        if name in sistem:
+            imza = sistem[name]
             self.check_args(node, imza, env)
             return imza.ret
 

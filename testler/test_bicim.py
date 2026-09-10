@@ -128,6 +128,35 @@ class BicimlendiriciTesti(unittest.TestCase):
         self.assertIn("     ikinci", sonuc)
         self.assertIn('  print("a")', sonuc)
 
+    def test_yarim_kalan_satirin_devami_iceri_alinir(self):
+        # `=` ile biten satırdan sonraki satır bir kademe içeri girer.
+        sonuc = bicimlendir(
+            "struct S {\n"
+            "a: String\n"
+            "fn ozet() -> String =\n"
+            '"${self.a}"\n'
+            "}\n"
+        )
+        satirlar = sonuc.splitlines()
+        self.assertIn("  fn ozet() -> String =", satirlar)
+        self.assertIn('    "${self.a}"', satirlar)
+
+    def test_virgul_devam_sayilmaz(self):
+        # Virgülle biten satır zaten blok içindedir; fazladan girinti almamalı.
+        sonuc = bicimlendir(
+            "struct S { a: Int  b: Int }\n"
+            "fn main() {\n"
+            "let s = S {\n"
+            "a: 1,\n"
+            "b: 2\n"
+            "}\n"
+            "print(s.a)\n"
+            "}\n"
+        )
+        satirlar = sonuc.splitlines()
+        self.assertIn("    a: 1,", satirlar)
+        self.assertIn("    b: 2", satirlar)
+
     def test_kararli(self):
         # İki kez biçimlendirmek aynı sonucu vermeli
         girdi = 'fn main() {\n   if true {\nprint("a")\n     }\n}\n'

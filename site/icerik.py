@@ -1394,6 +1394,51 @@ fn main() {
                 "calistirma": False,
             },
             {
+                "id": "dosya-ve-program",
+                "baslik": "Dosyalar, girdi ve zaman",
+                "aciklama": """
+Terminalde çalışan programlar dosya okuyup yazabilir, kullanıcıdan girdi
+alabilir ve saate bakabilir.
+<p><strong>Not:</strong> Bunlar yalnızca <code>nar run</code> ile (Node
+üzerinde) anlamlıdır. Tarayıcıda dosya okuma <code>none</code>, yazma
+<code>false</code> döner — program çökmez, sadece iş yapmaz.</p>
+<p>Okuma her zaman "olabilir" sonuç verir: dosya yoksa <code>none</code>
+gelir, kontrol etmen gerekir.</p>
+""",
+                "kod": '''fn main() {
+  // Dosya yazma ve okuma
+  dosyaYaz("not.txt", "birinci satır\\n")
+  dosyaEkle("not.txt", "ikinci satır\\n")
+
+  let icerik = dosyaOku("not.txt")
+  if icerik != none {
+    print("satır sayısı:", icerik!.trim().split("\\n").len())
+  }
+
+  print("var mı:", dosyaVarMi("not.txt"))
+  dosyaSil("not.txt")
+
+  // Klasördeki dosyalar
+  let dosyalar = klasorListele("ornekler")
+  print("kaç dosya:", dosyalar.len())
+
+  // Komut satırı argümanları
+  print("argümanlar:", argumanlar())
+
+  // Zaman
+  print("şu an:", zamanMetni())
+  let basla = simdi()
+  var toplam = 0
+  for i in 1..=1000 { toplam += i }
+  print("geçen süre (ms):", simdi() - basla)
+
+  // Kullanıcıdan girdi (terminalden):
+  //   let satir = satirOku()
+  //   if satir != none { print("girdin: " + satir!) }
+}''',
+                "calistirma": False,
+            },
+            {
                 "id": "hata-mesajlari",
                 "baslik": "Hata mesajlarını okumak",
                 "aciklama": """
@@ -1559,6 +1604,23 @@ REFERANS = [
             ("e.ekle(cocuk) · e.cikar()", "Çocuk ekler · kendini kaldırır"),
             ("e.temizle() · e.odaklan()", "İçini boşaltır · odağı verir"),
             ("e.bul(secici) · e.bulHepsi(secici)", "Kendi içinde arar"),
+        ],
+    },
+    {
+        "baslik": "Dosya, girdi ve zaman",
+        "aciklama": "Yalnızca terminalde (Node) anlamlıdır; tarayıcıda iş yapmazlar.",
+        "satirlar": [
+            ("dosyaOku(yol)", "Dosyayı okur (yoksa none)"),
+            ("dosyaYaz(yol, icerik)", "Dosyayı yazar (üzerine yazar)"),
+            ("dosyaEkle(yol, icerik)", "Dosyanın sonuna ekler"),
+            ("dosyaVarMi(yol) · dosyaSil(yol)", "Var mı · siler"),
+            ("klasorListele(yol)", "Klasördeki dosya adları"),
+            ("satirOku()", "Girdiden bir satır okur (bitince none)"),
+            ("tumGirdi()", "Girdinin tamamını okur"),
+            ("argumanlar()", "Komut satırı argümanları"),
+            ("cik(kod)", "Programı verilen çıkış koduyla bitirir"),
+            ("simdi()", "1970'ten beri geçen milisaniye"),
+            ("zamanMetni()", "Okunabilir tarih-saat"),
         ],
     },
     {

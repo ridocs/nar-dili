@@ -124,6 +124,22 @@ OLAY_METHODS = {
     "kaynak": "($olayKaynagi({0}))",
 }
 
+# Dosya, girdi ve zaman yerleşiklerinin çalışma zamanı karşılıkları.
+SISTEM_ISLEVLERI = {
+    "dosyaOku": "$dosyaOku",
+    "dosyaYaz": "$dosyaYaz",
+    "dosyaEkle": "$dosyaEkle",
+    "dosyaVarMi": "$dosyaVarMi",
+    "dosyaSil": "$dosyaSil",
+    "klasorListele": "$klasorListele",
+    "satirOku": "$satirOku",
+    "tumGirdi": "$tumGirdi",
+    "argumanlar": "$argumanlar",
+    "cik": "$cik",
+    "simdi": "$simdi",
+    "zamanMetni": "$zamanMetni",
+}
+
 MAP_METHODS = {
     "len": "$len({0})",
     "get": "$mapGet({0}, {1})",
@@ -884,6 +900,11 @@ class JsBackend:
         if name == "istek":
             arglar = ", ".join(self.expr(a) for a in args)
             return f"$istek({arglar})"
+
+        # --- dosya, girdi ve zaman ---
+        if name in SISTEM_ISLEVLERI:
+            arglar = ", ".join(self.expr(a) for a in args)
+            return f"{SISTEM_ISLEVLERI[name]}({arglar})"
         if name == "panic":
             return f"$panic({self.expr(args[0])})"
         if name == "assert":
