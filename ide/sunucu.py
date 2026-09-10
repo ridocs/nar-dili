@@ -34,6 +34,38 @@ ARAYUZ = Path(__file__).resolve().parent / "arayuz.html"
 CALISMALAR = KOK / "calismalar"
 NODE = shutil.which("node")
 
+# IDE'nin sözdizimi renklendiricisi Nar diliyle yazılmıştır; sunucu onu
+# istendiğinde derleyip servis eder. Kaynak değişirse kendiliğinden yenilenir.
+RENKLENDIRICI_NAR = KOK / "araclar" / "renklendirici.nar"
+_renklendirici_onbellek: dict[str, object] = {"mtime": None, "js": ""}
+
+
+def renklendirici_js() -> str:
+    """`araclar/renklendirici.nar` dosyasını kütüphane olarak derler."""
+    try:
+        mtime = RENKLENDIRICI_NAR.stat().st_mtime
+    except OSError:
+        return "/* renklendirici.nar bulunamadı */"
+
+    if _renklendirici_onbellek["mtime"] == mtime:
+        return _renklendirici_onbellek["js"]  # type: ignore[return-value]
+
+    kaynak = RENKLENDIRICI_NAR.read_text(encoding="utf-8-sig")
+    try:
+        module = parse(kaynak, "renklendirici.nar")
+        checker = Checker(module, kaynak, kutuphane=True)
+        checker.check()
+        kod = js_backend.generate(module, checker, kutuphane=True)
+    except NarError as err:
+        # Renklendirici bozulursa IDE çalışmaya devam etmeli.
+        kod = ("/* renklendirici derlenemedi:\n"
+               + err.render(kaynak).replace("*/", "* /")
+               + "\n*/\n")
+
+    _renklendirici_onbellek["mtime"] = mtime
+    _renklendirici_onbellek["js"] = kod
+    return kod
+
 # Çalıştırma süresi sınırı: sonsuz döngü tarayıcıyı kilitlemesin.
 ZAMAN_ASIMI = 10
 
@@ -180,6 +212,10 @@ class Islem(BaseHTTPRequestHandler):
 
         if yol in ("/", "/index.html"):
             self._metin(ARAYUZ.read_text(encoding="utf-8"))
+            return
+
+        if yol == "/renklendirici.js":
+            self._metin(renklendirici_js(), "application/javascript; charset=utf-8")
             return
 
         if yol == "/api/dosyalar":

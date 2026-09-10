@@ -160,7 +160,7 @@ function $print(v) {
 // --- uzunluk ve dizinleme --------------------------------------------------
 function $len(v) {
   if (v === null || v === undefined) $panic("'none' üzerinde len çağrıldı");
-  if (typeof v === "string") return Array.from(v).length;
+  if (typeof v === "string") return $karakterDizisi(v).length;
   if (Array.isArray(v)) return v.length;
   if (v instanceof Map) return v.size;
   $panic("len bu değer üzerinde tanımlı değil");
@@ -180,8 +180,28 @@ function $listSet(list, i, v) {
   list[i] = v;
 }
 
+// Metinler kod noktası bazlı dizinlenir (emoji, birleşik karakterler doğru
+// sayılsın diye). Her erişimde diziye çevirmek uzun metinlerde O(n²) yapardı;
+// bu yüzden uzun metinlerin karakter dizisi küçük bir önbellekte tutulur.
+const $DIZI_ONBELLEK = new Map();
+const $ONBELLEK_ESIGI = 64;
+const $ONBELLEK_BOYU = 4;
+
+function $karakterDizisi(s) {
+  if (s.length < $ONBELLEK_ESIGI) return Array.from(s);
+  let dizi = $DIZI_ONBELLEK.get(s);
+  if (dizi === undefined) {
+    dizi = Array.from(s);
+    if ($DIZI_ONBELLEK.size >= $ONBELLEK_BOYU) {
+      $DIZI_ONBELLEK.delete($DIZI_ONBELLEK.keys().next().value);
+    }
+    $DIZI_ONBELLEK.set(s, dizi);
+  }
+  return dizi;
+}
+
 function $strGet(s, i) {
-  const chars = Array.from(s);
+  const chars = $karakterDizisi(s);
   if (i < 0 || i >= chars.length) {
     $panic("metin sınırı aşıldı: dizin " + i + ", uzunluk " + chars.length);
   }
@@ -324,11 +344,11 @@ function $listIcerenler(list, parca) {
 
 // --- metin metotları -------------------------------------------------------
 function $strSlice(s, a, b) {
-  return Array.from(s).slice(a, b).join("");
+  return $karakterDizisi(s).slice(a, b).join("");
 }
 
 function $strSplit(s, sep) {
-  return sep === "" ? Array.from(s) : s.split(sep);
+  return sep === "" ? $karakterDizisi(s).slice() : s.split(sep);
 }
 
 function $strIndexOf(s, sub) {

@@ -59,9 +59,11 @@ class Env:
 
 
 class Checker:
-    def __init__(self, module: A.Module, source: str = "") -> None:
+    def __init__(self, module: A.Module, source: str = "", kutuphane: bool = False) -> None:
         self.module = module
         self.source = source
+        # Kütüphane derlemesinde `main` aranmaz; dosya başka koddan çağrılır.
+        self.kutuphane = kutuphane
         self.structs: dict[str, StructT] = {}
         self.enums: dict[str, EnumT] = {}
         self.aliases: dict[str, Type] = {}
@@ -149,11 +151,12 @@ class Checker:
                 self.check_let(item, self.globals)
 
         if "main" not in self.functions:
-            self.error(
-                "programda 'main' fonksiyonu yok",
-                self.module.span,
-                hint="giriş noktası olarak `fn main() { ... }` ekle",
-            )
+            if not self.kutuphane:
+                self.error(
+                    "programda 'main' fonksiyonu yok",
+                    self.module.span,
+                    hint="giriş noktası olarak `fn main() { ... }` ekle",
+                )
         elif self.functions["main"].params:
             self.error("'main' parametre almamalı", self.fn_decls["main"].span)
 

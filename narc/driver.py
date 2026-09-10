@@ -15,13 +15,15 @@ from .parser import parse
 class Compilation:
     """Bir derleme birimi: birleştirilmiş modül, denetleyici ve kaynak metinler."""
 
-    def __init__(self, module: A.Module, checker: Checker, sources: dict[str, str]) -> None:
+    def __init__(self, module: A.Module, checker: Checker, sources: dict[str, str],
+                 kutuphane: bool = False) -> None:
         self.module = module
         self.checker = checker
         self.sources = sources
+        self.kutuphane = kutuphane
 
     def to_js(self) -> str:
-        return js_backend.generate(self.module, self.checker)
+        return js_backend.generate(self.module, self.checker, self.kutuphane)
 
 
 def load_module(path: Path, sources: dict[str, str], seen: list[Path],
@@ -61,7 +63,8 @@ def load_module(path: Path, sources: dict[str, str], seen: list[Path],
     return items
 
 
-def compile_file(path: Path, sources: dict[str, str] | None = None) -> Compilation:
+def compile_file(path: Path, sources: dict[str, str] | None = None,
+                 kutuphane: bool = False) -> Compilation:
     """Dosyayı derler.
 
     `sources` verilirse okunan kaynak metinler oraya yazılır. Hata fırlatılsa
@@ -72,9 +75,9 @@ def compile_file(path: Path, sources: dict[str, str] | None = None) -> Compilati
     items = load_module(path, sources, seen)
 
     root = A.Module(Span(path.name, 1, 1), path.name, items)
-    checker = Checker(root, sources.get(path.name, ""))
+    checker = Checker(root, sources.get(path.name, ""), kutuphane=kutuphane)
     checker.check()
-    return Compilation(root, checker, sources)
+    return Compilation(root, checker, sources, kutuphane)
 
 
 HTML_TEMPLATE = """<!doctype html>

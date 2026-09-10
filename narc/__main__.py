@@ -50,6 +50,10 @@ def build_parser() -> argparse.ArgumentParser:
         if name in ("build", "emit"):
             sub.add_argument("--target", default="js", choices=["js", "web"],
                              help="çıktı hedefi (varsayılan: js)")
+        if name in ("build", "emit", "check"):
+            sub.add_argument("--kutuphane", action="store_true",
+                             help="kütüphane olarak derle: 'main' gerekmez, "
+                                  "fonksiyonlar globalThis.Nar altına açılır")
         if name == "build":
             sub.add_argument("-o", "--out", type=Path, default=None,
                              help="çıktı dosyası")
@@ -61,7 +65,8 @@ def main(argv: list[str] | None = None) -> int:
     sources: dict[str, str] = {}
 
     try:
-        compilation = compile_file(args.file, sources)
+        compilation = compile_file(args.file, sources,
+                                   kutuphane=getattr(args, "kutuphane", False))
     except NarError as err:
         return fail(err, sources)
     except FileNotFoundError:

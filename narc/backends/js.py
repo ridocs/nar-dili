@@ -138,9 +138,12 @@ def type_code(ty: Type | None) -> str:
 
 
 class JsBackend:
-    def __init__(self, module: A.Module, checker: Checker) -> None:
+    def __init__(self, module: A.Module, checker: Checker,
+                 kutuphane: bool = False) -> None:
         self.module = module
         self.checker = checker
+        # Kütüphane modunda `main` çağrılmaz; fonksiyonlar dışa açılır.
+        self.kutuphane = kutuphane
         self.lines: list[str] = []
         self.indent = 0
         self.tmp = 0
@@ -181,8 +184,34 @@ class JsBackend:
                 self.emit_let(item)
             self.write()
 
-        self.write("$bootstrap(main);")
+        if self.kutuphane:
+            self.emit_disa_ac()
+        else:
+            self.write("$bootstrap(main);")
         return "\n".join(self.lines) + "\n"
+
+    def emit_disa_ac(self) -> None:
+        """Kütüphane modunda üst düzey adları `globalThis.Nar` altına koyar."""
+        adlar: list[str] = []
+        for item in self.module.items:
+            if isinstance(item, A.FnDecl):
+                adlar.append(item.name)
+            elif isinstance(item, (A.StructDecl, A.EnumDecl)):
+                adlar.append(item.name)
+
+        self.write("// Dışa açılan adlar — tarayıcıda `Nar.<ad>` ile çağrılır.")
+        self.write("globalThis.Nar = Object.assign(globalThis.Nar || {}, {")
+        self.indent += 1
+        for ad in adlar:
+            js_ad = self.name(ad)
+            self.write(f"{js_ad}: {js_ad},")
+        self.indent -= 1
+        self.write("});")
+        self.write("if (typeof module !== \"undefined\" && module.exports) {")
+        self.indent += 1
+        self.write("module.exports = globalThis.Nar;")
+        self.indent -= 1
+        self.write("}")
 
     # ------------------------------------------------------------ bildirimler
     def emit_struct(self, decl: A.StructDecl) -> None:
@@ -792,5 +821,5 @@ class JsBackend:
         raise AssertionError(f"bilinmeyen yerleşik: {name}")  # pragma: no cover
 
 
-def generate(module: A.Module, checker: Checker) -> str:
-    return JsBackend(module, checker).emit()
+def generate(module: A.Module, checker: Checker, kutuphane: bool = False) -> str:
+    return JsBackend(module, checker, kutuphane).emit()
