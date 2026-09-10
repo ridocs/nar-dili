@@ -1,0 +1,85 @@
+// Tarayıcıda çalışan küçük bir uygulama — sayaç.
+//
+// Derle ve tarayıcıda aç:
+//     nar build ornekler/sayac_web.nar --target web -o cikti/sayac.html
+//
+// Sayfa işlemleri (bul, olustur, dinle...) yalnızca tarayıcıda anlamlıdır.
+// Aynı program Node ile çalıştırılırsa sayfa bulunamaz ve uyarı yazar.
+
+var sayi = 0
+
+fn kutuYap(etiket: String, sinif: String) -> Element {
+  let dugme = olustur("button")
+  dugme.metinYaz(etiket)
+  dugme.sinifEkle(sinif)
+  dugme.stil("font", "inherit")
+  dugme.stil("padding", "8px 16px")
+  dugme.stil("margin-right", "8px")
+  dugme.stil("border-radius", "6px")
+  dugme.stil("border", "1px solid #d9d2ce")
+  dugme.stil("background", "#ffffff")
+  // Rengi açıkça vermek gerekir: sayfa koyu temadaysa metin beyaza döner
+  // ve beyaz düğme üzerinde görünmez olur.
+  dugme.stil("color", "#1c1917")
+  dugme.stil("cursor", "pointer")
+  return dugme
+}
+
+fn main() {
+  let kok = bul("#uygulama")
+
+  if kok == none {
+    print("Bu program tarayıcıda çalıştırılmalı.")
+    print("Derle:  nar build ornekler/sayac_web.nar --target web -o cikti/sayac.html")
+    return
+  }
+
+  let alan = kok!
+  alan.temizle()
+
+  let baslik = olustur("h2")
+  baslik.metinYaz("Sayaç")
+  baslik.stil("font", "600 20px system-ui, sans-serif")
+  baslik.stil("margin", "0 0 12px")
+  alan.ekle(baslik)
+
+  let ekran = olustur("div")
+  ekran.ozellikYaz("id", "ekran")
+  ekran.stil("font", "700 44px system-ui, sans-serif")
+  ekran.stil("margin", "0 0 16px")
+  ekran.stil("color", "#a32a2f")
+  alan.ekle(ekran)
+
+  let artir = kutuYap("Artır", "dugme")
+  let azalt = kutuYap("Azalt", "dugme")
+  let sifirla = kutuYap("Sıfırla", "dugme")
+
+  alan.ekle(artir)
+  alan.ekle(azalt)
+  alan.ekle(sifirla)
+
+  artir.dinle("click", || {
+    sayi += 1
+    goster()
+  })
+
+  azalt.dinle("click", || {
+    sayi -= 1
+    goster()
+  })
+
+  sifirla.dinle("click", || {
+    sayi = 0
+    goster()
+  })
+
+  goster()
+  print("sayaç hazır")
+}
+
+fn goster() {
+  let ekran = bul("#ekran")
+  if ekran != none {
+    ekran.metinYaz(str(sayi))
+  }
+}

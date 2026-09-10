@@ -133,6 +133,16 @@ function $fmt(v, t, quoted) {
     return "{" + parts.join(", ") + "}";
   }
 
+  // Sayfa öğeleri: `<div id="x" class="y">` biçiminde kısaca gösterilir.
+  if (typeof Element !== "undefined" && v instanceof Element) {
+    let etiket = v.tagName.toLowerCase();
+    if (v.id) etiket += "#" + v.id;
+    if (v.className && typeof v.className === "string") {
+      etiket += "." + v.className.trim().split(/\s+/).join(".");
+    }
+    return "<" + etiket + ">";
+  }
+
   const name = v.constructor && v.constructor.$narName;
   const def = name ? $types[name] : undefined;
 
@@ -394,6 +404,83 @@ function $mapValues(m) {
 
 function $mapRemove(m, k) {
   m.delete(k);
+}
+
+// --- sayfa (DOM) işlemleri -------------------------------------------------
+// Yalnızca tarayıcıda anlamlıdır. Node ile çalıştırıldığında `bul` none
+// döndürür ve diğerleri sessizce hiçbir şey yapmaz — program çökmez.
+function $belgeVarMi() {
+  return typeof document !== "undefined" && document !== null;
+}
+
+function $bul(secici) {
+  if (!$belgeVarMi()) return null;
+  return document.querySelector(secici);
+}
+
+function $bulHepsi(secici) {
+  if (!$belgeVarMi()) return [];
+  return Array.from(document.querySelectorAll(secici));
+}
+
+function $olustur(etiket) {
+  if (!$belgeVarMi()) $panic("olustur() yalnızca tarayıcıda kullanılabilir");
+  return document.createElement(etiket);
+}
+
+function $govde() {
+  if (!$belgeVarMi()) $panic("govde() yalnızca tarayıcıda kullanılabilir");
+  return document.body;
+}
+
+function $ogeBul(oge, secici) {
+  return oge.querySelector(secici);
+}
+
+function $ogeBulHepsi(oge, secici) {
+  return Array.from(oge.querySelectorAll(secici));
+}
+
+function $ogeOzellik(oge, ad) {
+  const deger = oge.getAttribute(ad);
+  return deger === null ? null : deger;
+}
+
+function $ogeDeger(oge) {
+  return oge.value === undefined ? "" : String(oge.value);
+}
+
+function $ogeTemizle(oge) {
+  while (oge.firstChild) oge.removeChild(oge.firstChild);
+}
+
+function $ogeCikar(oge) {
+  if (oge.parentNode) oge.parentNode.removeChild(oge);
+}
+
+function $ogeStil(oge, ad, deger) {
+  oge.style.setProperty(ad, deger);
+}
+
+function $zamanla(ms, islev) {
+  if (typeof setTimeout === "undefined") $panic("zamanla() bu ortamda yok");
+  setTimeout(islev, ms);
+}
+
+// Ağ isteği. Nar'da `async` yoktur; sonuç geri çağırma ile verilir.
+function $istek(yontem, url, govde, islev) {
+  if (typeof fetch === "undefined") {
+    $panic("istek() bu ortamda yok");
+  }
+  const ayar = {method: yontem};
+  if (govde !== "" && yontem !== "GET" && yontem !== "HEAD") {
+    ayar.body = govde;
+    ayar.headers = {"Content-Type": "application/json"};
+  }
+  fetch(url, ayar)
+    .then((y) => y.text())
+    .then((metin) => islev(metin))
+    .catch((e) => islev(""));
 }
 
 // --- programın başlatılması ------------------------------------------------

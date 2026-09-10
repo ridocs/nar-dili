@@ -14,7 +14,8 @@ from __future__ import annotations
 from . import nar_ast as A
 from .diagnostics import NarError, NarErrors, duzenle
 from .types import (
-    ANY, BOOL, FLOAT, INT, NEVER, NONE, NUMERIC, ORDERED, PRIMITIVES, STRING, VOID,
+    ANY, BOOL, ELEMENT, FLOAT, INT, NEVER, NONE, NUMERIC, ORDERED, PRIMITIVES,
+    STRING, VOID,
     AnyT, EnumT, FnT, ListT, MapT, NeverT, NoneT, OptT, Prim, RangeT, StructT,
     Type, assignable, common_type, is_optional, unwrap_optional,
 )
@@ -22,7 +23,20 @@ from .types import (
 BUILTIN_NAMES = {
     "print", "str", "len", "int", "float", "abs", "min", "max", "sqrt",
     "pow", "floor", "ceil", "round", "random", "panic", "assert",
+    # Sayfa (DOM) işlemleri — yalnızca tarayıcı hedefinde anlamlıdır.
+    "bul", "bulHepsi", "olustur", "govde", "zamanla", "istek",
 }
+
+# Sayfa işlemlerinin imzaları. Bunlar `Element` tipiyle çalışır.
+def _sayfa_imzalari() -> dict[str, FnT]:
+    return {
+        "bul": FnT((STRING,), OptT(ELEMENT)),
+        "bulHepsi": FnT((STRING,), ListT(ELEMENT)),
+        "olustur": FnT((STRING,), ELEMENT),
+        "govde": FnT((), ELEMENT),
+        "zamanla": FnT((INT, FnT((), VOID)), VOID),
+        "istek": FnT((STRING, STRING, STRING, FnT((STRING,), VOID)), VOID),
+    }
 
 
 def is_void(t: Type) -> bool:
@@ -1317,6 +1331,12 @@ class Checker:
                 return False
             return True
 
+        sayfa = _sayfa_imzalari()
+        if name in sayfa:
+            imza = sayfa[name]
+            self.check_args(node, imza, env)
+            return imza.ret
+
         if name == "print":
             # Birden çok değer aralarında boşlukla yazdırılır: print("ad:", ad)
             if not args:
@@ -1458,6 +1478,8 @@ def _member_hint(base: Type) -> str | None:
     names = _BUILTIN_MEMBER_NAMES.get(type(base).__name__)
     if base == STRING:
         names = _BUILTIN_MEMBER_NAMES["String"]
+    elif base == ELEMENT:
+        names = _BUILTIN_MEMBER_NAMES["Element"]
     if not names:
         return None
     return f"kullanılabilir: {', '.join(sorted(names))}"
@@ -1536,6 +1558,29 @@ def builtin_method(base: Type, name: str) -> FnT | None:
 
         return table.get(name)
 
+    if base == ELEMENT:
+        return {
+            "metin": FnT((), STRING),
+            "metinYaz": FnT((STRING,), VOID),
+            "html": FnT((), STRING),
+            "htmlYaz": FnT((STRING,), VOID),
+            "deger": FnT((), STRING),
+            "degerYaz": FnT((STRING,), VOID),
+            "sinifEkle": FnT((STRING,), VOID),
+            "sinifSil": FnT((STRING,), VOID),
+            "sinifVarMi": FnT((STRING,), BOOL),
+            "ozellik": FnT((STRING,), OptT(STRING)),
+            "ozellikYaz": FnT((STRING, STRING), VOID),
+            "stil": FnT((STRING, STRING), VOID),
+            "dinle": FnT((STRING, FnT((), VOID)), VOID),
+            "ekle": FnT((ELEMENT,), VOID),
+            "cikar": FnT((), VOID),
+            "temizle": FnT((), VOID),
+            "odaklan": FnT((), VOID),
+            "bul": FnT((STRING,), OptT(ELEMENT)),
+            "bulHepsi": FnT((STRING,), ListT(ELEMENT)),
+        }.get(name)
+
     if isinstance(base, MapT):
         k, v = base.key, base.value
         table = {
@@ -1561,6 +1606,10 @@ _BUILTIN_MEMBER_NAMES = {
               "enKucuk", "kat", "artir", "buyukler", "kucukler", "ciftler",
               "tekler", "buyukHarf", "kucukHarf", "icerenler"],
     "MapT": ["len", "get", "set", "has", "remove", "keys", "values"],
+    "Element": ["metin", "metinYaz", "html", "htmlYaz", "deger", "degerYaz",
+                "sinifEkle", "sinifSil", "sinifVarMi", "ozellik", "ozellikYaz",
+                "stil", "dinle", "ekle", "cikar", "temizle", "odaklan",
+                "bul", "bulHepsi"],
 }
 
 

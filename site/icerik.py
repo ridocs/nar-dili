@@ -885,6 +885,106 @@ fn main() {
         ],
     },
 
+    # ------------------------------------------------------------------- sayfa
+    {
+        "id": "sayfa",
+        "baslik": "Web sayfası yapmak",
+        "konular": [
+            {
+                "id": "sayfa-giris",
+                "baslik": "Sayfayla konuşmak",
+                "aciklama": """
+Nar programı tarayıcıda çalışırken sayfadaki öğelere erişebilir: yazı
+değiştirebilir, düğme ekleyebilir, tıklamaları dinleyebilir.
+<p><code>bul(...)</code> bir öğeyi seçer. Öğe olmayabileceği için sonuç
+her zaman <strong>olabilir</strong> tipindedir — kontrol etmen gerekir.
+Bu, "öğe yok" hatasını baştan engeller.</p>
+<p>Programı tarayıcıda çalışacak biçimde derlemek için:
+<code>nar build program.nar --target web</code></p>
+""",
+                "kod": '''fn main() {
+  let baslik = bul("#baslik")
+
+  if baslik != none {
+    baslik.metinYaz("Merhaba Nar")
+    baslik.stil("color", "#a32a2f")
+    baslik.sinifEkle("vurgulu")
+  }
+}''',
+                "calistirma": False,
+            },
+            {
+                "id": "sayfa-olay",
+                "baslik": "Düğme ve tıklama",
+                "aciklama": """
+<code>olustur(...)</code> yeni bir öğe yapar, <code>ekle(...)</code> onu
+sayfaya koyar, <code>dinle(...)</code> ise tıklama gibi olayları yakalar.
+<p>Aşağıdaki program çalışan bir sayaçtır; tam hâli
+<code>ornekler/sayac_web.nar</code> dosyasında.</p>
+""",
+                "kod": '''var sayi = 0
+
+fn main() {
+  let alan = bul("#uygulama")
+  if alan == none {
+    print("bu program tarayıcıda çalışmalı")
+    return
+  }
+
+  let ekran = olustur("div")
+  ekran.ozellikYaz("id", "ekran")
+  ekran.metinYaz("0")
+  alan!.ekle(ekran)
+
+  let dugme = olustur("button")
+  dugme.metinYaz("Artır")
+  dugme.dinle("click", || {
+    sayi += 1
+    bul("#ekran")?.metinYaz(str(sayi))
+  })
+  alan!.ekle(dugme)
+}''',
+                "calistirma": False,
+            },
+            {
+                "id": "sayfa-islemleri",
+                "baslik": "Öğe üzerinde yapabileceklerin",
+                "aciklama": """
+Bir öğeyi bulduktan sonra kullanabileceğin işlemler. Hepsi
+<code>Element</code> tipinin üzerindedir.
+<p><strong>Not:</strong> Bu işlemler yalnızca tarayıcıda anlamlıdır.
+Aynı programı <code>nar run</code> ile çalıştırırsan <code>bul(...)</code>
+her zaman <code>none</code> döner ve program çökmez — bu sayede aynı kodu
+her iki ortamda da güvenle çalıştırabilirsin.</p>
+""",
+                "kod": '''fn ornekler(e: Element) {
+  e.metinYaz("yazı")            // içindeki yazıyı değiştir
+  print(e.metin())              // içindeki yazıyı oku
+  e.htmlYaz("<b>kalın</b>")     // HTML olarak yaz
+  e.degerYaz("giriş")           // input/textarea değeri
+  print(e.deger())
+
+  e.sinifEkle("acik")
+  e.sinifSil("kapali")
+  print(e.sinifVarMi("acik"))
+
+  e.ozellikYaz("id", "kutu")
+  print(e.ozellik("id") ?? "yok")
+  e.stil("color", "red")
+
+  e.dinle("click", || { print("tıklandı") })
+
+  e.ekle(olustur("span"))       // çocuk ekle
+  e.temizle()                   // içini boşalt
+  e.odaklan()
+
+  print(e.bul(".ic") != none)   // içinde ara
+}''',
+                "calistirma": False,
+            },
+        ],
+    },
+
     # ---------------------------------------------------------- program düzeni
     {
         "id": "duzen",
@@ -1055,6 +1155,28 @@ REFERANS = [
             ("has(anahtar)", "Bu anahtar var mı"),
             ("remove(anahtar)", "Kaydı siler"),
             ("keys() · values()", "Anahtarların · değerlerin listesi"),
+        ],
+    },
+    {
+        "baslik": "Sayfa işlemleri",
+        "aciklama": "Yalnızca tarayıcıda anlamlıdır; Node'da <code>bul</code> none döner.",
+        "satirlar": [
+            ("bul(secici)", "Bir öğe seçer (yoksa none)"),
+            ("bulHepsi(secici)", "Eşleşen tüm öğeler"),
+            ("olustur(etiket)", "Yeni öğe yapar"),
+            ("govde()", "Sayfanın gövdesi"),
+            ("zamanla(ms, islev)", "Belirtilen süre sonra çalıştırır"),
+            ("istek(yontem, url, govde, islev)", "Ağ isteği; sonuç islev'e gelir"),
+            ("e.metin() · e.metinYaz(s)", "İçindeki yazıyı okur · değiştirir"),
+            ("e.html() · e.htmlYaz(s)", "İçeriği HTML olarak okur · yazar"),
+            ("e.deger() · e.degerYaz(s)", "Giriş kutusunun değeri"),
+            ("e.sinifEkle(s) · sinifSil(s) · sinifVarMi(s)", "CSS sınıfı işlemleri"),
+            ("e.ozellik(ad) · ozellikYaz(ad, d)", "Öznitelik okur · yazar"),
+            ("e.stil(ad, deger)", "Tek bir stil kuralı verir"),
+            ("e.dinle(olay, islev)", "Olay dinler (click, input…)"),
+            ("e.ekle(cocuk) · e.cikar()", "Çocuk ekler · kendini kaldırır"),
+            ("e.temizle() · e.odaklan()", "İçini boşaltır · odağı verir"),
+            ("e.bul(secici) · e.bulHepsi(secici)", "Kendi içinde arar"),
         ],
     },
     {

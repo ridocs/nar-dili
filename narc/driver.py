@@ -96,6 +96,8 @@ HTML_TEMPLATE = """<!doctype html>
 </head>
 <body>
 <h1>{title}</h1>
+<!-- Nar programı `bul("#uygulama")` ile buraya çizebilir. -->
+<div id="uygulama"></div>
 <div id="cikti"></div>
 <script>
 // Nar programının `print` çıktısı sayfaya yazılır.

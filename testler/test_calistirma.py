@@ -466,6 +466,33 @@ print(str(int(3.9)))''', "42\n-1\n1.5\n3.0\n3")
     def test_turkce_degisken_adi(self):
         self.esit('let ağırlık = 70\nlet boy = 180\nprint(str(ağırlık + boy))', "250")
 
+    # --- sayfa (DOM) işlemleri: Node'da güvenli davranış ---
+    def test_sayfa_yokken_bul_none_doner(self):
+        self.esit('print(bul("#yok") == none)\nprint(bulHepsi("div").len())',
+                  "true\n0")
+
+    def test_sayfa_islemleri_tip_denetiminden_gecer(self):
+        # Derlenebildiğini doğrular; tarayıcı olmadan çalıştırılmaz.
+        kod = derle('''fn main() {
+  let k = bul("#kok")
+  if k != none {
+    k.metinYaz("merhaba")
+    k.sinifEkle("acik")
+    k.stil("color", "red")
+    k.dinle("click", || { print("tık") })
+    let yeni = olustur("div")
+    k.ekle(yeni)
+  }
+}''')
+        self.assertIn("$bul(", kod)
+        self.assertIn("addEventListener", kod)
+        self.assertIn("createElement", kod)
+
+    def test_element_tipi_yanlis_kullanim(self):
+        from narc.diagnostics import NarError
+        with self.assertRaises(NarError):
+            derle('fn main() { let k = bul("#a")\n k.olmayanMetot() }')
+
     # --- global değişken ---
     def test_global_degisken(self):
         self.program('''let BASLIK = "Nar"

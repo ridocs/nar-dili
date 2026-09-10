@@ -12,7 +12,7 @@ from pathlib import Path
 from .. import nar_ast as A
 from ..checker import Checker
 from ..types import (
-    FLOAT, INT, STRING, EnumT, ListT, MapT, OptT, Prim, StructT, Type,
+    ELEMENT, FLOAT, INT, STRING, EnumT, ListT, MapT, OptT, Prim, StructT, Type,
     unwrap_optional,
 )
 
@@ -83,6 +83,28 @@ LIST_METHODS = {
     "buyukHarf": "$listBuyukHarf({0})",
     "kucukHarf": "$listKucukHarf({0})",
     "icerenler": "$listIcerenler({0}, {1})",
+}
+
+ELEMENT_METHODS = {
+    "metin": "{0}.textContent",
+    "metinYaz": "{0}.textContent = {1}",
+    "html": "{0}.innerHTML",
+    "htmlYaz": "{0}.innerHTML = {1}",
+    "deger": "$ogeDeger({0})",
+    "degerYaz": "{0}.value = {1}",
+    "sinifEkle": "{0}.classList.add({1})",
+    "sinifSil": "{0}.classList.remove({1})",
+    "sinifVarMi": "{0}.classList.contains({1})",
+    "ozellik": "$ogeOzellik({0}, {1})",
+    "ozellikYaz": "{0}.setAttribute({1}, {2})",
+    "stil": "$ogeStil({0}, {1}, {2})",
+    "dinle": "{0}.addEventListener({1}, {2})",
+    "ekle": "{0}.appendChild({1})",
+    "cikar": "$ogeCikar({0})",
+    "temizle": "$ogeTemizle({0})",
+    "odaklan": "{0}.focus()",
+    "bul": "$ogeBul({0}, {1})",
+    "bulHepsi": "$ogeBulHepsi({0}, {1})",
 }
 
 MAP_METHODS = {
@@ -752,6 +774,8 @@ class JsBackend:
         base = unwrap_optional(callee.obj.ty) if callee.obj.ty is not None else None
         if base == STRING:
             table = STRING_METHODS
+        elif base == ELEMENT:
+            table = ELEMENT_METHODS
         elif isinstance(base, MapT):
             table = MAP_METHODS
         else:
@@ -811,6 +835,21 @@ class JsBackend:
             return f"Math.round({self.expr(args[0])})"
         if name == "random":
             return "Math.random()"
+
+        # --- sayfa (DOM) işlemleri ---
+        if name == "bul":
+            return f"$bul({self.expr(args[0])})"
+        if name == "bulHepsi":
+            return f"$bulHepsi({self.expr(args[0])})"
+        if name == "olustur":
+            return f"$olustur({self.expr(args[0])})"
+        if name == "govde":
+            return "$govde()"
+        if name == "zamanla":
+            return f"$zamanla({self.expr(args[0])}, {self.expr(args[1])})"
+        if name == "istek":
+            arglar = ", ".join(self.expr(a) for a in args)
+            return f"$istek({arglar})"
         if name == "panic":
             return f"$panic({self.expr(args[0])})"
         if name == "assert":

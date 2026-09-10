@@ -131,11 +131,15 @@ FLOAT = Prim("Float")
 BOOL = Prim("Bool")
 STRING = Prim("String")
 VOID = Prim("Void")
+# Sayfadaki bir öğe. Yalnızca tarayıcı hedefinde anlamlıdır; Node ile
+# çalıştırılan bir programda `bul(...)` her zaman `none` döner.
+ELEMENT = Prim("Element")
 NONE = NoneT()
 NEVER = NeverT()
 ANY = AnyT()
 
-PRIMITIVES = {"Int": INT, "Float": FLOAT, "Bool": BOOL, "String": STRING, "Void": VOID}
+PRIMITIVES = {"Int": INT, "Float": FLOAT, "Bool": BOOL, "String": STRING,
+              "Void": VOID, "Element": ELEMENT}
 NUMERIC = (INT, FLOAT)
 ORDERED = (INT, FLOAT, STRING)
 
