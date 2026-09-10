@@ -537,7 +537,9 @@ class Parser:
     def parse_pattern(self) -> A.Pattern:
         tok = self.cur
 
-        if tok.kind == "_":
+        # `_` lexer'da tanımlayıcı olarak gelir (ident başlangıcı sayılır),
+        # ama desende her zaman jokerdir: bir değere bağlanmaz.
+        if tok.kind == "ident" and tok.value == "_":
             self.advance()
             return A.WildcardPat(tok.span)
 

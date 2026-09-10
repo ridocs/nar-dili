@@ -446,6 +446,19 @@ function $mapRemove(m, k) {
   m.delete(k);
 }
 
+// --- karakter kodları ------------------------------------------------------
+// Kod noktası (code point) kullanılır, kod birimi değil: emoji gibi
+// BMP dışı karakterler de tek parça sayılır.
+function $karakterKodu(s) {
+  if (s.length === 0) $panic("kodu(): boş metnin karakter kodu yok");
+  return s.codePointAt(0);
+}
+
+function $koddanKarakter(n) {
+  if (n < 0 || n > 0x10ffff) $panic("koddan(): geçersiz karakter kodu: " + n);
+  return String.fromCodePoint(n);
+}
+
 // --- sayfa (DOM) işlemleri -------------------------------------------------
 // Yalnızca tarayıcıda anlamlıdır. Node ile çalıştırıldığında `bul` none
 // döndürür ve diğerleri sessizce hiçbir şey yapmaz — program çökmez.

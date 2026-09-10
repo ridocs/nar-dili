@@ -189,6 +189,28 @@ print("merhaba".slice(0, 3))     // ilk 3 harf
 print("ab".repeat(3))''',
             },
             {
+                "id": "karakter-kodu",
+                "baslik": "Karakter kodları",
+                "aciklama": """
+Her karakterin bir sayı karşılığı vardır (Unicode kod noktası).
+<code>kodu()</code> karakterden sayıya, <code>koddan(...)</code> sayıdan
+karaktere çevirir.
+<p>Şifreleme, sıralama, kaçış dizisi çözme gibi işlerde gerekir. Emoji
+gibi geniş karakterler de tek parça sayılır.</p>
+""",
+                "kod": '''print("A".kodu())          // 65
+print("a".kodu())          // 97
+print(koddan(65))          // A
+
+// Türkçe harfler de aynı şekilde
+print("ı".kodu())
+print(koddan(305))
+
+// Sezar şifresi: her harfi üç ileri kaydır
+let harf = "d"
+print(koddan(harf.kodu() + 3))''',
+            },
+            {
                 "id": "bool",
                 "baslik": "Doğru ve yanlış",
                 "aciklama": """
@@ -1590,6 +1612,68 @@ npm install
 npx cap add android
 npx cap open android     # Android Studio açılır, ▶ ile çalıştır''',
                 "dil": "kabuk",
+                "calistirma": False,
+            },
+        ],
+    },
+
+    # -------------------------------------------------------------- derleyici
+    {
+        "id": "kendi-derleyicisi",
+        "baslik": "Nar, Nar ile yazılıyor",
+        "konular": [
+            {
+                "id": "self-hosting",
+                "baslik": "Dilin kendi kendini derlemesi",
+                "aciklama": """
+Nar'ın ilk derleyicisi Python ile yazıldı — bir dilin başlangıçta başka
+bir dile ihtiyacı vardır. Ama olgun bir dil kendi derleyicisini kendi
+diliyle yazabilmelidir; buna <strong>self-hosting</strong> denir.
+<p>Nar bu yolda ilerliyor. Şu ana kadar Nar diliyle yazılanlar:</p>
+<table class="ref">
+<tr><td><code>derleyici/lexer.nar</code></td><td>Sözcüksel çözümleyici — kaynağı token'lara böler</td></tr>
+<tr><td><code>derleyici/ast.nar</code></td><td>Soyut sözdizim ağacı ve S-ifadesi yazıcı</td></tr>
+<tr><td><code>derleyici/parser.nar</code></td><td>Sözdizim çözümleyici — token'lardan ağaç kurar</td></tr>
+<tr><td><code>araclar/renklendirici.nar</code></td><td>Sözdizimi renklendirici (bu sayfadaki renkler)</td></tr>
+<tr><td><code>araclar/bicimlendirici.nar</code></td><td>Kod biçimlendirici (<code>nar fmt</code>)</td></tr>
+<tr><td><code>araclar/arayuz.nar</code></td><td>Bildirimsel arayüz kütüphanesi</td></tr>
+<tr><td><code>araclar/json.nar</code></td><td>JSON okuyucu ve yazıcı</td></tr>
+<tr><td><code>araclar/ide_uygulamasi.nar</code></td><td>Nar IDE'nin tüm davranışı</td></tr>
+</table>
+<p>Sırada tip denetleyici ve kod üreteci var.</p>
+""",
+                "kod": '''# Nar ile yazılan lexer'ı kütüphane olarak derle
+nar build derleyici/lexer.nar --kutuphane -o cikti/nar-lexer.js
+
+# Nar ile yazılan çözümleyiciyi derle
+nar build derleyici/parser.nar --kutuphane -o cikti/nar-parser.js''',
+                "dil": "kabuk",
+                "calistirma": False,
+            },
+            {
+                "id": "nasil-dogrulaniyor",
+                "baslik": "Doğruluğu nasıl ölçülüyor",
+                "aciklama": """
+Yeni yazılan çözümleyicinin doğru olduğunu nasıl bilirsin? Nar'ın yanıtı:
+<strong>iki çözümleyiciyi aynı kaynakla besleyip sonuçları
+karşılaştırmak</strong>.
+<p>Ağaçları karşılaştırabilmek için ortak bir yazım gerekir. Nar bunun
+için <strong>S-ifadesi</strong> kullanır: ağacın parantezli metin hâli.
+Konum bilgisi yazılmaz — iki çözümleyicinin satır/sütun hesabı birebir
+aynı olmak zorunda değil, ağacın yapısı aynı olmak zorunda.</p>
+<p>Karşılaştırma yapay örneklerle sınırlı değil: projedeki
+<strong>bütün</strong> <code>.nar</code> dosyaları iki çözümleyiciden de
+geçirilir. Bu yöntem gerçek hatalar buldu — biri Türk alfabesinde
+olmadığı için harf listesinden düşen <code>q</code> harfi, biri de metin
+literalindeki <code>${'{...}'}</code> gömmesinin içeriğinin token'da
+saklanmaması.</p>
+""",
+                "kod": '''// Kaynak
+fn kare(x: Int) -> Int = x * x
+
+// İki çözümleyicinin de ürettiği S-ifadesi
+(modul [(fn "kare" [] [] [(parametre "x" (tad "Int"))] (tad "Int")
+  (blok [(donus (ikili "*" (ad "x") (ad "x")))]))])''',
                 "calistirma": False,
             },
         ],

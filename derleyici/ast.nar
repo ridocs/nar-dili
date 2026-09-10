@@ -164,7 +164,7 @@ struct Modul {
 //     -                    yok
 // ==========================================================================
 
-fn kacir(s: String) -> String {
+fn tirnakla(s: String) -> String {
   var sonuc = "\""
   for c in s {
     if c == "\\" {
@@ -247,10 +247,10 @@ fn ondalikMetni(ham: String) -> String {
 
 fn yazTip(t: TipIfadesi) -> String = match t {
   TAd(ad, args) -> if args.len() == 0 {
-      dugum("tad", [kacir(ad)])
-    } else {
-      dugum("tad", [kacir(ad), dizi(args.map(|a| yazTip(a)))])
-    }
+    dugum("tad", [tirnakla(ad)])
+  } else {
+    dugum("tad", [tirnakla(ad), dizi(args.map(|a| yazTip(a)))])
+  }
   TListe(e) -> dugum("tliste", [yazTip(e)])
   TEsleme(k, v) -> dugum("tesleme", [yazTip(k), yazTip(v)])
   TOpsiyonel(i) -> dugum("topsiyonel", [yazTip(i)])
@@ -265,7 +265,7 @@ fn yazTipOps(t: TipIfadesi?) -> String {
 }
 
 fn yazParametre(p: Parametre) -> String =
-  dugum("parametre", [kacir(p.ad), yazTipOps(p.tip)])
+  dugum("parametre", [tirnakla(p.ad), yazTipOps(p.tip)])
 
 // --- ifade yazımı ---------------------------------------------------------
 
@@ -275,21 +275,21 @@ fn yazIfade(e: Ifade) -> String = match e {
   IMantik(b) -> dugum("bool", [mantik(b)])
   IBos -> dugum("none", [])
   IMetin(parcalar) -> dugum("metin", [dizi(parcalar.map(|p| yazParca(p)))])
-  IAd(ad) -> dugum("ad", [kacir(ad)])
+  IAd(ad) -> dugum("ad", [tirnakla(ad)])
   IBen -> dugum("self", [])
   IListe(ogeler) -> dugum("liste", [dizi(ogeler.map(|o| yazIfade(o)))])
   IEsleme(ciftler) -> dugum("esleme", [dizi(ciftler.map(|c| yazCift(c)))])
   IStruct(ad, targs, alanlar) -> dugum("structlit", [
-    kacir(ad),
+    tirnakla(ad),
     dizi(targs.map(|t| yazTip(t))),
     dizi(alanlar.map(|a| yazAlanDegeri(a)))
   ])
-  ITekli(op, x) -> dugum("tekli", [kacir(op), yazIfade(x)])
-  IIkili(op, sol, sag) -> dugum("ikili", [kacir(op), yazIfade(sol), yazIfade(sag)])
+  ITekli(op, x) -> dugum("tekli", [tirnakla(op), yazIfade(x)])
+  IIkili(op, sol, sag) -> dugum("ikili", [tirnakla(op), yazIfade(sol), yazIfade(sag)])
   IAralik(bas, son, dahil) -> dugum("aralik", [yazIfade(bas), yazIfade(son), mantik(dahil)])
   ICagri(hedef, args) -> dugum("cagri", [yazIfade(hedef), dizi(args.map(|a| yazIfade(a)))])
   IDizin(nesne, dizin) -> dugum("dizin", [yazIfade(nesne), yazIfade(dizin)])
-  IAlan(nesne, ad, guvenli) -> dugum("alanerisim", [yazIfade(nesne), kacir(ad), mantik(guvenli)])
+  IAlan(nesne, ad, guvenli) -> dugum("alanerisim", [yazIfade(nesne), tirnakla(ad), mantik(guvenli)])
   IAc(x) -> dugum("ac", [yazIfade(x)])
   ILambda(params, ret, govde) -> dugum("lambda", [
     dizi(params.map(|p| yazParametre(p))),
@@ -301,7 +301,7 @@ fn yazIfade(e: Ifade) -> String = match e {
 }
 
 fn yazParca(p: MetinParcasi) -> String = match p {
-  Duz(s) -> dugum("duz", [kacir(s)])
+  Duz(s) -> dugum("duz", [tirnakla(s)])
   Gomme(e) -> dugum("gomme", [yazIfade(e)])
 }
 
@@ -309,7 +309,7 @@ fn yazCift(c: IfadeCifti) -> String =
   dugum("cift", [yazIfade(c.anahtar), yazIfade(c.deger)])
 
 fn yazAlanDegeri(a: AlanDegeri) -> String =
-  dugum("alan", [kacir(a.ad), yazIfade(a.deger)])
+  dugum("alan", [tirnakla(a.ad), yazIfade(a.deger)])
 
 fn yazGovde(g: Govde) -> String = match g {
   GBlok(b) -> yazBlok(b)
@@ -321,11 +321,11 @@ fn yazGovde(g: Govde) -> String = match g {
 
 fn yazDesen(d: Desen) -> String = match d {
   DJoker -> dugum("joker", [])
-  DBaglama(ad) -> dugum("baglama", [kacir(ad)])
+  DBaglama(ad) -> dugum("baglama", [tirnakla(ad)])
   DDeger(e) -> dugum("deger", [yazIfade(e)])
   DVaryant(enumAdi, varyant, altlar) -> dugum("varyant", [
-    if enumAdi == none { "-" } else { kacir(enumAdi!) },
-    kacir(varyant),
+    if enumAdi == none { "-" } else { tirnakla(enumAdi!) },
+    tirnakla(varyant),
     dizi(altlar.map(|a| yazDesen(a)))
   ])
 }
@@ -346,15 +346,15 @@ fn yazIfadeOps(e: Ifade?) -> String {
 
 fn yazDeyim(s: Deyim) -> String = match s {
   SLet(ad, tip, deger, degisebilir) -> dugum("let", [
-    kacir(ad), yazTipOps(tip), yazIfadeOps(deger), mantik(degisebilir)
+    tirnakla(ad), yazTipOps(tip), yazIfadeOps(deger), mantik(degisebilir)
   ])
-  SAtama(op, hedef, deger) -> dugum("atama", [kacir(op), yazIfade(hedef), yazIfade(deger)])
+  SAtama(op, hedef, deger) -> dugum("atama", [tirnakla(op), yazIfade(hedef), yazIfade(deger)])
   SIfade(e) -> dugum("ifadedeyimi", [yazIfade(e)])
   SDonus(e) -> dugum("donus", [yazIfadeOps(e)])
   SEger(kosul, ise, yoksa) -> dugum("eger", [yazIfade(kosul), yazBlok(ise), yazYoksa(yoksa)])
   SWhile(kosul, govde) -> dugum("while", [yazIfade(kosul), yazBlok(govde)])
   SFor(adlar, kaynak, govde) -> dugum("for", [
-    dizi(adlar.map(|a| kacir(a))), yazIfade(kaynak), yazBlok(govde)
+    dizi(adlar.map(|a| tirnakla(a))), yazIfade(kaynak), yazBlok(govde)
   ])
   SMatch(konu, kollar) -> dugum("match", [yazIfade(konu), dizi(kollar.map(|k| yazKol(k)))])
   SBreak -> dugum("break", [])
@@ -370,11 +370,11 @@ fn yazYoksa(y: Yoksa) -> String = match y {
 // --- üst düzey yazım ------------------------------------------------------
 
 fn yazSinir(s: TipSiniri) -> String =
-  dugum("sinir", [kacir(s.ad), dizi(s.arayuzler.sort().map(|a| kacir(a)))])
+  dugum("sinir", [tirnakla(s.ad), dizi(s.arayuzler.sort().map(|a| tirnakla(a)))])
 
 fn yazIslev(f: IslevBildirimi) -> String = dugum("fn", [
-  kacir(f.ad),
-  dizi(f.tipParametreleri.map(|t| kacir(t))),
+  tirnakla(f.ad),
+  dizi(f.tipParametreleri.map(|t| tirnakla(t))),
   dizi(f.tipSinirlari.map(|s| yazSinir(s))),
   dizi(f.parametreler.map(|p| yazParametre(p))),
   yazTipOps(f.donusTipi),
@@ -382,31 +382,31 @@ fn yazIslev(f: IslevBildirimi) -> String = dugum("fn", [
 ])
 
 fn yazAlanBildirimi(a: AlanBildirimi) -> String =
-  dugum("alandecl", [kacir(a.ad), yazTip(a.tip), mantik(a.degisebilir)])
+  dugum("alandecl", [tirnakla(a.ad), yazTip(a.tip), mantik(a.degisebilir)])
 
 fn yazVaryantBildirimi(v: VaryantBildirimi) -> String =
-  dugum("varyantdecl", [kacir(v.ad), dizi(v.yuk.map(|t| yazTip(t)))])
+  dugum("varyantdecl", [tirnakla(v.ad), dizi(v.yuk.map(|t| yazTip(t)))])
 
 fn yazOge(o: Oge) -> String = match o {
-  OImport(yol) -> dugum("import", [kacir(yol)])
-  OTypeAlias(ad, hedef) -> dugum("typealias", [kacir(ad), yazTip(hedef)])
+  OImport(yol) -> dugum("import", [tirnakla(yol)])
+  OTypeAlias(ad, hedef) -> dugum("typealias", [tirnakla(ad), yazTip(hedef)])
   OIslev(f) -> yazIslev(f)
   OStruct(ad, tparams, arayuzler, alanlar, metotlar) -> dugum("struct", [
-    kacir(ad),
-    dizi(tparams.map(|t| kacir(t))),
-    dizi(arayuzler.map(|i| kacir(i))),
+    tirnakla(ad),
+    dizi(tparams.map(|t| tirnakla(t))),
+    dizi(arayuzler.map(|i| tirnakla(i))),
     dizi(alanlar.map(|a| yazAlanBildirimi(a))),
     dizi(metotlar.map(|m| yazIslev(m)))
   ])
   OEnum(ad, tparams, arayuzler, varyantlar, metotlar) -> dugum("enum", [
-    kacir(ad),
-    dizi(tparams.map(|t| kacir(t))),
-    dizi(arayuzler.map(|i| kacir(i))),
+    tirnakla(ad),
+    dizi(tparams.map(|t| tirnakla(t))),
+    dizi(arayuzler.map(|i| tirnakla(i))),
     dizi(varyantlar.map(|v| yazVaryantBildirimi(v))),
     dizi(metotlar.map(|m| yazIslev(m)))
   ])
   OArayuz(ad, metotlar) -> dugum("interface", [
-    kacir(ad), dizi(metotlar.map(|m| yazIslev(m)))
+    tirnakla(ad), dizi(metotlar.map(|m| yazIslev(m)))
   ])
   OLet(d) -> yazDeyim(d)
 }

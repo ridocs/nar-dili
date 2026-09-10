@@ -33,6 +33,8 @@ BUILTIN_NAMES = {
     "klasorListele", "satirOku", "tumGirdi", "argumanlar", "cik",
     # Zaman — her ortamda çalışır.
     "simdi", "zamanMetni",
+    # Karakter kodu dönüşümü.
+    "koddan",
 }
 
 # Sayfa işlemlerinin imzaları. Bunlar `Element` tipiyle çalışır.
@@ -62,6 +64,8 @@ def _sistem_imzalari() -> dict[str, FnT]:
         "cik": FnT((INT,), NEVER),
         "simdi": FnT((), INT),
         "zamanMetni": FnT((), STRING),
+        # Karakter kodundan metin: koddan(65) → "A"
+        "koddan": FnT((INT,), STRING),
     }
 
 
@@ -1990,6 +1994,7 @@ def builtin_method(base: Type, name: str) -> FnT | None:
             "endsWith": FnT((STRING,), BOOL),
             "slice": FnT((INT, INT), STRING),
             "charAt": FnT((INT,), STRING),
+            "kodu": FnT((), INT),
             "indexOf": FnT((STRING,), INT),
             "repeat": FnT((INT,), STRING),
         }
@@ -2107,7 +2112,7 @@ def builtin_method(base: Type, name: str) -> FnT | None:
 
 _BUILTIN_MEMBER_NAMES = {
     "String": ["len", "upper", "lower", "upperTr", "lowerTr", "trim", "split", "contains", "replace",
-               "startsWith", "endsWith", "slice", "charAt", "indexOf", "repeat"],
+               "startsWith", "endsWith", "slice", "charAt", "indexOf", "repeat", "kodu"],
     "ListT": ["len", "push", "pop", "contains", "indexOf", "slice", "reverse",
               "sort", "first", "last", "map", "filter", "reduce", "join",
               "benzersiz", "say", "toplam", "carpim", "ortalama", "enBuyuk",

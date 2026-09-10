@@ -49,6 +49,7 @@ STRING_METHODS = {
     "charAt": "$strGet({0}, {1})",
     "indexOf": "$strIndexOf({0}, {1})",
     "repeat": "$strRepeat({0}, {1})",
+    "kodu": "$karakterKodu({0})",
 }
 
 LIST_METHODS = {
@@ -138,6 +139,7 @@ SISTEM_ISLEVLERI = {
     "cik": "$cik",
     "simdi": "$simdi",
     "zamanMetni": "$zamanMetni",
+    "koddan": "$koddanKarakter",
 }
 
 MAP_METHODS = {

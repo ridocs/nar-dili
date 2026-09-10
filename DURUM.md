@@ -7,7 +7,7 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 
 ## Son güncelleme
 
-**2026-09-11 01:45** — Mobil hedef bitti; sırada self-hosting parser.
+**2026-09-11 02:30** — Self-hosting parser bitti; sırada tip denetleyici ya da IDE'yi arayüz kütüphanesine taşımak.
 
 ## Şu ana kadar biten
 
@@ -36,11 +36,14 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 | v0.6 | **Çıplak enum varyantları**: Hava.Yagmurlu yerine Yagmurlu | ✅ |
 | v0.6 | **Arayüz katmanı** (araclar/arayuz.nar): Gorunum ağacı, Uygulama<D> | ✅ |
 | v0.6 | Sahte DOM (testler/sahte_dom.js): arayüz tarayıcısız test ediliyor | ✅ |
+| v0.6 | Karakter kodu: `"A".kodu()` ve `koddan(65)` | ✅ |
+| v0.7 | **Self-hosting adım 2**: çözümleyici (parser) Nar diliyle | ✅ |
+| v0.7 | S-ifadesi karşılaştırması (ast.nar + narc/sifade.py) | ✅ |
 | v0.6 | **Mobil hedef**: nar build --target mobil (Capacitor projesi) | ⚠️ cihazda denenmedi |
 
-**Testler:** 222, hepsi geçiyor · `python -m unittest discover -s testler`
-**Son commit:** `609c56f` (bir sonraki: mobil hedef)
-**Nar ile yazılan kod:** ~2450 satır (`araclar/`, `derleyici/`, `ornekler/`, `testler/nar/`)
+**Testler:** 225, hepsi geçiyor · `python -m unittest discover -s testler`
+**Son commit:** `a017485` (bir sonraki: self-hosting parser)
+**Nar ile yazılan kod:** ~4900 satır (`araclar/`, `derleyici/`, `ornekler/`, `testler/nar/`)
 
 ## Sırada (öncelik sırasıyla)
 
@@ -55,13 +58,20 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
       dokunma hedefleri 44px (tarayıcıda ölçüldü).
       **Doğrulanmayan:** gerçek bir Android/iOS cihazında çalıştırma —
       bu makinede Android Studio ve Xcode yok.
-- [ ] **5. Self-hosting'e devam** — lexer bitti (`derleyici/lexer.nar`,
-      Python'unkiyle token token karşılaştırılıyor). Sırada **parser**:
-      `derleyici/ast.nar` + `derleyici/parser.nar`. Aynı doğrulama yöntemi
-      kullanılabilir — iki parser'ın ürettiği ağaçları karşılaştır.
-- [ ] **6. IDE'yi arayüz kütüphanesiyle yeniden yaz** — IDE şu an DOM'a elle
+- [x] ~~**5. Self-hosting: lexer ve parser**~~ — `derleyici/lexer.nar`,
+      `derleyici/ast.nar`, `derleyici/parser.nar`. Doğrulama: iki
+      çözümleyicinin ürettiği ağaçlar S-ifadesi olarak karşılaştırılıyor;
+      projedeki 22 `.nar` dosyasında birebir aynı.
+- [ ] **6. Self-hosting: tip denetleyici** — sıradaki en büyük parça.
+      `narc/checker.py` 2100+ satır; tip sistemi (`narc/types.py`) de
+      taşınmalı. Aynı doğrulama yöntemi kullanılabilir: iki denetleyicinin
+      ürettiği hata listelerini karşılaştır (mesaj + satır + sütun).
+- [ ] **7. IDE'yi arayüz kütüphanesiyle yeniden yaz** — IDE şu an DOM'a elle
       çiziyor; `Gorunum` ağacına taşınırsa hem kütüphane gerçek bir yükte
       denenmiş olur hem de IDE kodu kısalır.
+- [ ] **8. Biçimlendirici kusuru** — çok satırlı `if` koşulunun devam satırı
+      gövdeyle aynı girintiye düşüyor (`derleyici/parser.nar` içindeki uzun
+      `||` zincirinde görülür). Okunurluğu bozuyor, anlamı değil.
 
 ## Devam etmek için
 
