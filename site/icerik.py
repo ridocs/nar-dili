@@ -1660,6 +1660,40 @@ fn gorevListesi(gorevler: [Gorev]) -> Gorunum {
 }''',
                 "calistirma": False,
             },
+            {
+                "id": "arayuz-deri",
+                "baslik": "Deriler: aynı bileşenler, başka biçim",
+                "aciklama": """
+<strong>Tema</strong> rengi seçer (açık / koyu), <strong>deri</strong> biçimi:
+yarıçap, boşluk, gölge ve hareket. İkisi birbirinden bağımsızdır — yumuşak
+deri hem açık hem koyu temada çalışır.
+<p>Şu an iki deri var: varsayılan ve <code>yumusak</code>. Yumuşak deri
+düğmeleri hap biçimine sokar, kartları yuvarlatıp yükseltir, girdileri
+kenarlık yerine yumuşak bir yuvaya oturtur ve boşlukları açar.</p>
+<p>Deri <strong>paleti değiştirmez</strong>. Kenarları zeminle aynı renge
+çeken kabartma yaklaşımı yumuşak görünür ama kontrast eşiğini geçemez;
+buradaki yumuşaklık renkten değil biçimden gelir, o yüzden okunabilirlik
+her deride aynı kalır.</p>
+""",
+                "kod": '''import "../araclar/arayuz.nar"
+
+fn ciz(n: Int) -> Gorunum = Kart("Deri denemesi", [
+  Metin("Sayaç: ${n}"),
+  Satir([
+    Dugme("Artır", || { }),
+    IkincilDugme("Sıfırla", || { })
+  ])
+])
+
+fn main() {
+  deriSec("yumusak")        // "" verirsen varsayılana döner
+  uygulamaBaslat("#uygulama", 0, ciz)
+}''',
+                "calistirma": False,
+                "not": "Deri ayrı bir stil öğesinde durur; durum değişip "
+                       "ekran yeniden çizildiğinde bozulmaz. Seçili deriyi "
+                       "<code>deri()</code> ile okuyabilirsin.",
+            },
         ],
     },
 

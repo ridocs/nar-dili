@@ -284,6 +284,151 @@ let STIL = """
 }
 """
 
+// --- deriler --------------------------------------------------------------
+//
+// Deri, temanın üzerine gelen ikinci katmandır: rengi değil biçimi
+// değiştirir — yarıçap, boşluk, gölge ve hareket. Palet aynı kaldığı için
+// kontrast eşiği deriden deriye düşmez.
+//
+//     deriSec("yumusak")     yumuşak ve ferah
+//     deriSec("")            varsayılan
+
+let DERI_YUMUSAK = """
+:root {
+  --nar-yuvarlak: 14px;
+  --nar-gecis: .2s;
+  --nar-golge: 0 1px 2px rgba(26, 24, 21, .04),
+               0 10px 24px -14px rgba(26, 24, 21, .22);
+  --nar-golge-uzeri: 0 2px 4px rgba(26, 24, 21, .06),
+                     0 16px 32px -16px rgba(26, 24, 21, .28);
+  --nar-zemin: #FAF6F3;
+  --nar-yuzey-2: #F3EDE8;
+  --nar-kenar: #EAE3DC;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-nar-tema='acik']) {
+    --nar-zemin: #191612;
+    --nar-yuzey: #221F19;
+    --nar-yuzey-2: #2B2720;
+    --nar-kenar: #38322A;
+    /* Koyu zeminde gölge görünmez; yumuşaklık yüzeyin hafifçe
+       aydınlanmasından gelir. */
+    --nar-golge: 0 1px 0 rgba(255, 255, 255, .04) inset,
+                 0 12px 28px -18px rgba(0, 0, 0, .9);
+    --nar-golge-uzeri: 0 1px 0 rgba(255, 255, 255, .07) inset,
+                       0 18px 36px -20px rgba(0, 0, 0, 1);
+  }
+}
+
+:root[data-nar-tema='koyu'] {
+  --nar-zemin: #191612;
+  --nar-yuzey: #221F19;
+  --nar-yuzey-2: #2B2720;
+  --nar-kenar: #38322A;
+  --nar-golge: 0 1px 0 rgba(255, 255, 255, .04) inset,
+               0 12px 28px -18px rgba(0, 0, 0, .9);
+  --nar-golge-uzeri: 0 1px 0 rgba(255, 255, 255, .07) inset,
+                     0 18px 36px -20px rgba(0, 0, 0, 1);
+}
+
+/* Ferah: her şeyin arasında daha çok yer var. */
+.nar-kok { padding: 28px; }
+.nar-sutun, .nar-satir, .nar-esnek { gap: 16px; }
+
+.nar-kutu, .nar-kart {
+  border-radius: 20px; padding: 22px; gap: 14px;
+  box-shadow: var(--nar-golge);
+}
+.nar-kart-baslik { padding-bottom: 14px; }
+
+/* Düğmeler hap biçiminde ve yükseliyor; dokunma hedefi 44px. */
+.nar-dugme, .nar-dugme-ikincil, .nar-dugme-tehlike {
+  border-radius: 999px; padding: 11px 20px; min-height: 44px;
+  transition: background-color var(--nar-gecis),
+              border-color var(--nar-gecis),
+              box-shadow var(--nar-gecis),
+              transform var(--nar-gecis);
+}
+.nar-dugme { box-shadow: var(--nar-golge); }
+.nar-dugme:hover, .nar-dugme-ikincil:hover, .nar-dugme-tehlike:hover {
+  box-shadow: var(--nar-golge-uzeri); transform: translateY(-1px);
+}
+.nar-dugme:active, .nar-dugme-ikincil:active, .nar-dugme-tehlike:active {
+  transform: translateY(0); box-shadow: var(--nar-golge);
+}
+
+/* Girdiler kenarlık yerine yumuşak bir yuvada duruyor. */
+.nar-giris, .nar-coksatir, .nar-secim {
+  border-radius: 12px; padding: 11px 14px; min-height: 44px;
+  background: var(--nar-yuzey-2); border-color: transparent;
+  transition: background-color var(--nar-gecis),
+              border-color var(--nar-gecis),
+              box-shadow var(--nar-gecis);
+}
+.nar-giris:focus, .nar-coksatir:focus, .nar-secim:focus {
+  background: var(--nar-yuzey); border-color: var(--nar-vurgu);
+  box-shadow: 0 0 0 4px var(--nar-vurgu-zemin);
+}
+.nar-coksatir { min-height: 96px; }
+
+.nar-rozet { padding: 3px 11px; }
+.nar-uyari { border-radius: 16px; padding: 14px 16px; }
+
+/* Sekmeler alt çizgi yerine hap. */
+.nar-sekmeler { border-bottom: none; gap: 6px; }
+.nar-sekme {
+  border-radius: 999px; padding: 9px 16px;
+  border-bottom: none;
+  transition: background-color var(--nar-gecis), color var(--nar-gecis);
+}
+.nar-sekme:hover { background: var(--nar-yuzey-2); }
+.nar-sekme-secili {
+  background: var(--nar-vurgu-zemin); color: var(--nar-vurgu);
+  border-bottom-color: transparent;
+}
+
+.nar-ilerleme { height: 10px; }
+.nar-resim { border-radius: 18px; }
+.nar-cizgi { margin: 6px 0; }
+.nar-tablo th, .nar-tablo td { padding: 11px 14px 11px 0; }
+"""
+
+// Seçili deri; yeniden çizim onu bozmaz, deri ayrı bir stil öğesinde durur.
+var DERI_ADI = ""
+
+fn deriKur(css: String) {
+  var e = bul("#nar-deri")
+  if e == none {
+    let yeni = olustur("style")
+    yeni.ozellikYaz("id", "nar-deri")
+    let bas = bul("head")
+    if bas != none {
+      bas!.ekle(yeni)
+    } else {
+      govde().ekle(yeni)
+    }
+    e = bul("#nar-deri")
+  }
+  if e != none {
+    e!.metinYaz(css)
+  }
+}
+
+// Deriyi seçer. Tanınmayan ad varsayılana döner: yazım hatası yüzünden
+// sayfa boş kalmasın.
+fn deriSec(ad: String) {
+  DERI_ADI = ad
+  if ad == "yumusak" {
+    deriKur(DERI_YUMUSAK)
+  } else {
+    DERI_ADI = ""
+    deriKur("")
+  }
+}
+
+fn deri() -> String = DERI_ADI
+
 // --- stil kurulumu --------------------------------------------------------
 
 // Stilin sayfaya bir kez eklenmesi yeter; her yenilemede tekrar eklemek

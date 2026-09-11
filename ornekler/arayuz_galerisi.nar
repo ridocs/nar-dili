@@ -149,6 +149,14 @@ fn dugmeBolumu() -> Gorunum = Sutun([
       IkincilDugme("Sistemi izle", || { temaSec("") })
     ])
   ]),
+  Kart("Deri", [
+    Paragraf("Deri rengi değil biçimi değiştirir: yarıçap, boşluk, gölge " +
+      "ve hareket. Palet aynı kaldığı için kontrast eşiği düşmez."),
+    Satir([
+      IkincilDugme("Varsayılan", || { deriSec("") }),
+      Dugme("Yumuşak", || { deriSec("yumusak") })
+    ])
+  ]),
   Kart("Yerleşim", [
     Etiket("esnek — dar ekranda alt satıra iner"),
     Esnek([
