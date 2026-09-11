@@ -1352,7 +1352,7 @@ class Checker:
         """`ifade?` — none ise fonksiyondan none döner, değilse değeri açar."""
         if self.soru_yasak is not None:
             self.error(
-                f"'?' {self.soru_yasak} kullanılamaz",
+                f"'?' burada kullanılamaz: {self.soru_yasak}",
                 node.span,
                 hint="değeri önce bir değişkene al: let x = ...?",
             )
