@@ -156,6 +156,29 @@ globalThis.document = {
   querySelectorAll: (secici) => { const b = []; tara(belge, secici, b); return b; },
 };
 
+// Medya sorgusu taklidi: yalnız `max-width` ve `min-width` anlaşılır,
+// testin ihtiyacı bu. Genişlik `$dom.genislik(n)` ile değiştirilir ve
+// dinleyiciler gerçek tarayıcıdaki gibi uyandırılır.
+let ekranGenisligi = 1024;
+const medyaKayitlari = [];
+
+globalThis.matchMedia = (sorgu) => {
+  const enBuyuk = /max-width:\s*(\d+)px/.exec(sorgu);
+  const enKucuk = /min-width:\s*(\d+)px/.exec(sorgu);
+  const kayit = {
+    media: sorgu,
+    dinleyiciler: [],
+    get matches() {
+      if (enBuyuk) return ekranGenisligi <= Number(enBuyuk[1]);
+      if (enKucuk) return ekranGenisligi >= Number(enKucuk[1]);
+      return false;
+    },
+    addEventListener(tur, f) { if (tur === "change") this.dinleyiciler.push(f); },
+  };
+  medyaKayitlari.push(kayit);
+  return kayit;
+};
+
 // Testlerin kullandığı yardımcılar.
 globalThis.$dom = {
   govde,
@@ -193,6 +216,17 @@ globalThis.$dom = {
   },
   giris(kok) {
     return kok.querySelector("input");
+  },
+  // Ekran genişliğini değiştirir; eşleşmesi değişen sorguların
+  // dinleyicilerini çağırır.
+  genislik(n) {
+    const onceki = medyaKayitlari.map((k) => k.matches);
+    ekranGenisligi = n;
+    medyaKayitlari.forEach((k, i) => {
+      if (k.matches !== onceki[i]) {
+        k.dinleyiciler.forEach((f) => f({ matches: k.matches }));
+      }
+    });
   },
   // Bir öğenin sınıflarını okur.
   siniflar(oge) {

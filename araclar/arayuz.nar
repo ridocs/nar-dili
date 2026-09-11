@@ -70,6 +70,9 @@ enum Gorunum {
   Resim(String, String)                       // adres, açıklama
   Sekmeler([String], Int, (Int) -> Void)      // başlıklar, seçili, değişince
 
+  // uyum: `.mobil()`, `.mobildeSutun()` gibi metotlar bunu üretir
+  Uyarla(Gorunum, Uyarlama)
+
   // hareket
   Hareketli(String, Gorunum)                  // hareket adı, içerik
   Sirali([Gorunum])                           // öğeler sırayla girer
@@ -80,6 +83,81 @@ enum Gorunum {
   Bosluk(Int)
   Cizgi
   Bos                                         // hiçbir şey çizmez
+
+  // --- uyum metotları -------------------------------------------
+  //
+  // Her görünüm kendi uyarlamasını taşır; zincirlenebilir:
+  //     Satir([...]).mobildeSutun()
+  //     Rozet("yalnız geniş", TON_BILGI).mobildeGizle()
+  //     Tablo(...).mobil(Liste(...))
+
+  // Dar ekranda bu görünümün yerine `dar` çizilir.
+  fn mobil(dar: Gorunum) -> Gorunum {
+    let u = self.uyarlama().kopya()
+    u.dar = dar
+    return Uyarla(self.cekirdek(), u)
+  }
+
+  // Dar ekranda satır sütuna döner (`Satir`, `Esnek` için).
+  fn mobildeSutun() -> Gorunum {
+    let u = self.uyarlama().kopya()
+    u.mobildeSutun = true
+    return Uyarla(self.cekirdek(), u)
+  }
+
+  fn mobildeGizle() -> Gorunum {
+    let u = self.uyarlama().kopya()
+    u.mobildeGizli = true
+    return Uyarla(self.cekirdek(), u)
+  }
+
+  fn masaustundeGizle() -> Gorunum {
+    let u = self.uyarlama().kopya()
+    u.masaustundeGizli = true
+    return Uyarla(self.cekirdek(), u)
+  }
+
+  // Zaten sarılıysa içindeki uyarlama, değilse boş bir tane.
+  fn uyarlama() -> Uyarlama = match self {
+    Uyarla(_, u) -> u
+    _ -> bosUyarlama()
+  }
+
+  // Sarmalayıcıyı soyar; metotlar üst üste sarmaz.
+  fn cekirdek() -> Gorunum = match self {
+    Uyarla(ic, _) -> ic
+    _ -> self
+  }
+}
+
+// --- uyum -----------------------------------------------------------------
+
+// Dar ekranın sınırı. Telefon dikey (390–430px) ve küçük tabletler dar,
+// yatay tablet ve üstü geniş sayılır.
+let DAR_EKRAN = "(max-width: 600px)"
+
+fn darEkranMi() -> Bool = medyaEslesir(DAR_EKRAN)
+
+// Bir görünümün ekrana göre nasıl değişeceği.
+struct Uyarlama {
+  var dar: Gorunum?            // dar ekranda yerine geçecek görünüm
+  var mobildeSutun: Bool
+  var mobildeGizli: Bool
+  var masaustundeGizli: Bool
+
+  fn kopya() -> Uyarlama = Uyarlama {
+    dar: self.dar,
+    mobildeSutun: self.mobildeSutun,
+    mobildeGizli: self.mobildeGizli,
+    masaustundeGizli: self.masaustundeGizli
+  }
+}
+
+fn bosUyarlama() -> Uyarlama = Uyarlama {
+  dar: none,
+  mobildeSutun: false,
+  mobildeGizli: false,
+  masaustundeGizli: false
 }
 
 // Rozet ve uyarı tonları. Anlamı renkle birlikte **kelimeyle de** taşımak
@@ -243,6 +321,10 @@ let STIL = """
   border-radius: 12px; padding: 18px; width: 100%; }
 .nar-kart-baslik { font-size: 16px; font-weight: 650; margin: 0;
   padding-bottom: 10px; border-bottom: 1px solid var(--nar-kenar); }
+/* Satır ve esnek içindeki kutular yeri paylaşır; tek başına kutu tam
+   genişliktir. Bu kural olmadan üç kutu geniş ekranda da alt alta
+   diziliyor, `Esnek` hiç sarmıyordu. */
+.nar-satir > .nar-kutu, .nar-esnek > .nar-kutu { width: auto; flex: 1 1 140px; }
 .nar-ortala { display: flex; justify-content: center; width: 100%; }
 
 .nar-uyari { display: flex; gap: 10px; padding: 12px 14px;
@@ -283,6 +365,18 @@ let STIL = """
   border: none; margin: 2px 0; }
 .nar-resim { max-width: 100%; height: auto;
   border-radius: var(--nar-yuvarlak); }
+
+/* Uyum: `.mobildeGizle()`, `.masaustundeGizle()`, `.mobildeSutun()`. */
+@media (max-width: 600px) {
+  .nar-mobilde-gizli { display: none !important; }
+  .nar-mobilde-sutun { flex-direction: column; align-items: stretch; }
+  .nar-mobilde-sutun > * { width: 100%; }
+  /* Sütun modunda taban ölçüsü yüksekliğe uygulanır; kutu uzamasın. */
+  .nar-mobilde-sutun > .nar-kutu { flex-basis: auto; }
+}
+@media (min-width: 601px) {
+  .nar-masaustunde-gizli { display: none !important; }
+}
 
 @media (max-width: 480px) {
   .nar-kok { padding: 16px; }
@@ -523,6 +617,24 @@ fn odagiGeriVer(d: OdakDurumu) {
 
 // --- çizim ----------------------------------------------------------------
 
+// --- uyarlanan görünümler -------------------------------------------------
+
+fn uyarlaOge(ic: Gorunum, u: Uyarlama) -> Element {
+  // Yalnız çizilecek dal çizilir: öbür dalı da kurmak olay
+  // dinleyicilerini ve odak sayacını boşuna ilerletirdi.
+  let e = if darEkranMi() && u.dar != none { ogeYap(u.dar!) } else { ogeYap(ic) }
+  if u.mobildeSutun {
+    e.sinifEkle("nar-mobilde-sutun")
+  }
+  if u.mobildeGizli {
+    e.sinifEkle("nar-mobilde-gizli")
+  }
+  if u.masaustundeGizli {
+    e.sinifEkle("nar-masaustunde-gizli")
+  }
+  return e
+}
+
 // --- hareketli görünümler -------------------------------------------------
 
 fn hareketliOge(ad: String, ic: Gorunum) -> Element {
@@ -584,6 +696,7 @@ fn ogeYap(g: Gorunum) -> Element = match g {
   Sekmeler(basliklar, secili, degisince) ->
     sekmeOgesi(basliklar, secili, degisince)
 
+  Uyarla(ic, u) -> uyarlaOge(ic, u)
   Hareketli(ad, ic) -> hareketliOge(ad, ic)
   Sirali(ogeler) -> siraliOge(ogeler)
   Iskelet(satir) -> iskeletOgesi(satir)
@@ -844,6 +957,13 @@ struct Uygulama<D> {
   fn baslat(secici: String) {
     self.kokSecici = secici
     stiliKur(STIL)
+    // Kırılma noktası değişince ekran yeniden çizilir: `.mobil()` ile
+    // verilen görünüm durum gibi ele alınır. Yeni yerleşim gerçekten
+    // ilk kez göründüğü için hareket defteri de silinir.
+    medyaDinle(DAR_EKRAN, |dar| {
+      hareketDefteriniSil()
+      self.yenile()
+    })
     self.yenile()
   }
 

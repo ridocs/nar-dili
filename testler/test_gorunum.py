@@ -327,6 +327,60 @@ $yaz(document.querySelectorAll('style').length);
         # Biri arayüz kütüphanesinin stili, biri hareket katmanının.
         self.assertEqual(kayit[0], 2)
 
+    def test_mobil_gorunum_ekrana_gore_secilir(self):
+        """`.mobil()` dar ekranda yerine geçer; kırılma noktası değişince
+        uygulama kendini yeniden çizer."""
+        src = '''import "@ARAYUZ@"
+
+fn ciz(n: Int) -> Gorunum = Sutun([
+  Metin("geniş").mobil(Metin("dar")),
+  Rozet("g", TON_BILGI).mobildeGizle(),
+  Rozet("d", TON_BILGI).masaustundeGizle(),
+  Satir([Metin("a"), Metin("b")]).mobildeSutun()
+])
+
+fn main() {
+  uygulamaBaslat("#uygulama", 0, ciz)
+}
+'''
+        kayit = sahnede_calistir(src, """
+var metinler = function () {
+  return $dom.satirlar($dom.govde).filter(function (s) {
+    return s === 'geniş' || s === 'dar';
+  });
+};
+$yaz(metinler());
+$dom.genislik(390);
+$yaz(metinler());
+$dom.genislik(1200);
+$yaz(metinler());
+$yaz($dom.sinifliOgeler($dom.govde, 'nar-mobilde-gizli').length);
+$yaz($dom.sinifliOgeler($dom.govde, 'nar-masaustunde-gizli').length);
+$yaz($dom.sinifliOgeler($dom.govde, 'nar-mobilde-sutun').length);
+""")
+        self.assertEqual(kayit[0], ["geniş"], "açılışta geniş ekran")
+        self.assertEqual(kayit[1], ["dar"], "daralınca yeniden çizilmeli")
+        self.assertEqual(kayit[2], ["geniş"], "genişleyince geri dönmeli")
+        # Gizleme ve sütuna dönme saf CSS sınıfıdır; her ekranda ağaçtadır.
+        self.assertEqual(kayit[3:], [1, 1, 1])
+
+    def test_uyum_metotlari_ust_uste_sarmaz(self):
+        """Zincirlenen metotlar tek katman üretir: sınıflar aynı öğede."""
+        src = '''import "@ARAYUZ@"
+
+fn ciz(n: Int) -> Gorunum =
+  Satir([Metin("a")]).mobildeSutun().mobildeGizle()
+
+fn main() {
+  uygulamaBaslat("#uygulama", 0, ciz)
+}
+'''
+        kayit = sahnede_calistir(src, """
+var e = $dom.sinifliOgeler($dom.govde, 'nar-mobilde-sutun')[0];
+$yaz($dom.siniflar(e).sort());
+""")
+        self.assertEqual(
+            kayit[0], ["nar-mobilde-gizli", "nar-mobilde-sutun", "nar-satir"])
 
 if __name__ == "__main__":
     unittest.main()

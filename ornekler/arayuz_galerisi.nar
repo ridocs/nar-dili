@@ -157,6 +157,21 @@ fn dugmeBolumu() -> Gorunum = Sutun([
       Dugme("Yumuşak", || { deriSec("yumusak") })
     ])
   ]),
+  Kart("Uyum", [
+    Paragraf("Pencereyi 600px altına daralt: satır sütuna döner, " +
+      "rozetlerden biri gizlenir, metin değişir. Her şey görünümün " +
+      "üstünde bir metot; medya sorgusu yazılmaz."),
+    Satir([
+      Kutu([Metin("bir")]),
+      Kutu([Metin("iki")]),
+      Kutu([Metin("üç")])
+    ]).mobildeSutun(),
+    Satir([
+      Rozet("yalnız geniş ekranda", TON_BILGI).mobildeGizle(),
+      Rozet("yalnız dar ekranda", TON_UYARI).masaustundeGizle()
+    ]),
+    Metin("Geniş ekran: yan yana.").mobil(Metin("Dar ekran: alt alta."))
+  ]),
   Kart("Yerleşim", [
     Etiket("esnek — dar ekranda alt satıra iner"),
     Esnek([

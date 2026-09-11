@@ -162,6 +162,8 @@ SISTEM_ISLEVLERI = {
     "zamanMetni": "$zamanMetni",
     "koddan": "$koddanKarakter",
     "odaklanan": "$odaklanan",
+    "medyaEslesir": "$medyaEslesir",
+    "medyaDinle": "$medyaDinle",
     "sunucu": "$sunucu",
     "yanit": "$yanit",
     "icerikTipi": "$icerikTipi",

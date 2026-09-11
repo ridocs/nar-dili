@@ -735,6 +735,18 @@ function $olayKaynagi(olay) {
   return null;
 }
 
+// Medya sorgusu: ekran genişliği gibi ortam koşulları. Tarayıcı dışında
+// hiçbir sorgu eşleşmez ve dinleyici hiç çağrılmaz.
+function $medyaEslesir(sorgu) {
+  if (typeof matchMedia === "undefined") return false;
+  return matchMedia(sorgu).matches;
+}
+
+function $medyaDinle(sorgu, islev) {
+  if (typeof matchMedia === "undefined") return;
+  matchMedia(sorgu).addEventListener("change", (o) => islev(o.matches));
+}
+
 function $zamanla(ms, islev) {
   if (typeof setTimeout === "undefined") $panic("zamanla() bu ortamda yok");
   setTimeout(islev, ms);

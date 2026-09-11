@@ -1861,6 +1861,49 @@ fn main() {
                        "<code>top</code> ve <code>left</code> hareket ettirmek "
                        "her karede yerleşimi yeniden hesaplatır.",
             },
+            {
+                "id": "arayuz-uyum",
+                "baslik": "Uyum: .mobil() ile dar ekran",
+                "aciklama": """
+Dar ekrana uyum web'de satırlarca medya sorgusu demektir. Bildirimsel
+modelde bunun yeri görünümün <strong>üstüdür</strong>: her görünüm kendi
+uyarlamasını bir metotla taşır, medya sorgusu yazılmaz.
+<ul>
+<li><code>.mobildeSutun()</code> — dar ekranda satır sütuna döner</li>
+<li><code>.mobildeGizle()</code> / <code>.masaustundeGizle()</code> — yalnız bir ekranda görünür</li>
+<li><code>.mobil(g)</code> — dar ekranda yerine bambaşka bir görünüm gelir</li>
+</ul>
+<p>İlk üçü saf CSS sınıfıdır; hiçbir JavaScript çalışmaz. <code>.mobil()</code>
+ise kırılma noktası değişince uygulamayı yeniden çizer — dar görünüm durum
+gibi ele alınır. Tek DOM ağacı vardır; iki dalı birden çizip CSS ile birini
+gizlemek olay dinleyicilerini ve odağı ikiye katlardı.</p>
+<p>Metotlar zincirlenir ve üst üste sarmaz: <code>Satir([...]).mobildeSutun().mobildeGizle()</code> tek katmandır.
+Sınır 600px; telefon dikey ve küçük tabletler dar sayılır. Kendi sorgun
+gerekiyorsa dildeki <code>medyaEslesir(sorgu)</code> ve
+<code>medyaDinle(sorgu, islev)</code> yerleşikleri elinde.</p>
+""",
+                "kod": '''import "../araclar/arayuz.nar"
+
+fn ciz(n: Int) -> Gorunum = Kart("Sipariş", [
+  // Geniş ekranda yan yana, telefonda alt alta.
+  Satir([
+    Kutu([Metin("Ürün: Nar")]),
+    Kutu([Metin("Adet: 3")]),
+    Kutu([Metin("Tutar: 120₺")])
+  ]).mobildeSutun(),
+
+  // Geniş ekranda tablo, telefonda liste.
+  Tablo(["Ad", "Adet"], [["Nar", "3"]]).mobil(Liste(["Nar × 3"])),
+
+  Rozet("klavye kısayolu: Ctrl+K", TON_BILGI).mobildeGizle(),
+  Dugme("Öde", || { }).masaustundeGizle()
+])
+
+fn main() {
+  uygulamaBaslat("#uygulama", 0, ciz)
+}''',
+                "calistirma": False,
+            },
         ],
     },
 

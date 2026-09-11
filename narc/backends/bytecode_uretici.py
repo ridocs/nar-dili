@@ -919,6 +919,7 @@ class BytecodeUretici:
 # sayfa da sunucu da yoktur; hata mesajı bunu açıkça söylemeli.
 SAYFA_VE_SUNUCU = {
     "bul", "bulHepsi", "olustur", "govde", "zamanla", "istek",
+    "medyaEslesir", "medyaDinle",
     "sunucu", "yanit", "yanitMetin", "yanitHtml", "yanitJson", "yanitDosya",
     "yonlendir",
     # Element metotları
