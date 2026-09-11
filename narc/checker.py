@@ -12,7 +12,7 @@ bu sayede `[]`, `none` ve lambda parametreleri tip yazmadan çalışır.
 from __future__ import annotations
 
 from . import nar_ast as A
-from .diagnostics import NarError, NarErrors, duzenle
+from .diagnostics import NarError, NarErrors, NarUyari, duzenle
 from .types import (
     ANY, BOOL, ELEMENT, FLOAT, INT, ISTEK, NEVER, NONE, NUMERIC, OLAY, ORDERED,
     PRIMITIVES, STRING, VOID, YANIT,
@@ -96,12 +96,17 @@ def is_void(t: Type) -> bool:
 
 
 class Binding:
-    __slots__ = ("ty", "mutable", "kind")
+    __slots__ = ("ty", "mutable", "kind", "span", "okundu")
 
-    def __init__(self, ty: Type, mutable: bool, kind: str = "var") -> None:
+    def __init__(self, ty: Type, mutable: bool, kind: str = "var",
+                 span=None) -> None:
         self.ty = ty
         self.mutable = mutable
         self.kind = kind  # "var" | "fn" | "self"
+        # Tanımın yeri ve okunup okunmadığı: kullanılmayan değişken uyarısı
+        # için. `span` yoksa (parametre, döngü değişkeni) uyarı verilmez.
+        self.span = span
+        self.okundu = False
 
 
 class Env:
@@ -109,14 +114,20 @@ class Env:
         self.parent = parent
         self.names: dict[str, Binding] = {}
 
-    def define(self, name: str, ty: Type, mutable: bool = False, kind: str = "var") -> None:
-        self.names[name] = Binding(ty, mutable, kind)
+    def define(self, name: str, ty: Type, mutable: bool = False, kind: str = "var",
+               span=None) -> None:
+        self.names[name] = Binding(ty, mutable, kind, span)
 
-    def lookup(self, name: str) -> Binding | None:
+    def lookup(self, name: str, oku: bool = True) -> Binding | None:
+        """Adı bulur. `oku` açıkken bu bir kullanım sayılır; atama hedefi
+        ya da yeniden tanım denetimi için kapatılır."""
         env: Env | None = self
         while env is not None:
             if name in env.names:
-                return env.names[name]
+                b = env.names[name]
+                if oku:
+                    b.okundu = True
+                return b
             env = env.parent
         return None
 
@@ -162,6 +173,8 @@ class Checker:
         self.fn_decls: dict[str, A.FnDecl] = {}
         self.globals = Env()
         self.errors: list[NarError] = []
+        # Derlemeyi durdurmayan bildirimler; `check()` bunları fırlatmaz.
+        self.warnings: list[NarError] = []
         # denetim durumu
         self.current_ret: Type = VOID
         self.self_type: Type | None = None
@@ -182,6 +195,22 @@ class Checker:
 
     def error(self, message: str, span, hint: str | None = None) -> None:
         self.errors.append(NarError(message, span, hint))
+
+    def warn(self, message: str, span, hint: str | None = None) -> None:
+        self.warnings.append(NarUyari(message, span, hint))
+
+    def kullanilmayanlari_bildir(self, env: "Env") -> None:
+        """Kapsam kapanırken hiç okunmamış let/var'ları bildirir."""
+        for ad, b in env.names.items():
+            if b.kind != "var" or b.okundu or b.span is None:
+                continue
+            if ad.startswith("_"):
+                continue
+            self.warn(
+                f"'{ad}' tanımlanmış ama hiç kullanılmamış",
+                b.span,
+                hint=f"kullanmayacaksan sil ya da '_{ad}' diye adlandır",
+            )
 
     # -------------------------------------------------------------- 1. geçiş
     def collect(self) -> None:
@@ -499,6 +528,7 @@ class Checker:
         inner = env.child()
         for stmt in block.stmts:
             self.check_stmt(stmt, inner)
+        self.kullanilmayanlari_bildir(inner)
 
     def check_stmt(self, stmt: A.Stmt, env: Env) -> None:
         if isinstance(stmt, A.LetStmt):
@@ -583,15 +613,17 @@ class Checker:
                     )
                 stmt.ty = declared
 
-        if env.lookup(stmt.name) is not None and stmt.name in env.names:
+        if stmt.name in env.names:
             self.error(f"'{stmt.name}' bu kapsamda zaten tanımlı", stmt.span)
-        env.define(stmt.name, stmt.ty, stmt.mutable)
+        env.define(stmt.name, stmt.ty, stmt.mutable, span=stmt.span)
 
     def check_assign(self, stmt: A.Assign, env: Env) -> None:
         target = stmt.target
 
         if isinstance(target, A.Ident):
-            binding = env.lookup(target.name)
+            # Atama hedefi bir kullanım değildir: yazılıp hiç okunmayan
+            # değişken yine "kullanılmamış" sayılır.
+            binding = env.lookup(target.name, oku=False)
             if binding is None:
                 self.error(f"tanımsız değişken: '{target.name}'", target.span)
                 return

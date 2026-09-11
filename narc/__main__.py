@@ -331,7 +331,15 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if args.command == "check":
-        print(f"tamam: {args.file} — hata yok")
+        uyarilar = compilation.checker.warnings
+        for u in uyarilar:
+            kaynak = sources.get(u.span.filename) if u.span else None
+            print(u.render(kaynak), file=sys.stderr)
+            print(file=sys.stderr)
+        if uyarilar:
+            print(f"tamam: {args.file} — hata yok, {len(uyarilar)} uyarı")
+        else:
+            print(f"tamam: {args.file} — hata yok")
         return 0
 
     target = getattr(args, "target", "js")

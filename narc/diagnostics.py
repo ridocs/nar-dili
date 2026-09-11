@@ -21,6 +21,9 @@ class Span:
 class NarError(Exception):
     """Derleme hatası. Kaynak konumu ve isteğe bağlı ipucu taşır."""
 
+    # "hata" derlemeyi durdurur; "uyari" durdurmaz, yalnızca söyler.
+    seviye = "hata"
+
     def __init__(self, message: str, span: Span | None = None, hint: str | None = None) -> None:
         super().__init__(message)
         self.message = message
@@ -29,11 +32,15 @@ class NarError(Exception):
 
     def render(self, source: str | None = None) -> str:
         """Hatayı, varsa kaynak satırını ve işaretçiyi de içerecek şekilde biçimler."""
-        head = f"hata: {self.message}"
+        etiket = "uyarı" if self.seviye == "uyari" else "hata"
+        head = f"{etiket}: {self.message}"
         if self.span is None:
             return head
 
-        out = [f"{self.span} — {self.message}"]
+        baslik = f"{self.span} — {self.message}"
+        if self.seviye == "uyari":
+            baslik = f"{self.span} — uyarı: {self.message}"
+        out = [baslik]
         if source is not None:
             lines = source.splitlines()
             index = self.span.line - 1
@@ -48,6 +55,12 @@ class NarError(Exception):
         if self.hint:
             out.append(f"  ipucu: {self.hint}")
         return "\n".join(out)
+
+
+class NarUyari(NarError):
+    """Derlemeyi durdurmayan bildirim. Aynı biçimde yazılır, farklı etiketle."""
+
+    seviye = "uyari"
 
 
 class NarErrors(NarError):

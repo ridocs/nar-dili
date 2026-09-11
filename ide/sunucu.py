@@ -91,17 +91,34 @@ def _hata_sozlugu(err: NarError, kaynak: str) -> dict:
     }
 
 
+def uyarilar(checker: "Checker | None", kaynak: str) -> list[dict]:
+    """Denetçinin uyarılarını sözlük listesine çevirir."""
+    if checker is None:
+        return []
+    return [dict(_hata_sozlugu(u, kaynak), seviye="uyari") for u in checker.warnings]
+
+
+_son_uyarilar: list[dict] = []
+
+
 def derle(kaynak: str, ad: str = "duzenleyici.nar"):
     """(js_kodu, hata_sozlugu) döndürür; biri her zaman None'dur.
 
     Hata sözlüğü ilk hatayı taşır; `hepsi` alanında tüm hatalar bulunur.
+    Uyarılar `son_uyarilar()` ile ayrıca alınır.
     """
+    global _son_uyarilar
+    _son_uyarilar = []
+    checker = None
     try:
         module = parse(kaynak, ad)
         checker = Checker(module, kaynak)
         checker.check()
+        _son_uyarilar = uyarilar(checker, kaynak)
         return js_backend.generate(module, checker), None
     except NarError as err:
+        # Hata olsa da toplanan uyarılar kaybolmasın.
+        _son_uyarilar = uyarilar(checker, kaynak)
         sozluk = _hata_sozlugu(err, kaynak)
         hepsi = getattr(err, "errors", None)
         sozluk["hepsi"] = [_hata_sozlugu(h, kaynak) for h in hepsi] if hepsi else [dict(sozluk)]
@@ -304,7 +321,8 @@ class Islem(BaseHTTPRequestHandler):
 
         if yol == "/api/denetle":
             _, hata = derle(kaynak)
-            self._json({"tamam": hata is None, "hata": hata})
+            self._json({"tamam": hata is None, "hata": hata,
+                        "uyarilar": list(_son_uyarilar)})
             return
 
         if yol == "/api/uretilen":

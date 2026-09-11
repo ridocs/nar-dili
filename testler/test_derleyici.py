@@ -256,6 +256,35 @@ fn main() { print(str(E.A(5).deger())) }
     def test_dongusuz_break(self):
         self.hatali(wrap("break"), "döngü içinde")
 
+    def uyarilar(self, src: str) -> list:
+        from narc.parser import parse as _parse
+        modul = _parse(src, "t.nar")
+        denetci = Checker(modul, src)
+        denetci.check()
+        return [u.message for u in denetci.warnings]
+
+    def test_kullanilmayan_degisken_uyarisi(self):
+        """Tanımlanıp hiç okunmayan let/var uyarı verir; derleme durmaz."""
+        self.assertEqual(
+            self.uyarilar(wrap("let toplam = 5")),
+            ["'toplam' tanımlanmış ama hiç kullanılmamış"])
+        # Okunuyorsa uyarı yok.
+        self.assertEqual(self.uyarilar(wrap("let a = 5\nprint(a)")), [])
+        # Yalnız yazılan değişken de kullanılmamış sayılır.
+        self.assertEqual(
+            self.uyarilar(wrap("var s = 0\ns = 1")),
+            ["'s' tanımlanmış ama hiç kullanılmamış"])
+        # Alt çizgiyle başlayan ad bilerek kullanılmıyor.
+        self.assertEqual(self.uyarilar(wrap("let _gecici = 5")), [])
+        # Parametreler ve döngü değişkenleri uyarı vermez.
+        self.assertEqual(self.uyarilar(
+            "fn f(a: Int) {\n  for i in 1..=2 { print(1) }\n}\n"
+            + wrap("f(1)")), [])
+        # İç kapsamdaki tanım da yakalanır; dış kapsamdaki kullanım sayılır.
+        self.assertEqual(
+            self.uyarilar(wrap("let a = 1\nif true { let b = a }")),
+            ["'b' tanımlanmış ama hiç kullanılmamış"])
+
     def test_soru_operatoru(self):
         """`?` none ise fonksiyondan none döner."""
         ust = "fn ilk(l: [Int]) -> Int? = l.first()\n"

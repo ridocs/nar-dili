@@ -28,6 +28,7 @@ struct Sorun {
   uzunluk: Int
   mesaj: String
   ipucu: String
+  seviye: String        // "hata" | "uyari"
 }
 
 var sorunlar: [Sorun] = []
@@ -80,21 +81,39 @@ fn ciz() {
   }
 }
 
-fn hataliSatirMi(satir: Int) -> Bool {
+// Satırdaki en ağır seviye: "hata", "uyari" ya da "".
+fn satirSeviyesi(satir: Int) -> String {
+  var seviye = ""
   for s in sorunlar {
     if s.satir == satir {
-      return true
+      if s.seviye == "hata" {
+        return "hata"
+      }
+      seviye = s.seviye
     }
   }
-  return false
+  return seviye
+}
+
+fn hataSayisi() -> Int {
+  var n = 0
+  for s in sorunlar {
+    if s.seviye == "hata" {
+      n += 1
+    }
+  }
+  return n
 }
 
 fn satirNumaralari(kaynak: String) -> String {
   let adet = satirSayisi(kaynak)
   var parcalar: [String] = []
   for i in 1..=adet {
-    if hataliSatirMi(i) {
+    let seviye = satirSeviyesi(i)
+    if seviye == "hata" {
       parcalar.push("<b>${i}</b>")
+    } else if seviye == "uyari" {
+      parcalar.push("<i>${i}</i>")
     } else {
       parcalar.push(str(i))
     }
@@ -128,7 +147,7 @@ fn altcizgiHtml(kaynak: String) -> String {
         uzunluk = max(1, satir.len() - bas)
       }
       parca += " ".repeat(bas - konum)
-      parca += "<span class=\"dalgali\">" + " ".repeat(uzunluk) + "</span>"
+      parca += "<span class=\"dalgali " + s.seviye + "\">" + " ".repeat(uzunluk) + "</span>"
       konum = bas + uzunluk
     }
     cikti.push(parca)
@@ -257,6 +276,12 @@ fn sorunlariGoster() {
     } else {
       sayi.metinYaz(str(sorunlar.len()))
     }
+    // Yalnız uyarı varsa rozet sarı; hata varsa kırmızı.
+    if hataSayisi() == 0 {
+      sayi.sinifEkle("uyari")
+    } else {
+      sayi.sinifSil("uyari")
+    }
   }
 
   if sorunlar.len() == 0 {
@@ -280,7 +305,7 @@ fn sorunlariGoster() {
     if s.ipucu != "" {
       ipucuHtml = "<div class=\"ipucu\"><b>ipucu:</b> " + kacir(s.ipucu) + "</div>"
     }
-    html += "<div class=\"sorun\" data-satir=\"${s.satir}\" data-sira=\"${i}\">" +
+    html += "<div class=\"sorun " + s.seviye + "\" data-satir=\"${s.satir}\" data-sira=\"${i}\">" +
       "<span class=\"yer\">${s.satir}:${s.sutun}</span>" +
       "<div class=\"mesaj\">" + kacir(s.mesaj) + "</div>" +
       ipucuHtml + kaynakHtml + "</div>"
@@ -294,23 +319,29 @@ fn sorunlariGoster() {
 }
 
 // Sunucunun hata sözlüğünden Sorun üretir.
-fn sorunOku(h: Json?) -> Sorun = Sorun {
+fn sorunOku(h: Json?, seviye: String) -> Sorun = Sorun {
   satir: tamSayiAl(alan(h, "satir")) ?? 0,
   sutun: tamSayiAl(alan(h, "sutun")) ?? 1,
   uzunluk: tamSayiAl(alan(h, "uzunluk")) ?? 1,
   mesaj: metinAl(alan(h, "mesaj")) ?? "bilinmeyen hata",
-  ipucu: metinAl(alan(h, "ipucu")) ?? ""
+  ipucu: metinAl(alan(h, "ipucu")) ?? "",
+  seviye: seviye
 }
 
-fn sorunlariAyikla(hata: Json?) {
+// Hatalar önce, uyarılar sonra: liste ağırdan hafife okunur.
+fn sorunlariAyikla(hata: Json?, uyarilar: [Json]) {
   sorunlar = []
-  let hepsi = diziAl(alan(hata, "hepsi"))
-  if hepsi.len() == 0 {
-    sorunlar.push(sorunOku(hata))
-    return
+  if hata != none {
+    let hepsi = diziAl(alan(hata, "hepsi"))
+    if hepsi.len() == 0 {
+      sorunlar.push(sorunOku(hata, "hata"))
+    }
+    for h in hepsi {
+      sorunlar.push(sorunOku(h, "hata"))
+    }
   }
-  for h in hepsi {
-    sorunlar.push(sorunOku(h))
+  for u in uyarilar {
+    sorunlar.push(sorunOku(u, "uyari"))
   }
 }
 
@@ -342,21 +373,26 @@ fn denetimSonucu(cevap: String) {
     return
   }
 
+  let uyarilar = diziAl(alan(veri, "uyarilar"))
   if mantikAl(alan(veri, "tamam")) ?? false {
-    rozetYaz("hata yok", "iyi")
-    sorunlar = []
+    sorunlariAyikla(none, uyarilar)
+    if uyarilar.len() == 0 {
+      rozetYaz("hata yok", "iyi")
+    } else {
+      rozetYaz("${uyarilar.len()} uyarı", "uyari")
+    }
     durumYaz("hazır", false)
     sorunlariGoster()
     ciz()
     return
   }
 
-  sorunlariAyikla(alan(veri, "hata"))
-  let adet = sorunlar.len()
-  if adet == 1 {
-    rozetYaz("1 hata", "kotu")
+  sorunlariAyikla(alan(veri, "hata"), uyarilar)
+  let hatalar = hataSayisi()
+  if uyarilar.len() > 0 {
+    rozetYaz("${hatalar} hata, ${uyarilar.len()} uyarı", "kotu")
   } else {
-    rozetYaz("${adet} hata", "kotu")
+    rozetYaz("${hatalar} hata", "kotu")
   }
   if sorunlar.len() > 0 {
     let ilk = sorunlar[0]
@@ -401,7 +437,7 @@ fn calismaSonucu(cevap: String) {
   let durum = metinAl(alan(veri, "durum")) ?? ""
 
   if durum == "derleme-hatasi" || durum == "ortam-hatasi" {
-    sorunlariAyikla(alan(veri, "hata"))
+    sorunlariAyikla(alan(veri, "hata"), diziAl(alan(veri, "uyarilar")))
     sorunlariGoster()
     ciz()
     let gosterim = metinAl(alan(alan(veri, "hata"), "gosterim")) ?? "hata"
