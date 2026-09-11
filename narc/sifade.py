@@ -153,6 +153,9 @@ def ifade(e) -> str:
 
     if isinstance(e, A.IfExpr):
         return dugum("egerifade", ifade(e.cond), ifade(e.then), ifade(e.otherwise))
+    if isinstance(e, A.BlockExpr):
+        return dugum("blokifade", blok(e.block))
+
     if isinstance(e, A.MatchExpr):
         return dugum("matchifade", ifade(e.subject),
                      liste(kol(a) for a in e.arms))

@@ -62,6 +62,7 @@ enum Ifade {
   IAc(Ifade)                             // x!
   ILambda([Parametre], TipIfadesi?, Govde)
   IEger(Ifade, Ifade, Ifade)             // değer üreten if; else zorunlu
+  IBlok(Blok)                            // { deyimler...  son_ifade }
   IMatch(Ifade, [Kol])
 }
 
@@ -297,6 +298,7 @@ fn yazIfade(e: Ifade) -> String = match e {
     yazGovde(govde)
   ])
   IEger(kosul, ise, yoksa) -> dugum("egerifade", [yazIfade(kosul), yazIfade(ise), yazIfade(yoksa)])
+  IBlok(b) -> dugum("blokifade", [yazBlok(b)])
   IMatch(konu, kollar) -> dugum("matchifade", [yazIfade(konu), dizi(kollar.map(|k| yazKol(k)))])
 }
 

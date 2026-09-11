@@ -7,7 +7,7 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 
 ## Son güncelleme
 
-**2026-09-11 03:10** — Tip sistemi Nar'a taşındı. Sırada tip denetleyicinin kendisi (`narc/checker.py`, 2100+ satır).
+**2026-09-11 03:40** — Blok ifadesi dile eklendi. Sırada tip denetleyicinin kendisi (`narc/checker.py`, 2100+ satır).
 
 ## Şu ana kadar biten
 
@@ -40,11 +40,12 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 | v0.7 | **Self-hosting adım 2**: çözümleyici (parser) Nar diliyle | ✅ |
 | v0.7 | S-ifadesi karşılaştırması (ast.nar + narc/sifade.py) | ✅ |
 | v0.7 | **Self-hosting adım 3**: tip sistemi Nar diliyle (tipler.nar) | ✅ |
+| v0.8 | **Blok ifadesi**: if/match dallarında birden çok satır | ✅ |
 | v0.6 | **Mobil hedef**: nar build --target mobil (Capacitor projesi) | ⚠️ cihazda denenmedi |
 
-**Testler:** 231, hepsi geçiyor · `python -m unittest discover -s testler`
-**Son commit:** `0bd2351` (bir sonraki: tip sistemi)
-**Nar ile yazılan kod:** ~5800 satır (`araclar/`, `derleyici/`, `ornekler/`, `testler/nar/`)
+**Testler:** 242, hepsi geçiyor · `python -m unittest discover -s testler`
+**Son commit:** `2619ffa` (bir sonraki: blok ifadesi)
+**Nar ile yazılan kod:** ~5900 satır (`araclar/`, `derleyici/`, `ornekler/`, `testler/nar/`)
 
 ## Sırada (öncelik sırasıyla)
 
@@ -97,11 +98,12 @@ Her madde bitince: testleri çalıştır, siteyi yeniden üret
 Bunlar hata değil, henüz yapılmamış şeyler. Nar ile kod yazarken karşına
 çıkarsa şaşırma:
 
-- **`match` bir ifade olarak kullanıldığında kolları tek değer olmalı.**
-  Blok yazamazsın. Birkaç adım gerekiyorsa ya `match` deyimi kullan (kolda
-  blok olur) ya da o kolu ayrı bir işleve çıkar. `derleyici/tipler.nar`
-  bu yüzden çok sayıda küçük işleve bölündü.
-- **Blok ifadesi yok.** `{ deyimler...  son_deger }` diye bir şey yazılamaz.
+- ~~`match` ifadesi kollarında blok yazılamaz~~ — **çözüldü (v0.8).**
+  `if` ve `match` dallarında blok yazılabiliyor; bloğun son satırı dalın
+  değeri. Not: `derleyici/tipler.nar` bu özellikten önce yazıldığı için
+  hâlâ çok sayıda küçük işleve bölünmüş durumda; istenirse sadeleştirilebilir.
+- **Blok ifadesi yalnızca dallarda.** `let x = { ... }` diye serbest bir blok
+  ifadesi yok; yalnızca `if`/`match` dallarında geçerli.
 - **`fn` ifadesi ad ister.** `let f = fn (x: Int) ...` geçersiz;
   `let f = fn ic(x: Int) ...` ya da lambda (`|x| ...`) kullan.
 - **Varsayılan parametre değeri yok.** İki ayrı işlev yaz.

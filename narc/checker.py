@@ -938,6 +938,9 @@ class Checker:
         if isinstance(node, A.IfExpr):
             return self.check_if_expr(node, env, expected)
 
+        if isinstance(node, A.BlockExpr):
+            return self.check_block_expr(node, env, expected)
+
         if isinstance(node, A.MatchExpr):
             return self.check_match_expr(node, env, expected)
 
@@ -1535,6 +1538,33 @@ class Checker:
             ret = fn_ty.ret
             return ret if isinstance(ret, OptT) else OptT(ret)
         return fn_ty.ret
+
+    def check_block_expr(self, node: A.BlockExpr, env: Env,
+                         expected: Type | None) -> Type:
+        """Değer üreten blok: son deyim bir ifade olmalı, değeri odur."""
+        inner = env.child()
+        block = node.block
+        if not block.stmts:
+            self.error("bu blok bir değer üretmeli", node.span,
+                       hint="son satıra bir değer yaz")
+            return ANY
+
+        for stmt in block.stmts[:-1]:
+            self.check_stmt(stmt, inner)
+
+        son = block.stmts[-1]
+        if not isinstance(son, A.ExprStmt):
+            self.check_stmt(son, inner)
+            # `return`/`panic` gibi geri dönmeyen bir son da kabul edilir.
+            if self.terminates(son):
+                return NEVER
+            self.error(
+                "bu bloğun son satırı bir değer olmalı",
+                son.span,
+                hint="atama ya da döngü değil, bir değer yaz",
+            )
+            return ANY
+        return self.check_expr(son.expr, inner, expected)
 
     def check_if_expr(self, node: A.IfExpr, env: Env, expected: Type | None) -> Type:
         cond = self.check_expr(node.cond, env, BOOL)

@@ -181,6 +181,16 @@ class IfExpr(Expr):
 
 
 @dataclass
+class BlockExpr(Expr):
+    """`{ deyimler...  son_ifade }` — değer üreten blok.
+
+    `if` ve `match` ifadelerinin dallarında kullanılır. Bloğun son deyimi
+    bir ifade olmalıdır; bloğun değeri odur.
+    """
+    block: object = None  # Block
+
+
+@dataclass
 class MatchExpr(Expr):
     """`match x { desen -> deger  ... }` — değer üreten match."""
     subject: Expr = None  # type: ignore[assignment]

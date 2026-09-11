@@ -599,6 +599,9 @@ class JsBackend:
         if isinstance(node, A.StringLit):
             return self.string_lit(node)
 
+        if isinstance(node, A.BlockExpr):
+            return self.block_expr(node)
+
         if isinstance(node, A.SelfExpr):
             return "this"
 
@@ -743,6 +746,28 @@ class JsBackend:
         if base == STRING:
             return f"$strGet({obj}, {idx})"
         return f"$listGet({obj}, {idx})"
+
+    def block_expr(self, node) -> str:
+        """Değer üreten blok, hemen çağrılan bir ok işleviyle üretilir.
+
+        Satırlar ana akıştan ayrı toplanır: ifade üretilirken doğrudan
+        `self.lines`'a yazmak, ifadenin içinde bulunduğu satırı bozardı.
+        """
+        yedek_lines, yedek_indent = self.lines, self.indent
+        self.lines, self.indent = [], yedek_indent + 1
+        try:
+            stmts = node.block.stmts
+            for s in stmts[:-1]:
+                self.emit_stmt(s)
+            son = stmts[-1]
+            if isinstance(son, A.ExprStmt):
+                self.write(f"return {self.expr(son.expr)};")
+            else:
+                self.emit_stmt(son)
+            ic = "\n".join(self.lines)
+        finally:
+            self.lines, self.indent = yedek_lines, yedek_indent
+        return "(() => {\n" + ic + "\n" + "  " * self.indent + "})()"
 
     def field(self, node: A.FieldAccess) -> str:
         resolved = node.__dict__.get("resolved")

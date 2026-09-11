@@ -275,6 +275,85 @@ print("harf:", harf)
 // başka bir ifadenin içinde de kullanılabilir
 print("ücret: " + if yas < 12 { 0 } else { 50 })''',
             },
+            {
+                "id": "blok-ifadesi",
+                "baslik": "Dalda birden çok satır",
+                "aciklama": """
+Değer üreten <code>if</code> ve <code>match</code> dallarında tek satır
+yetmiyorsa blok yazabilirsin. <strong>Bloğun son satırı dalın
+değeridir.</strong>
+<p>Ara adımları ayrı bir fonksiyona çıkarmak zorunda değilsin; hesabı
+olduğu yerde yapabilirsin.</p>
+<p>Son satır bir değer olmalı — atama ya da döngüyle biten bir dal hata
+verir; derleyici bunu söyler.</p>
+""",
+                "kod": '''enum Hava {
+  Gunesli
+  Yagmurlu
+  Karli
+}
+
+fn oneri(h: Hava) -> String = match h {
+  Gunesli -> "şapka al"
+  Yagmurlu -> {
+    let arac = "şemsiye"
+    let sebep = "yağmur"
+    "${arac} al (${sebep})"
+  }
+  Karli -> {
+    let katman = 3
+    "${katman} kat giy"
+  }
+}
+
+fn sinif(not: Int) -> String = if not >= 90 {
+  "A"
+} else if not >= 80 {
+  let fark = 90 - not
+  "B (A'ya ${fark} puan)"
+} else {
+  "C"
+}
+
+fn main() {
+  print(oneri(Yagmurlu))
+  print(oneri(Karli))
+  print(sinif(85))
+}''',
+                "tam": '''enum Hava {
+  Gunesli
+  Yagmurlu
+  Karli
+}
+
+fn oneri(h: Hava) -> String = match h {
+  Gunesli -> "şapka al"
+  Yagmurlu -> {
+    let arac = "şemsiye"
+    let sebep = "yağmur"
+    "${arac} al (${sebep})"
+  }
+  Karli -> {
+    let katman = 3
+    "${katman} kat giy"
+  }
+}
+
+fn sinif(not: Int) -> String = if not >= 90 {
+  "A"
+} else if not >= 80 {
+  let fark = 90 - not
+  "B (A'ya ${fark} puan)"
+} else {
+  "C"
+}
+
+fn main() {
+  print(oneri(Yagmurlu))
+  print(oneri(Karli))
+  print(sinif(85))
+}''',
+            },
         ],
     },
 

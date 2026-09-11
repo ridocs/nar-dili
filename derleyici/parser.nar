@@ -1049,16 +1049,56 @@ struct Cozumleyici {
     return IEsleme(ciftler)
   }
 
-  // `{ ifade }` — if/match ifadesinin dal gövdesi.
-  fn parantezliIfadeCozumle() -> Ifade {
+  // `{ ifade }` ya da `{ deyimler...  son_ifade }` — dal gövdesi.
+  fn parantezliIfadeCozumle() -> Ifade = blokIfadesi(self.dalGovdesiCozumle())
+
+  // Dal gövdesini blok olarak okur.
+  fn dalGovdesiCozumle() -> Blok {
     self.bekle("{", "'{'")
     self.satirSonlariniAtla()
     let onceki = self.structLitYok
     self.structLitYok = false
-    let e = self.ifadeCozumle()
+
+    var deyimler: [Deyim] = []
+    while self.iyiMi() && !self.suradaMi("}") {
+      if self.suradaMi("eof") {
+        self.hataVer("kapatılmamış dal: '}' bekleniyor")
+        self.structLitYok = onceki
+        return Blok { deyimler: deyimler }
+      }
+      deyimler.push(self.deyimCozumle())
+      self.satirSonlariniAtla()
+    }
+
     self.structLitYok = onceki
-    self.satirSonlariniAtla()
-    self.bekle("}", "'}' (if/match dalı tek bir değer içermeli)")
+    self.bekle("}", "'}'")
+    return Blok { deyimler: deyimler }
+  }
+
+  // match *ifadesi* kolunun gövdesi.
+  //
+  // `{` iki anlama gelebilir: blok gövdesi ya da eşleme literali
+  // (`Bir -> {"a": 1}`). Önce blok denenir; deyim olarak okunamıyorsa
+  // geri sarılıp ifade olarak okunur.
+  fn kolDegeriCozumle() -> Ifade {
+    let kayit = self.i
+    let hataKaydi = self.hata
+    let bayrak = self.structLitYok
+
+    if self.suradaMi("{") {
+      let b = self.dalGovdesiCozumle()
+      // Boş `{}` blok değil, boş eşleme literalidir.
+      if self.hata == none && b.deyimler.len() > 0 {
+        return blokIfadesi(b)
+      }
+      self.i = kayit
+      self.hata = hataKaydi
+      self.structLitYok = bayrak
+    }
+
+    self.structLitYok = false
+    let e = self.ifadeCozumle()
+    self.structLitYok = bayrak
     return e
   }
 
@@ -1093,11 +1133,7 @@ struct Cozumleyici {
       }
       let desen = self.desenCozumle()
       self.bekle("->", "desenden sonra '->'")
-      let onceki = self.structLitYok
-      self.structLitYok = false
-      let govde = self.ifadeCozumle()
-      self.structLitYok = onceki
-      kollar.push(Kol { desen: desen, govde: GIfade(govde) })
+      kollar.push(Kol { desen: desen, govde: GIfade(self.kolDegeriCozumle()) })
       self.satirSonlariniAtla()
     }
     self.bekle("}", "'}'")
@@ -1163,6 +1199,20 @@ struct TipParametreleri {
 }
 
 // --- yardımcı işlevler ----------------------------------------------------
+
+// Tek ifadelik blok doğrudan o ifadedir; çoklu blok IBlok olur.
+//
+// Tek ifade durumunu sarmalamamak hem üretilen kodu sade tutar hem de bu
+// özellik eklenmeden önce yazılmış ağaçlarla aynı kalmasını sağlar.
+fn blokIfadesi(b: Blok) -> Ifade {
+  if b.deyimler.len() == 1 {
+    match b.deyimler[0] {
+      SIfade(e) -> return e
+      _ -> {}
+    }
+  }
+  return IBlok(b)
+}
 
 // Atamanın sol tarafı: değişken, alan ya da dizin olmalı.
 fn atanabilirMi(e: Ifade) -> Bool = match e {

@@ -851,18 +851,39 @@ class Parser:
         return A.MapLit(span, entries)
 
     def parse_braced_expr(self) -> A.Expr:
-        """`{ ifade }` — if/match ifadesinin dal gövdesi."""
-        self.expect("{", "'{'")
+        """`{ ifade }` ya da `{ deyimler...  son_ifade }` — dal gövdesi."""
+        span = self.cur.span
+        block = self.parse_block_body()
+        return self.blok_ifadesi(block, span)
+
+    def parse_block_body(self) -> A.Block:
+        """Dal gövdesini blok olarak okur. `{` ... `}`"""
+        span = self.expect("{", "'{'").span
         self.skip_newlines()
         saved = self.no_struct_lit
         self.no_struct_lit = False
+        stmts: list[A.Stmt] = []
         try:
-            expr = self.parse_expr()
+            while not self.at("}"):
+                if self.at("eof"):
+                    raise NarError("kapatılmamış dal: '}' bekleniyor", span)
+                stmts.append(self.parse_stmt())
+                self.skip_newlines()
         finally:
             self.no_struct_lit = saved
-        self.skip_newlines()
-        self.expect("}", "'}' (if/match dalı tek bir değer içermeli)")
-        return expr
+        self.expect("}", "'}'")
+        return A.Block(span, stmts)
+
+    @staticmethod
+    def blok_ifadesi(block: A.Block, span) -> A.Expr:
+        """Tek ifadelik blok doğrudan o ifadedir; çoklu blok BlockExpr olur.
+
+        Tek ifade durumunu sarmalamamak hem üretilen kodu sade tutar hem de
+        bu özellik eklenmeden önce yazılmış ağaçlarla aynı kalmasını sağlar.
+        """
+        if len(block.stmts) == 1 and isinstance(block.stmts[0], A.ExprStmt):
+            return block.stmts[0].expr
+        return A.BlockExpr(span, block)
 
     def parse_if_expr(self) -> A.IfExpr:
         span = self.expect("if").span
@@ -895,12 +916,7 @@ class Parser:
                 raise NarError("kapatılmamış match: '}' bekleniyor", span)
             pattern = self.parse_pattern()
             arrow = self.expect("->", "desenden sonra '->'")
-            saved = self.no_struct_lit
-            self.no_struct_lit = False
-            try:
-                body = self.parse_expr()
-            finally:
-                self.no_struct_lit = saved
+            body = self.parse_arm_value()
             arms.append(A.MatchArm(arrow.span, pattern, body))
             self.skip_newlines()
 
@@ -908,6 +924,34 @@ class Parser:
         if not arms:
             raise NarError("match en az bir dal içermeli", span)
         return A.MatchExpr(span, subject, arms)
+
+    def parse_arm_value(self) -> A.Expr:
+        """match *ifadesi* kolunun gövdesi.
+
+        `{` iki anlama gelebilir: blok gövdesi ya da eşleme literali
+        (`Bir -> {"a": 1}`). Önce blok denenir; deyim olarak okunamıyorsa
+        geri sarılıp ifade olarak okunur.
+        """
+        saved_pos = self.pos
+        saved_flag = self.no_struct_lit
+        if self.at("{"):
+            span = self.cur.span
+            try:
+                block = self.parse_block_body()
+                # Boş `{}` blok değil, boş eşleme literalidir.
+                if block.stmts:
+                    return self.blok_ifadesi(block, span)
+                self.pos = saved_pos
+                self.no_struct_lit = saved_flag
+            except NarError:
+                self.pos = saved_pos
+                self.no_struct_lit = saved_flag
+
+        self.no_struct_lit = False
+        try:
+            return self.parse_expr()
+        finally:
+            self.no_struct_lit = saved_flag
 
     def parse_lambda(self) -> A.Lambda:
         tok = self.advance()  # `|` ya da `||` (parametresiz)
