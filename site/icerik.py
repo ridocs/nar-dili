@@ -36,11 +36,47 @@ NOT_SARMAL = (
 )
 
 
+# Depo adresi; üst bardaki "Kaynak" bağlantısı buraya gider.
+DEPO = "https://github.com/ridocs/nar-dili"
+
+# Girişteki hedef rozetleri.
+HEDEFLER = ["web", "masaüstü", "Linux", "Android", "iOS"]
+
+# Sayfanın en üstündeki tanıtım programı. Bir dili anlatmanın en kısa yolu
+# bir program ile onun çıktısıdır; bu da öbür örnekler gibi üretim sırasında
+# derlenip çalıştırılır.
+VITRIN = {
+    "id": "vitrin",
+    "kod": """struct Dil {
+  ad: String
+  hedefler: [String]
+}
+
+fn tanit(d: Dil) -> String =
+  "${d.ad}: tek kaynaktan ${d.hedefler.len()} hedef"
+
+fn main() {
+  let nar = Dil {
+    ad: "Nar",
+    hedefler: ["web", "masaüstü", "mobil"]
+  }
+  print(tanit(nar))
+  print(nar.hedefler.join(" · "))
+
+  let sayilar = [3, 1, 4, 1, 5, 9, 2, 6]
+  print("çiftler:", sayilar.filter(|n| n % 2 == 0))
+  print("toplam:", sayilar.toplam())
+}
+""",
+}
+
+
 BOLUMLER = [
     # ------------------------------------------------------------ başlangıç
     {
         "id": "baslangic",
         "baslik": "Başlangıç",
+        "aciklama": "İlk programı yaz, çalıştır, ekrana bir şey yazdır.",
         "konular": [
             {
                 "id": "ilk-program",
@@ -91,6 +127,7 @@ print(3.5, true, none)''',
     {
         "id": "degiskenler",
         "baslik": "Değişkenler ve veri",
+        "aciklama": "Değer tutmak: let ve var, sayılar, metinler, doğru/yanlış.",
         "konular": [
             {
                 "id": "let-var",
@@ -235,6 +272,7 @@ print(!a)                // değil''',
     {
         "id": "kararlar",
         "baslik": "Karar vermek",
+        "aciklama": "Koşula göre farklı iş yapmak; if'i değer üretmek için kullanmak.",
         "konular": [
             {
                 "id": "if",
@@ -361,6 +399,7 @@ fn main() {
     {
         "id": "donguler",
         "baslik": "Tekrar etmek",
+        "aciklama": "Aynı işi tekrarlamak: for, while, break ve continue.",
         "konular": [
             {
                 "id": "for",
@@ -425,6 +464,7 @@ atlayıp bir sonrakine geçer.
     {
         "id": "listeler",
         "baslik": "Listeler ve sözlükler",
+        "aciklama": "Sırayla duran veri ve anahtar–değer eşlemeleri.",
         "konular": [
             {
                 "id": "liste",
@@ -537,6 +577,7 @@ for (urun, adet) in stok {
     {
         "id": "fonksiyonlar",
         "baslik": "Fonksiyonlar",
+        "aciklama": "İşi ada bağlamak, parçalara ayırmak, isimsiz fonksiyonlar.",
         "konular": [
             {
                 "id": "fonksiyon",
@@ -666,6 +707,7 @@ print([1, 2, 3].map(|x| x + 100))''',
     {
         "id": "tipler",
         "baslik": "Kendi tiplerini yapmak",
+        "aciklama": "Kendi veri biçimlerini kurmak: struct, enum, metot, match.",
         "konular": [
             {
                 "id": "struct",
@@ -943,6 +985,7 @@ fn main() {
     {
         "id": "generic",
         "baslik": "Her tiple çalışan kod",
+        "aciklama": "Aynı kodu her tiple çalıştırmak.",
         "konular": [
             {
                 "id": "generic-giris",
@@ -1132,6 +1175,7 @@ fn main() {
     {
         "id": "arayuz",
         "baslik": "Ortak davranış: arayüzler",
+        "aciklama": "Farklı tiplere ortak davranış tanımlamak.",
         "konular": [
             {
                 "id": "arayuz-giris",
@@ -1325,6 +1369,7 @@ fn main() {
     {
         "id": "opsiyonel",
         "baslik": "Olmayabilen değerler",
+        "aciklama": "Olmayabilen değeri tipin kendisinde taşımak.",
         "konular": [
             {
                 "id": "none",
@@ -1415,6 +1460,7 @@ fn main() {
     {
         "id": "sayfa",
         "baslik": "Web sayfası yapmak",
+        "aciklama": "Tarayıcıda çalışan sayfa üretmek.",
         "konular": [
             {
                 "id": "sayfa-giris",
@@ -1515,6 +1561,7 @@ her iki ortamda da güvenle çalıştırabilirsin.</p>
     {
         "id": "arayuz-katmani",
         "baslik": "Uygulama arayüzü",
+        "aciklama": "Durumdan görünüm üreten bildirimsel arayüz katmanı.",
         "konular": [
             {
                 "id": "arayuz-nedir",
@@ -1620,6 +1667,7 @@ fn gorevListesi(gorevler: [Gorev]) -> Gorunum {
     {
         "id": "hedefler",
         "baslik": "Uygulamayı dağıtmak",
+        "aciklama": "Aynı kaynaktan web, masaüstü ve mobil çıktı almak.",
         "konular": [
             {
                 "id": "hedef-nedir",
@@ -1700,6 +1748,7 @@ npx cap open android     # Android Studio açılır, ▶ ile çalıştır''',
     {
         "id": "kendi-derleyicisi",
         "baslik": "Nar, Nar ile yazılıyor",
+        "aciklama": "Derleyicinin Nar ile yazılan parçaları.",
         "konular": [
             {
                 "id": "self-hosting",
@@ -1796,6 +1845,7 @@ fn kare(x: Int) -> Int = x * x
     {
         "id": "duzen",
         "baslik": "Programı düzenlemek",
+        "aciklama": "Dosyalara bölmek, içe aktarmak, biçimlendirmek, test etmek.",
         "konular": [
             {
                 "id": "modul",
