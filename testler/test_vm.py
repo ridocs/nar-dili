@@ -331,6 +331,13 @@ class IkiHedefAyniTesti(unittest.TestCase):
         "  return f(n - 1) + f(n - 2)\n}\n" + sar("print(f(18))"),
         sar("var t = 0\n  for i in 1..=100 { t += i }\n  print(t)"),
         sar('var s = ""\n  for c in "abcç" { s += c }\n  print(s, s.len())'),
+        sar('for (i, x) in ["a", "b", "c"] { print(i, x) }'),
+        "fn belki(a: Int) -> Int? = if a > 0 { a } else { none }\n"
+        + sar('if let v = belki(5) { print("var", v) } else { print("yok") }\n'
+              '  if let v = belki(-1) { print("var", v) } else { print("yok") }'),
+        # İndeks karakter sayar, UTF-16 kod birimi değil.
+        sar('for (i, c) in "abç" { print(i, c) }'),
+        sar('let m = {"a": 1, "b": 2}\n  for (k, v) in m { print(k, v) }'),
         sar('let m = {"b": 2, "a": 1}\n  print(m.keys(), m.values(), m.len())'),
         sar("let x: Int? = none\n  print(x ?? 7, x == none)"),
     ]

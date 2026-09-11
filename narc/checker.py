@@ -628,6 +628,10 @@ class Checker:
                 )
 
     def check_if(self, stmt: A.If, env: Env) -> None:
+        if stmt.bag_ad:
+            self.check_if_bagli(stmt, env)
+            return
+
         cond = self.check_expr(stmt.cond, env, BOOL)
         self.expect_bool(cond, stmt.cond.span, "if koşulu")
 
@@ -644,16 +648,53 @@ class Checker:
             self.apply_narrowing(stmt.cond, else_env, False)
             self.check_if(stmt.otherwise, else_env)
 
+    def check_if_bagli(self, stmt: A.If, env: Env) -> None:
+        """`if let ad = ifade` — açılmış değer yalnız `then` dalında görünür."""
+        ty = self.check_expr(stmt.bag_ifade, env)
+        if isinstance(ty, OptT):
+            ic = ty.inner
+        elif isinstance(ty, AnyT):
+            ic = ANY
+        else:
+            self.error(
+                f"'if let' opsiyonel bir değer bekler, '{ty}' bulundu",
+                stmt.bag_ifade.span,
+                hint="olmayabilen bir değer için tipi 'T?' olmalı",
+            )
+            ic = ty
+
+        then_env = env.child()
+        then_env.define(stmt.bag_ad, ic, False)
+        self.check_block(stmt.then, then_env)
+
+        # `else` dalında ad yok: orada değer zaten none.
+        if isinstance(stmt.otherwise, A.Block):
+            self.check_block(stmt.otherwise, env.child())
+        elif isinstance(stmt.otherwise, A.If):
+            self.check_if(stmt.otherwise, env.child())
+
     def check_for(self, stmt: A.For, env: Env) -> None:
         it_ty = self.check_expr(stmt.iterable, env)
         body_env = env.child()
 
         if isinstance(it_ty, RangeT):
             stmt.kind = "range"
+            if len(stmt.names) == 2:
+                self.error(
+                    "aralık üzerinde tek değişken kullanılır",
+                    stmt.span,
+                    hint="aralık zaten sayı üretiyor: for i in 1..=10 { ... }",
+                )
             self.bind_loop_names(stmt, [it_ty.elem], body_env)
         elif isinstance(it_ty, ListT):
-            stmt.kind = "list"
-            self.bind_loop_names(stmt, [it_ty.elem], body_env)
+            # İkinci değişken istenirse sıra numarasıdır; elle sayaç tutmak
+            # gerekmesin diye.
+            if len(stmt.names) == 2:
+                stmt.kind = "list_indeksli"
+                self.bind_loop_names(stmt, [INT, it_ty.elem], body_env)
+            else:
+                stmt.kind = "list"
+                self.bind_loop_names(stmt, [it_ty.elem], body_env)
         elif isinstance(it_ty, MapT):
             stmt.kind = "map"
             if len(stmt.names) == 1:
@@ -666,8 +707,12 @@ class Checker:
             else:
                 self.bind_loop_names(stmt, [it_ty.key, it_ty.value], body_env)
         elif it_ty == STRING:
-            stmt.kind = "string"
-            self.bind_loop_names(stmt, [STRING], body_env)
+            if len(stmt.names) == 2:
+                stmt.kind = "string_indeksli"
+                self.bind_loop_names(stmt, [INT, STRING], body_env)
+            else:
+                stmt.kind = "string"
+                self.bind_loop_names(stmt, [STRING], body_env)
         elif isinstance(it_ty, AnyT):
             stmt.kind = "list"
             for name in stmt.names:

@@ -426,6 +426,31 @@ for harf in "abc" {
 }''',
             },
             {
+                "id": "indeksli-for",
+                "baslik": "Sıra numarasıyla dönmek",
+                "aciklama": """
+Listede sıra numarası da gerekiyorsa ikinci bir döngü değişkeni yaz.
+Elle sayaç tutmak gerekmez.
+<p>Metinde de çalışır ve indeks <strong>karakter sayar</strong>: “ç”
+tek karakterdir, iki değil.</p>
+<p>Eşlemede iki değişken zaten anahtar ve değerdir. Aralıkta ikinci
+değişken yok — aralığın kendisi zaten sayı üretiyor.</p>
+""",
+                "kod": '''let sehirler = ["İstanbul", "Ankara", "İzmir"]
+for (sira, sehir) in sehirler {
+  print("${sira + 1}. ${sehir}")
+}
+
+for (i, harf) in "açık" {
+  print(i, harf)
+}
+
+let yaslar = {"Ayşe": 30, "Mehmet": 24}
+for (ad, yas) in yaslar {
+  print(ad, yas)
+}''',
+            },
+            {
                 "id": "while",
                 "baslik": "while döngüsü",
                 "aciklama": """
@@ -1413,6 +1438,46 @@ if ilk != none {
 
 var bos: [Int] = []
 print("boş listenin ilki:", bos.first() ?? -1)''',
+            },
+            {
+                "id": "if-let",
+                "baslik": "if let — açarak dallanmak",
+                "aciklama": """
+Olmayabilen bir değeri açıp aynı anda dallanmak için <code>if let</code>.
+Değer <code>none</code> değilse ada bağlanır ve o dalda <strong>açılmış</strong>
+hâliyle görünür; <code>!</code> yazmak gerekmez.
+<p>Bu olmadan önce bir değişkene almak, sonra sorup sonra açmak gerekirdi:</p>
+<pre class="komut"><code>let e = bul("#uygulama")
+if e != none {
+  e!.ekle(baslik)
+}</code></pre>
+<p><code>else</code> dalında ad görünmez: orada değer zaten yoktur.
+<code>else if let</code> ile zincirlenebilir.</p>
+""",
+                "kod": '''fn yas(ad: String) -> Int? {
+  let defter = {"Ayşe": 30, "Mehmet": 24}
+  return defter.get(ad)
+}
+
+fn main() {
+  if let y = yas("Ayşe") {
+    print("Ayşe ${y} yaşında")
+  } else {
+    print("Ayşe defterde yok")
+  }
+
+  if let y = yas("Zeynep") {
+    print("Zeynep ${y} yaşında")
+  } else if let y = yas("Mehmet") {
+    print("Zeynep yok ama Mehmet ${y} yaşında")
+  } else {
+    print("ikisi de yok")
+  }
+}''',
+                "not": "Nar zaten daraltma yapar: <code>if x != none</code> içinde "
+                       "<code>x</code> açılmış sayılır. <code>if let</code> bunu bir "
+                       "adım öteye taşır — değer bir çağrıdan geliyorsa önce "
+                       "değişkene almak gerekmez.",
             },
             {
                 "id": "guvenli-zincir",

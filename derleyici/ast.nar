@@ -148,6 +148,8 @@ enum Deyim {
   SIfade(IfadeD)
   SDonus(IfadeD?)
   SEger(IfadeD, Blok, Yoksa)
+  // `if let ad = ifade`: koşul yerine bir opsiyonel açılır.
+  SEgerBag(String, IfadeD, Blok, Yoksa)
   SWhile(IfadeD, Blok)
   SFor([String], IfadeD, Blok)
   SMatch(IfadeD, [Kol])
@@ -428,6 +430,9 @@ fn yazDeyim(s: Deyim) -> String = match s {
   SIfade(e) -> dugum("ifadedeyimi", [yazIfadeD(e)])
   SDonus(e) -> dugum("donus", [yazIfadeOps(e)])
   SEger(kosul, ise, yoksa) -> dugum("eger", [yazIfadeD(kosul), yazBlok(ise), yazYoksa(yoksa)])
+  SEgerBag(ad, kaynak, ise, yoksa) -> dugum("egerbag", [
+    tirnakla(ad), yazIfadeD(kaynak), yazBlok(ise), yazYoksa(yoksa)
+  ])
   SWhile(kosul, govde) -> dugum("while", [yazIfadeD(kosul), yazBlok(govde)])
   SFor(adlar, kaynak, govde) -> dugum("for", [
     dizi(adlar.map(|a| tirnakla(a))), yazIfadeD(kaynak), yazBlok(govde)

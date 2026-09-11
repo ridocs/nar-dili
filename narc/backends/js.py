@@ -501,6 +501,9 @@ class JsBackend:
         self.write(f"{target} = {self.binary_js(op[0], stmt.target.ty, target, value)};")
 
     def emit_if(self, stmt: A.If) -> None:
+        if stmt.bag_ad:
+            self.emit_if_bagli(stmt)
+            return
         self.write(f"if ({self.expr(stmt.cond)}) {{")
         self.indent += 1
         self.emit_body(stmt.then)
@@ -532,6 +535,21 @@ class JsBackend:
         elif stmt.kind == "map":
             k, v = (self.name(n) for n in stmt.names)
             self.write(f"for (const [{k}, {v}] of {self.expr(stmt.iterable)}) {{")
+        elif stmt.kind == "list_indeksli":
+            i, var = (self.name(n) for n in stmt.names)
+            self.write(
+                f"for (const [{i}, {var}] of "
+                f"{self.expr(stmt.iterable)}.entries()) {{")
+        elif stmt.kind == "string_indeksli":
+            # Metin karakter karakter dönülür; `entries()` UTF-16 kod
+            # birimlerine bakar, oysa Nar'ın döngüsü karakterlere bakar.
+            i, var = (self.name(n) for n in stmt.names)
+            sayac = self.fresh("i")
+            self.write(f"let {sayac} = 0;")
+            self.write(f"for (const {var} of {self.expr(stmt.iterable)}) {{")
+            self.indent += 1
+            self.write(f"const {i} = {sayac}++;")
+            self.indent -= 1
         elif stmt.kind == "string":
             var = self.name(stmt.names[0])
             self.write(f"for (const {var} of {self.expr(stmt.iterable)}) {{")
@@ -541,6 +559,33 @@ class JsBackend:
 
         self.indent += 1
         self.emit_body(stmt.body)
+        self.indent -= 1
+        self.write("}")
+
+    def emit_if_bagli(self, stmt: A.If) -> None:
+        """`if let`: değeri bir kez hesaplar, adı bloğa kapatır.
+
+        Dış bir blok açılır ki ad `if`in dışına sızmasın.
+        """
+        ad = self.name(stmt.bag_ad)
+        self.write("{")
+        self.indent += 1
+        self.write(f"const {ad} = {self.expr(stmt.bag_ifade)};")
+        self.write(f"if ({ad} !== null) {{")
+        self.indent += 1
+        self.emit_body(stmt.then)
+        self.indent -= 1
+        if stmt.otherwise is None:
+            self.write("}")
+        else:
+            self.write("} else {")
+            self.indent += 1
+            if isinstance(stmt.otherwise, A.If):
+                self.emit_if(stmt.otherwise)
+            else:
+                self.emit_body(stmt.otherwise)
+            self.indent -= 1
+            self.write("}")
         self.indent -= 1
         self.write("}")
 

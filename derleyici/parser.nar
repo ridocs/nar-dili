@@ -685,21 +685,40 @@ struct Cozumleyici {
   fn egerCozumle() -> DeyimD {
     let k = self.konum()
     self.bekle("if", "'if'")
-    let kosul = self.kosulCozumle()
+
+    // `if let ad = ifade`: değeri açarak dallan.
+    var bagAd = ""
+    var bagKaynak: IfadeD? = none
+    var kosul: IfadeD? = none
+    if self.suradaMi("let") {
+      self.ilerle()
+      bagAd = self.bekle("ident", "değişken adı").metin
+      self.bekle("=", "'='")
+      bagKaynak = self.kosulCozumle()
+    } else {
+      kosul = self.kosulCozumle()
+    }
     let ise = self.blokCozumle()
 
     // `}` ile `else` arasındaki satır sonunu hoş gör.
     let kayit = self.i
     self.satirSonlariniAtla()
+    var yoksa = YYok
     if self.suradaMi("else") {
       self.ilerle()
       if self.suradaMi("if") {
-        return self.deyimD(k, SEger(kosul, ise, YEger(self.egerCozumle())))
+        yoksa = YEger(self.egerCozumle())
+      } else {
+        yoksa = YBlok(self.blokCozumle())
       }
-      return self.deyimD(k, SEger(kosul, ise, YBlok(self.blokCozumle())))
+    } else {
+      self.i = kayit
     }
-    self.i = kayit
-    return self.deyimD(k, SEger(kosul, ise, YYok))
+
+    if bagAd != "" {
+      return self.deyimD(k, SEgerBag(bagAd, bagKaynak!, ise, yoksa))
+    }
+    return self.deyimD(k, SEger(kosul!, ise, yoksa))
   }
 
   fn whileCozumle() -> DeyimD {

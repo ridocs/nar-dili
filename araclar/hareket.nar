@@ -187,9 +187,8 @@ fn hareketStiliniKur() {
   let e = olustur("style")
   e.ozellikYaz("id", "nar-hareket")
   e.metinYaz(HAREKET_STILI)
-  let bas = bul("head")
-  if bas != none {
-    bas!.ekle(e)
+  if let bas = bul("head") {
+    bas.ekle(e)
   } else {
     govde().ekle(e)
   }
@@ -197,14 +196,12 @@ fn hareketStiliniKur() {
 
 // Yoğunluk kademesini seçer. Tanınmayan ad varsayılana döner.
 fn kademeSec(ad: String) {
-  let kok = bul("html")
-  if kok == none {
-    return
-  }
-  if ad == KADEME_SAKIN || ad == KADEME_BELIRGIN {
-    kok!.ozellikYaz("data-nar-kademe", ad)
-  } else {
-    kok!.ozellikYaz("data-nar-kademe", "")
+  if let kok = bul("html") {
+    if ad == KADEME_SAKIN || ad == KADEME_BELIRGIN {
+      kok.ozellikYaz("data-nar-kademe", ad)
+    } else {
+      kok.ozellikYaz("data-nar-kademe", "")
+    }
   }
 }
 

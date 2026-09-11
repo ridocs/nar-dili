@@ -267,6 +267,10 @@ class If(Stmt):
     cond: Expr = None       # type: ignore[assignment]
     then: Block = None      # type: ignore[assignment]
     otherwise: object = None  # Block | If | None
+    # `if let ad = ifade`: koşul yerine bir opsiyonel açılır. `bag_ad`
+    # boşsa sıradan bir `if`tir.
+    bag_ad: str = ""
+    bag_ifade: Optional[Expr] = None
 
 
 @dataclass

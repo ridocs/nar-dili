@@ -238,6 +238,9 @@ def _deyim(s) -> str:
     if isinstance(s, A.Return):
         return dugum("donus", ifade(s.value))
     if isinstance(s, A.If):
+        if s.bag_ad:
+            return dugum("egerbag", kacir(s.bag_ad), ifade(s.bag_ifade),
+                         blok(s.then), yoksa(s.otherwise))
         return dugum("eger", ifade(s.cond), blok(s.then), yoksa(s.otherwise))
     if isinstance(s, A.While):
         return dugum("while", ifade(s.cond), blok(s.body))

@@ -482,7 +482,19 @@ class Parser:
 
     def parse_if(self) -> A.If:
         span = self.expect("if").span
-        cond = self.parse_condition()
+
+        # `if let ad = ifade`: değeri açarak dallan.
+        bag_ad = ""
+        bag_ifade = None
+        cond: A.Expr = None  # type: ignore[assignment]
+        if self.at("let"):
+            self.advance()
+            bag_ad = self.expect("ident", "değişken adı").value
+            self.expect("=", "'='")
+            bag_ifade = self.parse_condition()
+        else:
+            cond = self.parse_condition()
+
         then = self.parse_block()
 
         otherwise = None
@@ -493,13 +505,12 @@ class Parser:
             self.advance()
             if self.at("if"):
                 otherwise = self.parse_if()
-                return A.If(span, cond, then, otherwise)
+                return A.If(span, cond, then, otherwise, bag_ad, bag_ifade)
             otherwise = self.parse_block()
         else:
             self.pos = save
 
-        node = A.If(span, cond, then, otherwise)
-        return node
+        return A.If(span, cond, then, otherwise, bag_ad, bag_ifade)
 
     def parse_while(self) -> A.While:
         span = self.expect("while").span

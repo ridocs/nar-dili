@@ -256,6 +256,47 @@ fn main() { print(str(E.A(5).deger())) }
     def test_dongusuz_break(self):
         self.hatali(wrap("break"), "döngü içinde")
 
+    def test_if_let(self):
+        """`if let` opsiyoneli açar; ad yalnız then dalında görünür."""
+        ust = "fn belki(a: Int) -> Int? = if a > 0 { a } else { none }\n"
+        self.gecerli(ust + wrap(
+            "if let v = belki(5) { print(v + 1) }"))
+        self.gecerli(ust + wrap(
+            "if let v = belki(5) { print(v) } else if let w = belki(2) { print(w) } else { print(0) }"))
+        # Açılmış değer opsiyonel değil: `!` gereksiz, `+` çalışır.
+        self.gecerli(ust + wrap(
+            "if let v = belki(1) { let t: Int = v }"))
+        # `else` dalında ad yok.
+        self.hatali(ust + wrap(
+            "if let v = belki(1) { print(v) } else { print(v) }"),
+            "tanımsız")
+        # Opsiyonel olmayan değer bağlanamaz.
+        self.hatali(wrap("if let v = 5 { print(v) }"),
+                    "opsiyonel bir değer bekler")
+        # Ad bloğun dışına sızmamalı.
+        self.hatali(ust + wrap(
+            "if let v = belki(1) { print(v) }\nprint(v)"),
+            "tanımsız")
+
+    def test_indeksli_dongu(self):
+        """İkinci döngü değişkeni sıra numarasıdır."""
+        self.gecerli(wrap(
+            'for (i, x) in ["a", "b"] { print(i + 1, x) }'))
+        self.gecerli(wrap(
+            'for (i, c) in "abc" { print(i, c) }'))
+        # İndeks Int, öğe kendi tipinde: karıştırmak hata olmalı.
+        self.hatali(
+            wrap('for (i, x) in ["a"] { print(i.upper()) }'),
+            "upper")
+        # Aralık zaten sayı üretiyor; ikinci değişken anlamsız.
+        self.hatali(
+            wrap("for (i, x) in 1..=3 { print(i) }"),
+            "aralık üzerinde tek değişken")
+        # Üç değişken hiçbir kaynakta yok.
+        self.hatali(
+            wrap('for (a, b, c) in ["x"] { print(a) }'),
+            "döngü değişkeni")
+
     def test_bilinmeyen_tip(self):
         self.hatali("fn main() { let x: Yok = 1\n print(str(x)) }", "bilinmeyen tip")
 

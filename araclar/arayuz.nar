@@ -412,9 +412,8 @@ fn deriKur(css: String) {
   if e == none {
     let yeni = olustur("style")
     yeni.ozellikYaz("id", "nar-deri")
-    let bas = bul("head")
-    if bas != none {
-      bas!.ekle(yeni)
+    if let bas = bul("head") {
+      bas.ekle(yeni)
     } else {
       govde().ekle(yeni)
     }
@@ -454,9 +453,8 @@ fn stiliKur(css: String) {
   e.ozellikYaz("id", "nar-stil")
   e.metinYaz(css)
   // <head> varsa oraya: gövdedeki bir <style> sayfanın metnine karışır.
-  let bas = bul("head")
-  if bas != none {
-    bas!.ekle(e)
+  if let bas = bul("head") {
+    bas.ekle(e)
   } else {
     govde().ekle(e)
   }
@@ -464,9 +462,8 @@ fn stiliKur(css: String) {
 
 // Temayı elle seçmek için: "acik", "koyu" ya da "" (sistemi izle).
 fn temaSec(tema: String) {
-  let kok = bul("html")
-  if kok != none {
-    kok!.ozellikYaz("data-nar-tema", tema)
+  if let kok = bul("html") {
+    kok.ozellikYaz("data-nar-tema", tema)
   }
 }
 
@@ -540,14 +537,12 @@ fn hareketliOge(ad: String, ic: Gorunum) -> Element {
 
 fn siraliOge(ogeler: [Gorunum]) -> Element {
   let sarmal = sinifliOge("div", "nar-sutun")
-  var sira = 0
-  for g in ogeler {
+  for (sira, g) in ogeler {
     let c = ogeYap(g)
     if hareketIlkKezMi(YUKSEL) {
       hareketVer(c, YUKSEL, sira)
     }
     sarmal.ekle(c)
-    sira += 1
   }
   return sarmal
 }
@@ -810,11 +805,7 @@ fn sekmeOgesi(basliklar: [String], secili: Int,
               degisince: (Int) -> Void) -> Element {
   let e = sinifliOge("div", "nar-sekmeler")
   e.ozellikYaz("role", "tablist")
-  var i = 0
-  for b in basliklar {
-    // Sıra numarası kapanışta yakalanır; döngü değişkenini doğrudan
-    // kullanmak her düğmeye son değeri verirdi.
-    let sira = i
+  for (sira, b) in basliklar {
     let d = odaklanabilirIsaretle(sinifliOge("button", "nar-sekme"))
     d.ozellikYaz("type", "button")
     d.ozellikYaz("role", "tab")
@@ -829,7 +820,6 @@ fn sekmeOgesi(basliklar: [String], secili: Int,
       degisince(sira)
     })
     e.ekle(d)
-    i += 1
   }
   return e
 }

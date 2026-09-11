@@ -91,10 +91,8 @@ fn gorevListesi(gorevler: [Gorev]) -> Gorunum {
     return Metin("Henüz görev yok. Yukarıdan ekleyebilirsin.")
   }
   var satirlar: [Gorunum] = []
-  var sira = 0
-  for g in gorevler {
+  for (sira, g) in gorevler {
     satirlar.push(gorevSatiri(sira, g))
-    sira += 1
   }
   return Sutun(satirlar)
 }

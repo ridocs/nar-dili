@@ -322,6 +322,9 @@ class BytecodeUretici:
         self.yaz(K.GLOBAL_YAZ, self.global_ad(ad_dugumu.name), ad_dugumu)
 
     def _eger(self, s: A.If):
+        if s.bag_ad:
+            self._eger_bagli(s)
+            return
         self.ifade(s.cond)
         yanlis_atla = self.yaz(K.ATLA_YANLIS, 0, s)
         self.blok(s.then)
@@ -336,6 +339,35 @@ class BytecodeUretici:
             self.islev.yamala(son_atla, self.su_an())
         else:
             self.islev.yamala(yanlis_atla, self.su_an())
+
+    def _eger_bagli(self, s: A.If):
+        """`if let ad = ifade` — değer bir kez hesaplanır, ada bağlanır.
+
+        Ad yalnız `then` dalında görünür; blok onu `if`in dışına sızdırmaz.
+        """
+        self.kapsam.blok_ac()
+        self.ifade(s.bag_ifade)
+        ad_indis = self.kapsam.tanimla(s.bag_ad)
+        self.yaz(K.KOPYALA, 0)
+        self.yaz(K.YEREL_YAZ, ad_indis)
+
+        # Yığında değerin bir kopyası duruyor: none değilse dala girilir.
+        self.yaz(K.SABIT, self.sabit(None))
+        self.yaz(K.ESIT_DEGIL)
+        yanlis_atla = self.yaz(K.ATLA_YANLIS, 0, s)
+        self.blok(s.then)
+
+        if s.otherwise is not None:
+            son_atla = self.yaz(K.ATLA, 0)
+            self.islev.yamala(yanlis_atla, self.su_an())
+            if isinstance(s.otherwise, A.Block):
+                self.blok(s.otherwise)
+            else:
+                self.deyim(s.otherwise)
+            self.islev.yamala(son_atla, self.su_an())
+        else:
+            self.islev.yamala(yanlis_atla, self.su_an())
+        self.kapsam.blok_kapat()
 
     def _while(self, s: A.While):
         basi = self.su_an()
@@ -411,6 +443,12 @@ class BytecodeUretici:
             self.yaz(K.DIZIN_OKU)
             self.yaz(K.YEREL_YAZ, ad_indisleri[1])
             self.yaz(K.AT)
+        elif len(s.names) == 2:
+            # (indeks, öğe): öğeyi yaz, sonra sayacı indekse koy. Döngü
+            # zaten bir sayaç tutuyordu; indeks onun okunmasından ibaret.
+            self.yaz(K.YEREL_YAZ, ad_indisleri[1])
+            self.yaz(K.YEREL_OKU, sayac_indis)
+            self.yaz(K.YEREL_YAZ, ad_indisleri[0])
         else:
             self.yaz(K.YEREL_YAZ, ad_indisleri[0])
 
