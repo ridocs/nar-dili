@@ -30,6 +30,8 @@
 // --- görünüm ağacı --------------------------------------------------------
 
 // Bir görünüm parçası. Kendi içinde yine görünümler taşıyabilir.
+import "hareket.nar"
+
 enum Gorunum {
   // yazı
   Baslik(String)
@@ -67,6 +69,12 @@ enum Gorunum {
   Ilerleme(Int)                               // 0–100
   Resim(String, String)                       // adres, açıklama
   Sekmeler([String], Int, (Int) -> Void)      // başlıklar, seçili, değişince
+
+  // hareket
+  Hareketli(String, Gorunum)                  // hareket adı, içerik
+  Sirali([Gorunum])                           // öğeler sırayla girer
+  Iskelet(Int)                                // yükleniyor: kaç satır
+  Donuyor(String)                             // yükleniyor: etiket
 
   // ayırıcılar
   Bosluk(Int)
@@ -175,8 +183,10 @@ let STIL = """
 .nar-etiket { font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--nar-soluk); margin: 0; }
 
+/* Rozet içeriği kadar yer kaplar. Sütun yerleşiminin içinde
+   `align-self` olmadan tam genişliğe yayılıp çubuğa dönüşüyordu. */
 .nar-rozet { display: inline-block; font-size: 12px; font-weight: 600;
-  padding: 2px 9px; border-radius: 999px; }
+  padding: 2px 9px; border-radius: 999px; align-self: flex-start; }
 .nar-rozet-bilgi { background: var(--nar-vurgu-zemin); color: var(--nar-vurgu); }
 .nar-rozet-basari { background: var(--nar-basari-zemin); color: var(--nar-basari); }
 .nar-rozet-uyari { background: var(--nar-uyari-zemin); color: var(--nar-uyari); }
@@ -516,6 +526,32 @@ fn odagiGeriVer(d: OdakDurumu) {
 
 // --- çizim ----------------------------------------------------------------
 
+// --- hareketli görünümler -------------------------------------------------
+
+fn hareketliOge(ad: String, ic: Gorunum) -> Element {
+  let e = ogeYap(ic)
+  // Yalnız ilk görünüşte oynar; yoksa her durum değişiminde ekran yeniden
+  // süzülürdü.
+  if hareketIlkKezMi(ad) {
+    hareketVer(e, ad, 0)
+  }
+  return e
+}
+
+fn siraliOge(ogeler: [Gorunum]) -> Element {
+  let sarmal = sinifliOge("div", "nar-sutun")
+  var sira = 0
+  for g in ogeler {
+    let c = ogeYap(g)
+    if hareketIlkKezMi(YUKSEL) {
+      hareketVer(c, YUKSEL, sira)
+    }
+    sarmal.ekle(c)
+    sira += 1
+  }
+  return sarmal
+}
+
 fn ogeYap(g: Gorunum) -> Element = match g {
   Baslik(yazi) -> yaziOgesi("h2", "nar-baslik", yazi)
   AltBaslik(yazi) -> yaziOgesi("h3", "nar-altbaslik", yazi)
@@ -552,6 +588,11 @@ fn ogeYap(g: Gorunum) -> Element = match g {
   Resim(adres, aciklama) -> resimOgesi(adres, aciklama)
   Sekmeler(basliklar, secili, degisince) ->
     sekmeOgesi(basliklar, secili, degisince)
+
+  Hareketli(ad, ic) -> hareketliOge(ad, ic)
+  Sirali(ogeler) -> siraliOge(ogeler)
+  Iskelet(satir) -> iskeletOgesi(satir)
+  Donuyor(etiket) -> donuyorOgesi(etiket)
 
   Bosluk(yukseklik) -> boslukOgesi(yukseklik)
   Cizgi -> sinifliOge("div", "nar-cizgi")
@@ -834,6 +875,7 @@ struct Uygulama<D> {
     let odak = odagiOku()
 
     odakSayaciniSifirla()
+    hareketSayaciniSifirla()
     alan.temizle()
     alan.sinifEkle("nar-kok")
     alan.ekle(ogeYap(self.gorunum(self.durum)))

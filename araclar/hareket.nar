@@ -1,0 +1,294 @@
+// Hareket katmanı — Nar diliyle yazılmıştır.
+//
+// Kural: **hareket anlam taşımalı.** Taşımıyorsa hem gereksiz hem de
+// erişilebilirlik borcu yaratır. Bu katman o yüzden az sayıda, adı olan
+// hareket sunar; keyfi tween motoru değildir.
+//
+// Nasıl çalışır: her şey CSS. JavaScript yalnızca sınıf ekler. Bunun üç
+// sonucu var:
+//   - Tarayıcı hareketi birleştirici (compositor) üzerinde yürütür.
+//   - `prefers-reduced-motion` açıkken hareket tamamen kapanır ve öğe
+//     **nihai okunabilir durumunda** görünür; yalnız süre kısaltılmaz.
+//   - Kullanıcı araya girerse takılı kalan durum olmaz: doğruluk hiçbir
+//     zaman `animationend` olayına bağlı değildir.
+//
+// Yalnız `transform` ve `opacity` hareket eder. `width`, `height`, `top`,
+// `left` hareket ettirmek her karede yerleşimi yeniden hesaplatır.
+//
+//     import "hareket.nar"
+//
+//     kademeSec(KADEME_SAKIN)             // istersen yoğunluğu değiştir
+//     hareketVer(oge, YUKSEL, 0)          // öğeye hareket ver
+//
+// `arayuz.nar` bu katmanı `Hareketli`, `Sirali`, `Iskelet` ve `Donuyor`
+// görünümleriyle sarar; oradan kullanmak için buraya bakmak gerekmez.
+
+// --- yoğunluk kademeleri --------------------------------------------------
+//
+// Kademeyi projeye göre bir kez seç, sonra o kademede kal. Tek bir süreyi
+// her geçişe kopyalamak da, her geçişe ayrı süre uydurmak da yanlış.
+
+let KADEME_SAKIN = "sakin"          // kısa ve yakın; yoğun arayüzler
+let KADEME_OLCULU = "olculu"        // varsayılan
+let KADEME_BELIRGIN = "belirgin"    // uzun ve hafif aşan; tanıtım ekranları
+
+// --- hareket adları -------------------------------------------------------
+
+// Giriş hareketleri: öğe ilk kez göründüğünde bir kez oynar.
+let SOLUKLAN = "soluklan"           // yalnız opaklık
+let YUKSEL = "yuksel"               // aşağıdan yukarı
+let BUYU = "buyu"                   // hafif ölçekten
+let KAY_SAGDAN = "kay-sagdan"
+let KAY_SOLDAN = "kay-soldan"
+
+// Dikkat hareketleri: bir kez oynar, sonucu değiştirmez.
+let NABIZ = "nabiz"                 // olumlu vurgusu
+let SARSIL = "sarsil"               // hata vurgusu
+
+// Süreklidir — yalnızca yükleme göstergesi için. Dekoratif öğede
+// sonsuz döngü olmaz.
+let PARILTI = "parilti"
+let DONUS = "donus"
+
+// --- stil -----------------------------------------------------------------
+
+let HAREKET_STILI = """
+:root {
+  --nar-h-sure: 380ms;
+  --nar-h-mesafe: 10px;
+  --nar-h-adim: 45ms;
+  --nar-h-yumusama: cubic-bezier(.215, .61, .355, 1);
+}
+
+/* Sakin: kısa süre, küçük mesafe, aşma yok. */
+:root[data-nar-kademe='sakin'] {
+  --nar-h-sure: 260ms;
+  --nar-h-mesafe: 6px;
+  --nar-h-adim: 32ms;
+  --nar-h-yumusama: cubic-bezier(.25, .46, .45, .94);
+}
+
+/* Belirgin: uzun süre, geniş mesafe, varışta hafif aşma. */
+:root[data-nar-kademe='belirgin'] {
+  --nar-h-sure: 520ms;
+  --nar-h-mesafe: 16px;
+  --nar-h-adim: 60ms;
+  --nar-h-yumusama: cubic-bezier(.34, 1.56, .64, 1);
+}
+
+.nar-h {
+  animation-duration: var(--nar-h-sure);
+  animation-timing-function: var(--nar-h-yumusama);
+  animation-fill-mode: both;
+  animation-iteration-count: 1;
+}
+
+@keyframes nar-h-soluklan {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes nar-h-yuksel {
+  from { opacity: 0; transform: translateY(var(--nar-h-mesafe)); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes nar-h-buyu {
+  from { opacity: 0; transform: scale(.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes nar-h-kay-sagdan {
+  from { opacity: 0; transform: translateX(var(--nar-h-mesafe)); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes nar-h-kay-soldan {
+  from { opacity: 0; transform: translateX(calc(var(--nar-h-mesafe) * -1)); }
+  to { opacity: 1; transform: none; }
+}
+
+.nar-h-soluklan { animation-name: nar-h-soluklan; }
+.nar-h-yuksel { animation-name: nar-h-yuksel; }
+.nar-h-buyu { animation-name: nar-h-buyu; }
+.nar-h-kay-sagdan { animation-name: nar-h-kay-sagdan; }
+.nar-h-kay-soldan { animation-name: nar-h-kay-soldan; }
+
+/* Dikkat: bir kez oynar ve öğeyi bıraktığı yerde bırakır. */
+@keyframes nar-h-nabiz {
+  0%, 100% { transform: none; }
+  45% { transform: scale(1.04); }
+}
+@keyframes nar-h-sarsil {
+  0%, 100% { transform: none; }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+.nar-h-nabiz { animation-name: nar-h-nabiz; }
+.nar-h-sarsil { animation-name: nar-h-sarsil; animation-duration: 420ms; }
+
+/* Yükleme göstergeleri: sabit hızda döner, bu yüzden linear. */
+@keyframes nar-h-parilti {
+  from { background-position: -140% 0; }
+  to { background-position: 240% 0; }
+}
+@keyframes nar-h-donus {
+  to { transform: rotate(360deg); }
+}
+
+.nar-iskelet {
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(90deg,
+              var(--nar-yuzey-2) 0%,
+              var(--nar-kenar) 50%,
+              var(--nar-yuzey-2) 100%);
+  background-size: 220% 100%;
+  animation: nar-h-parilti 1400ms linear infinite;
+}
+.nar-iskelet-sarmal {
+  display: flex; flex-direction: column; gap: 10px; width: 100%;
+}
+/* Son satır kısa: yüklenen şeyin bir metin bloğu olduğunu ima eder. */
+.nar-iskelet-sarmal .nar-iskelet:last-child { width: 62%; }
+
+.nar-donuyor {
+  display: inline-flex; align-items: center; gap: 10px;
+  align-self: flex-start;
+  color: var(--nar-soluk); font-size: 14px;
+}
+.nar-donuyor-halka {
+  width: 16px; height: 16px; flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--nar-kenar);
+  border-top-color: var(--nar-vurgu);
+  animation: nar-h-donus 800ms linear infinite;
+}
+
+/* Hareketi kapatan herkes nihai durumu anında görmeli; süreyi kısaltmak
+   yetmez, çünkü asıl rahatsız eden hareketin kendisidir. */
+@media (prefers-reduced-motion: reduce) {
+  .nar-h,
+  .nar-iskelet,
+  .nar-donuyor-halka {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .nar-iskelet { background: var(--nar-yuzey-2); }
+}
+"""
+
+// --- kurulum --------------------------------------------------------------
+
+var HAREKET_KURULDU = false
+
+fn hareketStiliniKur() {
+  if HAREKET_KURULDU {
+    return
+  }
+  HAREKET_KURULDU = true
+  let e = olustur("style")
+  e.ozellikYaz("id", "nar-hareket")
+  e.metinYaz(HAREKET_STILI)
+  let bas = bul("head")
+  if bas != none {
+    bas!.ekle(e)
+  } else {
+    govde().ekle(e)
+  }
+}
+
+// Yoğunluk kademesini seçer. Tanınmayan ad varsayılana döner.
+fn kademeSec(ad: String) {
+  let kok = bul("html")
+  if kok == none {
+    return
+  }
+  if ad == KADEME_SAKIN || ad == KADEME_BELIRGIN {
+    kok!.ozellikYaz("data-nar-kademe", ad)
+  } else {
+    kok!.ozellikYaz("data-nar-kademe", "")
+  }
+}
+
+// --- ilk görünüş defteri --------------------------------------------------
+//
+// Bildirimsel arayüzde durum her değiştiğinde ağaç baştan çizilir. Giriş
+// hareketi her çizimde yeniden oynasaydı, bir giriş alanına yazan kişi her
+// tuşta bütün ekranın yeniden süzülmesini izlerdi. O yüzden hareket
+// yalnızca öğe **ilk kez** göründüğünde oynar.
+//
+// Anahtar, çizim sırasındaki konumdur: ağaç aynı kaldığı sürece aynı öğeye
+// denk gelir. Ağaç biçim değiştirirse kayabilir — o zaman bir hareket
+// fazladan oynar, yanlış bir şey görünmez.
+
+var HAREKET_SIRASI = 0
+var GORULENLER: {String: Bool} = {}
+
+fn hareketSayaciniSifirla() {
+  HAREKET_SIRASI = 0
+}
+
+// Bu konumdaki öğe ilk kez mi çiziliyor?
+fn hareketIlkKezMi(ad: String) -> Bool {
+  let anahtar = "${HAREKET_SIRASI}:${ad}"
+  HAREKET_SIRASI += 1
+  if GORULENLER.has(anahtar) {
+    return false
+  }
+  GORULENLER.set(anahtar, true)
+  return true
+}
+
+// Defteri siler: bir sonraki çizimde her şey yeniden girer. Sayfa ya da
+// sekme değiştirirken çağır.
+fn hareketDefteriniSil() {
+  GORULENLER = {}
+  HAREKET_SIRASI = 0
+}
+
+// --- uygulama -------------------------------------------------------------
+
+// Öğeye adı olan bir hareket verir. `sira`, sıralı girişte kaçıncı öğe
+// olduğudur; gecikme kademenin adım süresinden hesaplanır.
+fn hareketVer(e: Element, ad: String, sira: Int) -> Element {
+  hareketStiliniKur()
+  e.sinifEkle("nar-h")
+  e.sinifEkle("nar-h-" + ad)
+  if sira > 0 {
+    e.stil("animation-delay", "calc(var(--nar-h-adim) * ${sira})")
+  }
+  return e
+}
+
+// Yükleniyor: metin bloğu yerine geçen parıltılı satırlar.
+fn iskeletOgesi(satir: Int) -> Element {
+  hareketStiliniKur()
+  let sarmal = olustur("div")
+  sarmal.sinifEkle("nar-iskelet-sarmal")
+  var i = 0
+  while i < satir {
+    let c = olustur("div")
+    c.sinifEkle("nar-iskelet")
+    sarmal.ekle(c)
+    i += 1
+  }
+  return sarmal
+}
+
+// Yükleniyor: dönen halka ve yanında açıklama.
+fn donuyorOgesi(etiket: String) -> Element {
+  hareketStiliniKur()
+  let sarmal = olustur("div")
+  sarmal.sinifEkle("nar-donuyor")
+  // Ekran okuyucu bekleyişi duysun; sessizce dönen bir halka hiçbir şey
+  // anlatmaz.
+  sarmal.ozellikYaz("role", "status")
+  sarmal.ozellikYaz("aria-live", "polite")
+
+  let halka = olustur("div")
+  halka.sinifEkle("nar-donuyor-halka")
+  sarmal.ekle(halka)
+
+  let yazi = olustur("span")
+  yazi.metinYaz(etiket)
+  sarmal.ekle(yazi)
+  return sarmal
+}

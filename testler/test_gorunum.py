@@ -85,6 +85,30 @@ fn main() {
 '''
 
 
+SAYACLI_HAREKET = '''import "@ARAYUZ@"
+
+var uygulama: Uygulama<Int>? = none
+
+fn ciz(n: Int) -> Gorunum = Sutun([
+  Hareketli(YUKSEL, Metin("değer: ${n}")),
+  Dugme("Artır", || {
+    if uygulama != none {
+      uygulama!.degistir(uygulama!.durum + 1)
+    }
+  }),
+  Dugme("Sıfırla", || {
+    hareketDefteriniSil()
+    if uygulama != none {
+      uygulama!.degistir(0)
+    }
+  })
+])
+
+fn main() {
+  uygulama = uygulamaBaslat("#uygulama", 0, ciz)
+}
+'''
+
 @unittest.skipIf(NODE is None, "node bulunamadı")
 class GorunumTesti(unittest.TestCase):
     def test_ilk_cizim(self):
@@ -235,6 +259,73 @@ $yaz($dom.odak());
         self.assertEqual(kayit[1]["deger"], "Ayşe")
         self.assertEqual(kayit[1]["basi"], 4)
         self.assertEqual(kayit[1]["sonu"], 4)
+
+    def test_hareket_yalniz_ilk_cizimde_oynar(self):
+        """Durum değişiminde giriş hareketi tekrarlanmamalı.
+
+        Her durum değişimi ağacı baştan çizer. Hareket her çizimde
+        oynasaydı, bir giriş alanına yazan kişi her tuşta bütün ekranın
+        yeniden süzülmesini izlerdi.
+        """
+        kayit = sahnede_calistir(SAYACLI_HAREKET, """
+var say = function () {
+  return $dom.sinifliOgeler($dom.govde, 'nar-h').length;
+};
+$yaz(say());
+$dom.tikla($dom.dugme($dom.govde, "Artır"));
+$yaz(say());
+$dom.tikla($dom.dugme($dom.govde, "Artır"));
+$yaz(say());
+""")
+        self.assertEqual(kayit[0], 1, "ilk çizimde hareket verilmeli")
+        self.assertEqual(kayit[1], 0, "yeniden çizimde hareket tekrarlanmamalı")
+        self.assertEqual(kayit[2], 0, "sonraki çizimlerde de tekrarlanmamalı")
+
+    def test_hareket_defteri_silinince_yeniden_oynar(self):
+        """Sekme ya da sayfa değişiminde hareket yeniden oynayabilmeli."""
+        kayit = sahnede_calistir(SAYACLI_HAREKET, """
+$dom.tikla($dom.dugme($dom.govde, "Artır"));
+$yaz($dom.sinifliOgeler($dom.govde, 'nar-h').length);
+$dom.tikla($dom.dugme($dom.govde, "Sıfırla"));
+$yaz($dom.sinifliOgeler($dom.govde, 'nar-h').length);
+""")
+        self.assertEqual(kayit[0], 0)
+        self.assertEqual(kayit[1], 1, "defter silinince hareket geri gelmeli")
+
+    def test_sirali_giris_gecikmeyi_artirir(self):
+        """Sıralı girişte her öğe bir öncekinden sonra girer."""
+        src = '''import "@ARAYUZ@"
+
+fn ciz(n: Int) -> Gorunum = Sirali([
+  Metin("bir"),
+  Metin("iki"),
+  Metin("üç")
+])
+
+fn main() {
+  uygulamaBaslat("#uygulama", 0, ciz)
+}
+'''
+        kayit = sahnede_calistir(src, """
+$yaz($dom.sinifliOgeler($dom.govde, 'nar-h')
+  .map(function (e) { return e.stiller['animation-delay'] || '0'; }));
+""")
+        # İlk öğe beklemez; sonrakiler kademenin adım süresinden hesaplanır.
+        self.assertEqual(kayit[0], [
+            "0",
+            "calc(var(--nar-h-adim) * 1)",
+            "calc(var(--nar-h-adim) * 2)",
+        ])
+
+    def test_hareket_stili_bir_kez_kurulur(self):
+        """Stil <head> içine bir kez girer; her çizimde çoğalmamalı."""
+        kayit = sahnede_calistir(SAYACLI_HAREKET, """
+$dom.tikla($dom.dugme($dom.govde, "Artır"));
+$dom.tikla($dom.dugme($dom.govde, "Artır"));
+$yaz(document.querySelectorAll('style').length);
+""")
+        # Biri arayüz kütüphanesinin stili, biri hareket katmanının.
+        self.assertEqual(kayit[0], 2)
 
 
 if __name__ == "__main__":

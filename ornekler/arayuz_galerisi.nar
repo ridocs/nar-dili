@@ -170,6 +170,56 @@ fn dugmeBolumu() -> Gorunum = Sutun([
   ])
 ])
 
+fn hareketBolumu() -> Gorunum = Sutun([
+  Kart("Giriş hareketleri", [
+    Paragraf("Her hareket öğe ilk kez göründüğünde bir kez oynar. Durum " +
+      "değiştiğinde ağaç yeniden çizilir ama hareket tekrarlanmaz; " +
+      "yoksa her tuşta bütün ekran yeniden süzülürdü."),
+    Hareketli(SOLUKLAN, Rozet("soluklan", TON_BILGI)),
+    Hareketli(YUKSEL, Rozet("yuksel", TON_BILGI)),
+    Hareketli(BUYU, Rozet("buyu", TON_BILGI)),
+    Hareketli(KAY_SAGDAN, Rozet("kay-sagdan", TON_BILGI)),
+    Hareketli(KAY_SOLDAN, Rozet("kay-soldan", TON_BILGI)),
+    Cizgi,
+    Dugme("Yeniden oynat", || {
+      hareketDefteriniSil()
+      guncelle(d())
+    })
+  ]),
+  Kart("Sıralı giriş", [
+    Paragraf("Liste öğeleri birbiri ardına girer; gecikme kademenin " +
+      "adım süresinden hesaplanır."),
+    Sirali([
+      Metin("birinci satır"),
+      Metin("ikinci satır"),
+      Metin("üçüncü satır"),
+      Metin("dördüncü satır")
+    ])
+  ]),
+  Kart("Dikkat çekmek", [
+    Paragraf("Bir kez oynar ve öğeyi bıraktığı yerde bırakır."),
+    Satir([
+      Hareketli(NABIZ, Rozet("kaydedildi", TON_BASARI)),
+      Hareketli(SARSIL, Rozet("kaydedilemedi", TON_HATA))
+    ])
+  ]),
+  Kart("Yükleniyor", [
+    Paragraf("Süreklilik yalnız burada. Dekoratif öğede sonsuz döngü yok."),
+    Iskelet(3),
+    Bosluk(6),
+    Donuyor("Veri geliyor…")
+  ]),
+  Kart("Yoğunluk", [
+    Paragraf("Kademeyi bir kez seç, sonra o kademede kal. Seçtikten " +
+      "sonra Yeniden oynat'a bas."),
+    Satir([
+      IkincilDugme("Sakin", || { kademeSec(KADEME_SAKIN) }),
+      IkincilDugme("Ölçülü", || { kademeSec(KADEME_OLCULU) }),
+      IkincilDugme("Belirgin", || { kademeSec(KADEME_BELIRGIN) })
+    ])
+  ])
+])
+
 // --- görünüm --------------------------------------------------------------
 
 fn ciz(g: Durum) -> Gorunum {
@@ -186,13 +236,19 @@ fn ciz(g: Durum) -> Gorunum {
   if g.sekme == 3 {
     icerik = dugmeBolumu()
   }
+  if g.sekme == 4 {
+    icerik = hareketBolumu()
+  }
 
   return Sutun([
     Baslik("Nar arayüz galerisi"),
     Paragraf("Kütüphanedeki bütün bileşenler. Hepsi Nar ile yazıldı."),
-    Sekmeler(["Yazı", "Girdi", "Veri", "Düğme"], g.sekme, |i| {
+    Sekmeler(["Yazı", "Girdi", "Veri", "Düğme", "Hareket"], g.sekme, |i| {
       let y = d()
       y.sekme = i
+      // Yeni sekmenin içeriği gerçekten ilk kez görünüyor; defteri
+      // silmezsek konum anahtarları eski sekmeden kalır.
+      hareketDefteriniSil()
       guncelle(y)
     }),
     Bosluk(4),

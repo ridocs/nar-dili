@@ -22,10 +22,18 @@ class SahteOge {
     this.style = {
       setProperty: (ad, deger) => { this.stiller[ad] = deger; },
     };
+    // Sınıflar gerçekten tutulur: stil ve hareket katmanları sınıf
+    // ekleyerek çalışıyor, boş bir taklit onları test edilemez yapardı.
+    this.siniflar = new Set();
     this.classList = {
-      add: () => {},
-      remove: () => {},
-      contains: () => false,
+      add: (...adlar) => { adlar.forEach((a) => this.siniflar.add(a)); },
+      remove: (...adlar) => { adlar.forEach((a) => this.siniflar.delete(a)); },
+      contains: (ad) => this.siniflar.has(ad),
+      toggle: (ad, zorla) => {
+        const olsun = zorla === undefined ? !this.siniflar.has(ad) : zorla;
+        if (olsun) this.siniflar.add(ad); else this.siniflar.delete(ad);
+        return olsun;
+      },
     };
   }
 
@@ -56,7 +64,16 @@ class SahteOge {
     return c;
   }
 
-  setAttribute(ad, deger) { this.ozellikler[ad] = String(deger); }
+  setAttribute(ad, deger) {
+    this.ozellikler[ad] = String(deger);
+    if (ad === "class") {
+      this.siniflar = new Set(String(deger).split(/\s+/).filter(Boolean));
+    }
+  }
+
+  get className() {
+    return Array.from(this.siniflar).join(" ");
+  }
   getAttribute(ad) { return ad in this.ozellikler ? this.ozellikler[ad] : null; }
 
   addEventListener(tur, islev) {
@@ -90,6 +107,7 @@ class SahteOge {
 // `#kimlik`, etiket adı ve `[ad='deger']` seçicileri desteklenir.
 function uyuyorMu(oge, secici) {
   if (secici.startsWith("#")) return oge.ozellikler.id === secici.slice(1);
+  if (secici.startsWith(".")) return oge.siniflar.has(secici.slice(1));
   if (secici.startsWith("[")) {
     const m = /^\[([^=\]]+)(?:=['"]?([^'"\]]*)['"]?)?\]$/.exec(secici);
     if (!m) return false;
@@ -175,6 +193,20 @@ globalThis.$dom = {
   },
   giris(kok) {
     return kok.querySelector("input");
+  },
+  // Bir öğenin sınıflarını okur.
+  siniflar(oge) {
+    return Array.from(oge.siniflar);
+  },
+  // Verilen sınıfı taşıyan bütün öğeleri bulur.
+  sinifliOgeler(kok, sinif) {
+    const bulunan = [];
+    const gez = (o) => {
+      if (o.siniflar.has(sinif)) bulunan.push(o);
+      for (const c of o.childNodes) gez(c);
+    };
+    gez(kok);
+    return bulunan;
   },
   // Odaktaki öğeyi ve imleç konumunu okur; odak yoksa null.
   odak() {

@@ -1694,6 +1694,63 @@ fn main() {
                        "ekran yeniden çizildiğinde bozulmaz. Seçili deriyi "
                        "<code>deri()</code> ile okuyabilirsin.",
             },
+            {
+                "id": "arayuz-hareket",
+                "baslik": "Hareket: anlam taşıyan animasyon",
+                "aciklama": """
+Hareket <strong>anlam taşımalı</strong>. Taşımıyorsa hem gereksizdir hem de
+erişilebilirlik borcu yaratır. Kütüphane bu yüzden keyfi bir tween motoru
+değil, adı olan az sayıda hareket sunar.
+<p>Her şey CSS ile yapılır; Nar yalnızca sınıf ekler. Bunun üç sonucu var:
+hareket birleştirici üzerinde yürür, kullanıcı araya girdiğinde takılı kalan
+durum olmaz (doğruluk hiçbir zaman <code>animationend</code> olayına bağlı
+değildir), ve <code>prefers-reduced-motion</code> açıkken hareket tamamen
+kapanıp öğe <strong>nihai okunabilir durumunda</strong> görünür — yalnız süre
+kısaltılmaz.</p>
+<p>Giriş hareketleri öğe <strong>ilk kez</strong> göründüğünde bir kez oynar.
+Durum her değiştiğinde ağaç baştan çizilir; hareket her çizimde oynasaydı bir
+giriş alanına yazan kişi her tuşta bütün ekranın yeniden süzülmesini izlerdi.
+Sekme ya da sayfa değiştirirken <code>hareketDefteriniSil()</code> çağırırsan
+yeni içerik yeniden girer.</p>
+<p>Süreklilik yalnızca yükleme göstergelerinde var: <code>Iskelet</code> ve
+<code>Donuyor</code>. Dekoratif öğede sonsuz döngü yok.</p>
+<p>Yoğunluk üç kademede: <code>KADEME_SAKIN</code>, <code>KADEME_OLCULU</code>
+(varsayılan) ve <code>KADEME_BELIRGIN</code>. Kademeyi bir kez seç, sonra o
+kademede kal — tek bir süreyi her geçişe kopyalamak da, her geçişe ayrı süre
+uydurmak da yanlış.</p>
+""",
+                "kod": '''import "../araclar/arayuz.nar"
+
+fn ciz(yukleniyor: Bool) -> Gorunum {
+  if yukleniyor {
+    return Kart("Kayıtlar", [
+      Iskelet(3),
+      Bosluk(8),
+      Donuyor("Veri geliyor…")
+    ])
+  }
+
+  return Kart("Kayıtlar", [
+    Sirali([
+      Metin("Ayşe"),
+      Metin("Mehmet"),
+      Metin("Zeynep")
+    ]),
+    Cizgi,
+    Hareketli(NABIZ, Rozet("kaydedildi", TON_BASARI))
+  ])
+}
+
+fn main() {
+  kademeSec(KADEME_SAKIN)
+  uygulamaBaslat("#uygulama", true, ciz)
+}''',
+                "calistirma": False,
+                "not": "Yalnız <code>transform</code> ve <code>opacity</code> "
+                       "hareket eder. <code>width</code>, <code>height</code>, "
+                       "<code>top</code> ve <code>left</code> hareket ettirmek "
+                       "her karede yerleşimi yeniden hesaplatır.",
+            },
         ],
     },
 
