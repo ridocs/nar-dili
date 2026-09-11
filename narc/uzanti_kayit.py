@@ -48,18 +48,23 @@ def baslatici_komutu(kok: Path) -> str:
     return f'"{yorumlayici}" "{baslatici_betigi(kok)}" "%1"'
 
 
-def kur(kok: Path) -> tuple[bool, str]:
-    """İlişkilendirmeyi kurar. (başarılı, mesaj) döndürür."""
+def kur(kok: Path, komut: str | None = None) -> tuple[bool, str]:
+    """İlişkilendirmeyi kurar. (başarılı, mesaj) döndürür.
+
+    `komut` verilmezse Python başlatıcısı bağlanır; `nar uzanti-kur --exe`
+    derlenmiş başlatıcının komutunu geçirir.
+    """
     if not desteklenir_mi():
         return False, "dosya ilişkilendirme yalnızca Windows'ta kuruluyor"
 
-    betik = baslatici_betigi(kok)
-    if not betik.exists():
-        return False, f"başlatıcı betiği bulunamadı: {betik}"
+    if komut is None:
+        betik = baslatici_betigi(kok)
+        if not betik.exists():
+            return False, f"başlatıcı betiği bulunamadı: {betik}"
+        komut = baslatici_komutu(kok)
 
     import winreg
 
-    komut = baslatici_komutu(kok)
     simge = kok / "site" / "nar.ico"
 
     try:

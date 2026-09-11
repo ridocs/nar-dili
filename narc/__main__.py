@@ -32,6 +32,7 @@ from .diagnostics import NarError, NarErrors
 from .masaustu_paket import paketle
 from .mobil_paket import paketle as mobil_paketle
 from .ghb_paket import paketle as ghb_paketle
+from . import exe_paket
 from . import ghb_calistir, uzanti_kayit
 from . import bytecode as bc
 from . import vm as vm_modulu
@@ -78,11 +79,12 @@ def build_parser() -> argparse.ArgumentParser:
         if name in ("build", "emit"):
             sub.add_argument("--target", default="js",
                              choices=["js", "web", "masaustu", "mobil", "ghb",
-                                      "narb"],
+                                      "exe", "narb"],
                              help="çıktı hedefi: js (Node), web (tek HTML), "
                                   "masaustu (kendi penceresinde açılan uygulama), "
                                   "mobil (Android/iOS projesi), "
                                   "ghb (tek dosyalık Nar uygulaması), "
+                                  "exe (tek başına çalışan Windows uygulaması), "
                                   "narb (Nar bytecode — kendi sanal makinesi)")
         if name in ("build", "emit", "check", "ozdenetim"):
             sub.add_argument("--kutuphane", action="store_true",
@@ -104,8 +106,12 @@ def build_parser() -> argparse.ArgumentParser:
     ac = subs.add_parser("ac", help=".ghb uygulamasını açar")
     ac.add_argument("file", type=Path, help="açılacak .ghb paketi")
 
-    subs.add_parser("uzanti-kur",
-                    help=".ghb uzantısını bu bilgisayarda ilişkilendirir")
+    uzanti_kur = subs.add_parser(
+        "uzanti-kur", help=".ghb uzantısını bu bilgisayarda ilişkilendirir")
+    uzanti_kur.add_argument(
+        "--exe", action="store_true",
+        help="Python yerine derlenmiş başlatıcıyı (nar-ac.exe) bağla; "
+             "uygulamalar Python kurulu olmadan açılır")
     subs.add_parser("uzanti-kaldir", help=".ghb ilişkilendirmesini kaldırır")
     subs.add_parser("uzanti-durum", help=".ghb ilişkilendirmesini gösterir")
 
@@ -172,20 +178,30 @@ def komut_bytecode(args) -> int:
     return 0
 
 
-def komut_uzanti(komut: str) -> int:
+def komut_uzanti(args) -> int:
     """`.ghb` dosya ilişkilendirmesini kurar, kaldırır ya da gösterir.
 
     Kayıtlar yalnızca bu kullanıcı için yazılır; yönetici hakkı gerekmez
     ve `uzanti-kaldir` ile tamamen geri alınır.
     """
     kok = Path(__file__).resolve().parent.parent
+    komut = args.command
 
     if komut == "uzanti-durum":
         print(uzanti_kayit.durum())
         return 0
 
     if komut == "uzanti-kur":
-        oldu, mesaj = uzanti_kayit.kur(kok)
+        exe_komutu = None
+        if getattr(args, "exe", False):
+            # Derlenmiş başlatıcı: çift tıklama Python'a uğramaz.
+            try:
+                calistirici = exe_paket.calistirici_kur()
+            except exe_paket.ExeHatasi as e:
+                print(f"hata: {e}", file=sys.stderr)
+                return 1
+            exe_komutu = f'"{calistirici}" "%1"'
+        oldu, mesaj = uzanti_kayit.kur(kok, exe_komutu)
     else:
         oldu, mesaj = uzanti_kayit.kaldir()
 
@@ -297,7 +313,7 @@ def main(argv: list[str] | None = None) -> int:
         return ghb_calistir.calistir(args.file.resolve())
 
     if args.command in ("uzanti-kur", "uzanti-kaldir", "uzanti-durum"):
-        return komut_uzanti(args.command)
+        return komut_uzanti(args)
 
     if args.command == "ozdenetim":
         return komut_ozdenetim(args)
@@ -358,6 +374,23 @@ def main(argv: list[str] | None = None) -> int:
         print()
         print(f"çalıştırmak için:  nar ac {paket}")
         print("çift tıklamayla açmak için bir kez:  nar uzanti-kur")
+        return 0
+
+    if target == "exe":
+        if args.command == "emit":
+            sys.stdout.write(compilation.to_js())
+            return 0
+        hedef = args.out or (args.file.parent / "cikti" / title)
+        try:
+            exe = exe_paket.paketle(compilation.to_js(), Path(hedef), title,
+                                    args.file.name)
+        except exe_paket.ExeHatasi as e:
+            print(f"hata: {e}", file=sys.stderr)
+            return 1
+        boyut = exe.stat().st_size
+        print(f"Windows uygulaması yazıldı: {exe}  ({boyut // 1024} KB)")
+        print()
+        print("çift tıklayınca kendi penceresinde açılır; Python ya da Node gerekmez.")
         return 0
 
     if target == "mobil":

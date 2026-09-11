@@ -1,6 +1,7 @@
 # Derleyici ara çıktıları
 .narbuild/
 cikti/
+*.exe
 *.js
 *.html
 !narc/runtime/*.js
