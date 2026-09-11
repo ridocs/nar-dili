@@ -224,6 +224,7 @@ IKON_ONAY = _ikon('<path d="m5 12.5 4.5 4.5L19 7.5"/>', 14)
 IKON_BAG = _ikon('<path d="M10 14a4 4 0 0 0 6 .5l2-2a4 4 0 0 0-5.7-5.7L11 8'
                  'M14 10a4 4 0 0 0-6-.5l-2 2A4 4 0 0 0 11.7 17L13 16"/>', 14)
 IKON_OK = _ikon('<path d="M5 12h13m-5-5 5 5-5 5"/>', 15)
+IKON_OYNAT = _ikon('<path d="M8 5.5v13l11-6.5-11-6.5Z"/>', 15)
 # 21st'in kategori listesindeki minik çizgi işareti.
 IKON_CIZGI = _ikon('<path d="M7 12h10"/>', 14)
 
@@ -507,6 +508,11 @@ kbd {{
 }}
 .cta-ikincil:hover {{ border-color: var(--kenar-guclu); }}
 
+.giris-not {{
+  margin: -18px 0 24px; max-width: 46ch;
+  font-size: 13px; color: var(--metin-soluk);
+}}
+
 .hedefler {{
   display: flex; flex-wrap: wrap; gap: 6px;
   margin: 0; padding: 0; list-style: none;
@@ -608,9 +614,23 @@ kbd {{
   text-transform: uppercase; color: var(--metin-soluk);
 }}
 
+/* Kod kutusunun sağ üstündeki eylemler. */
+.kod-eylem {{ margin-left: auto; display: flex; align-items: center; gap: 2px; }}
+
+.dene {{
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 24px; padding: 0 8px;
+  font-family: var(--mono); font-size: 11px;
+  color: var(--vurgu); text-decoration: none;
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  transition: background .2s ease, border-color .2s ease;
+}}
+.dene:hover {{ background: var(--vurgu-zemin); border-color: var(--kenar); }}
+.dene .ikon {{ width: 12px; height: 12px; }}
+
 .kopyala {{
   display: inline-flex; align-items: center; gap: 5px;
-  margin-left: auto; height: 24px; padding: 0 8px;
+  height: 24px; padding: 0 8px;
   font-family: var(--mono); font-size: 11px;
   color: var(--metin-soluk);
   background: none; border: 1px solid transparent;

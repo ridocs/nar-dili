@@ -35,10 +35,11 @@ from narc.diagnostics import NarError  # noqa: E402
 from narc.renk import renklendir_toplu  # noqa: E402
 from narc.parser import parse  # noqa: E402
 
+import oyun  # noqa: E402
 import tasarim  # noqa: E402
 from tasarim import (  # noqa: E402
     IKON_ARA, IKON_AY, IKON_BAG, IKON_CIZGI, IKON_GITHUB, IKON_GUNES,
-    IKON_KOD, IKON_KOPYA, IKON_OK, IKON_ONAY,
+    IKON_KOD, IKON_KOPYA, IKON_OK, IKON_ONAY, IKON_OYNAT,
 )
 from icerik import (  # noqa: E402
     ALT_BASLIK, BASLIK, BOLUMLER, DEPO, GIRIS, HEDEFLER, NASIL_CALISTIRILIR,
@@ -111,24 +112,38 @@ def renklendir(kaynak: str) -> str:
     return _RENKLER[kaynak]
 
 
-def kod_blogu(kaynak: str, dil_etiketi: str = "nar") -> str:
-    """Kod kutusu: üstte dil etiketi ve kopyala düğmesi, altta kaynak.
+def kod_blogu(kaynak: str, dil_etiketi: str = "nar",
+              denenecek: str | None = None) -> str:
+    """Kod kutusu: üstte dil etiketi, Dene ve kopyala düğmeleri.
 
     Kopyalanan metin `pre`'nin kendisinden okunur; ayrı bir veri
     özniteliğinde saklansaydı ikisi zamanla ayrışabilirdi.
+
+    `denenecek` verilirse deneme alanına bağlantı çıkar. Bağlantıya
+    gömülen kaynak, sayfanın çıktısını alırken çalıştırdığı kaynağın
+    aynısıdır — orada da aynı sonucu vermeli.
     """
     # Nar dışındaki bloklar (kabuk komutları) renklendirilmez: Nar
     # renklendiricisi onları yanlış boyar.
     govde = renklendir(kaynak) if dil_etiketi == "nar" else html.escape(kaynak)
+
+    dene = ""
+    if denenecek is not None:
+        dene = (
+            f'<a class="dene" href="deneme/#k={oyun.kodu_sar(denenecek)}">'
+            f'{IKON_OYNAT}<span>dene</span></a>'
+        )
+
     return (
         '<div class="kod-kutu">'
         '<div class="kod-basi">'
         f'<span class="kod-dil">{html.escape(dil_etiketi)}</span>'
+        f'<span class="kod-eylem">{dene}'
         '<button class="kopyala" type="button">'
         f'<span class="kopya">{IKON_KOPYA}</span>'
         f'<span class="onay">{IKON_ONAY}</span>'
         '<span class="yazi">kopyala</span>'
-        "</button>"
+        "</button></span>"
         "</div>"
         f'<pre class="kod"><code>{govde}</code></pre>'
         "</div>"
@@ -152,8 +167,14 @@ def konu_html(konu: dict) -> str:
         f'<h3><a class="capa" href="#{konu["id"]}">'
         f'{html.escape(konu["baslik"])}{IKON_BAG}</a></h3>',
         f'<div class="aciklama">{konu["aciklama"].strip()}</div>',
-        kod_blogu(konu["kod"], konu.get("dil", "nar")),
     ]
+
+    # Deneme alanı yalnız çalışan örnekler için anlamlı: kabuk komutları ve
+    # çalıştırılmayan parçalar oraya götürülmez.
+    denenecek = None
+    if konu.get("dil", "nar") == "nar" and konu.get("calistirma", True):
+        denenecek = calistirilacak_kaynak(konu)
+    parcalar.append(kod_blogu(konu["kod"], konu.get("dil", "nar"), denenecek))
 
     if konu.get("calistirma", True):
         cikti, hata = ornegi_calistir(konu)
@@ -231,6 +252,11 @@ def bolum_dizini_html() -> str:
         f'<span class="ad">Hızlı başvuru</span>'
         f'<span class="adet">{len(REFERANS)}</span></a></li>'
     )
+    ogeler.append(
+        f'<li><a href="deneme/">{IKON_OYNAT}'
+        f'<span class="ad">Deneme alanı</span>'
+        f'<span class="adet">→</span></a></li>'
+    )
     konu_sayisi = sum(len(b["konular"]) for b in BOLUMLER)
     return f"""<section class="dizin-alani">
   <div class="sinir dizin-ic">
@@ -282,7 +308,8 @@ def vitrin_html() -> str:
     cikti, hata = ornegi_calistir(VITRIN)
     if hata:
         raise SystemExit(f"vitrin örneği çalışmadı:\n{cikti}")
-    return kod_blogu(VITRIN["kod"]) + cikti_blogu(cikti, False)
+    return (kod_blogu(VITRIN["kod"], "nar", calistirilacak_kaynak(VITRIN))
+            + cikti_blogu(cikti, False))
 
 
 def giris_html(konu_sayisi: int, calisan: int) -> str:
@@ -296,9 +323,11 @@ def giris_html(konu_sayisi: int, calisan: int) -> str:
       <h1>{html.escape(ALT_BASLIK)}</h1>
       <div class="giris-ozet">{GIRIS.strip()}</div>
       <div class="eylemler">
-        <a class="cta" href="#baslangic">Rehbere başla{IKON_OK}</a>
-        <a class="cta-ikincil" href="#referans">{IKON_KOD}Hızlı başvuru</a>
+        <a class="cta" href="deneme/">{IKON_OYNAT}Tarayıcıda dene</a>
+        <a class="cta-ikincil" href="#baslangic">Rehbere başla{IKON_OK}</a>
       </div>
+      <p class="giris-not">Kurulum yok: deneme alanı derleyiciyi tarayıcında
+      çalıştırır. Yazdığın kodun bağlantısını paylaşabilirsin.</p>
       <ul class="hedefler">{hedef_html}</ul>
     </div>
     <div class="giris-yan">
@@ -362,6 +391,7 @@ def sayfa_uret(artifact: bool = False) -> str:
     <kbd>Ctrl K</kbd>
   </div>
   <div class="bar-sag">
+    <a class="bar-dugme" href="deneme/">{IKON_OYNAT}<span>Dene</span></a>
     <a class="bar-dugme" href="{html.escape(DEPO)}" rel="noreferrer">
       {IKON_GITHUB}<span>Kaynak</span>
     </a>
@@ -442,6 +472,17 @@ def main() -> int:
     konu_sayisi = sum(len(b["konular"]) for b in BOLUMLER)
     print(f"yazıldı: {args.cikti}")
     print(f"{len(BOLUMLER)} bölüm, {konu_sayisi} konu, {len(sayfa) // 1024} KB")
+
+    # Deneme alanı sayfanın yanına üretilir; ayrı bir komut olsaydı
+    # ikisinden biri er geç unutulurdu.
+    if not args.artifact:
+        deneme = args.cikti.parent / "deneme"
+        deneme.mkdir(parents=True, exist_ok=True)
+        boyut = oyun.narc_zip(deneme / "narc.zip")
+        (deneme / "index.html").write_text(
+            oyun.sayfa(oyun.renklendirici_js()), encoding="utf-8")
+        print(f"yazıldı: {deneme / 'index.html'} "
+              f"(derleyici paketi {boyut // 1024} KB)")
     return 0
 
 
