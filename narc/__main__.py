@@ -31,6 +31,8 @@ from .bicim import BicimHatasi, bicimlendir
 from .diagnostics import NarError, NarErrors
 from .masaustu_paket import paketle
 from .mobil_paket import paketle as mobil_paketle
+from .ghb_paket import paketle as ghb_paketle
+from . import ghb_calistir, uzanti_kayit
 from .driver import compile_file, to_html
 
 
@@ -71,10 +73,11 @@ def build_parser() -> argparse.ArgumentParser:
         sub.add_argument("file", type=Path, help="kaynak .nar dosyası")
         if name in ("build", "emit"):
             sub.add_argument("--target", default="js",
-                             choices=["js", "web", "masaustu", "mobil"],
+                             choices=["js", "web", "masaustu", "mobil", "ghb"],
                              help="çıktı hedefi: js (Node), web (tek HTML), "
                                   "masaustu (kendi penceresinde açılan uygulama), "
-                                  "mobil (Android/iOS projesi)")
+                                  "mobil (Android/iOS projesi), "
+                                  "ghb (tek dosyalık Nar uygulaması)")
         if name in ("build", "emit", "check", "ozdenetim"):
             sub.add_argument("--kutuphane", action="store_true",
                              help="kütüphane olarak derle: 'main' gerekmez, "
@@ -82,7 +85,36 @@ def build_parser() -> argparse.ArgumentParser:
         if name == "build":
             sub.add_argument("-o", "--out", type=Path, default=None,
                              help="çıktı dosyası")
+    ac = subs.add_parser("ac", help=".ghb uygulamasını açar")
+    ac.add_argument("file", type=Path, help="açılacak .ghb paketi")
+
+    subs.add_parser("uzanti-kur",
+                    help=".ghb uzantısını bu bilgisayarda ilişkilendirir")
+    subs.add_parser("uzanti-kaldir", help=".ghb ilişkilendirmesini kaldırır")
+    subs.add_parser("uzanti-durum", help=".ghb ilişkilendirmesini gösterir")
+
     return parser
+
+
+def komut_uzanti(komut: str) -> int:
+    """`.ghb` dosya ilişkilendirmesini kurar, kaldırır ya da gösterir.
+
+    Kayıtlar yalnızca bu kullanıcı için yazılır; yönetici hakkı gerekmez
+    ve `uzanti-kaldir` ile tamamen geri alınır.
+    """
+    kok = Path(__file__).resolve().parent.parent
+
+    if komut == "uzanti-durum":
+        print(uzanti_kayit.durum())
+        return 0
+
+    if komut == "uzanti-kur":
+        oldu, mesaj = uzanti_kayit.kur(kok)
+    else:
+        oldu, mesaj = uzanti_kayit.kaldir()
+
+    print(mesaj if oldu else f"hata: {mesaj}", file=sys.stdout if oldu else sys.stderr)
+    return 0 if oldu else 1
 
 
 def komut_ozdenetim(args) -> int:
@@ -179,6 +211,12 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     sources: dict[str, str] = {}
 
+    if args.command == "ac":
+        return ghb_calistir.calistir(args.file.resolve())
+
+    if args.command in ("uzanti-kur", "uzanti-kaldir", "uzanti-durum"):
+        return komut_uzanti(args.command)
+
     if args.command == "ozdenetim":
         return komut_ozdenetim(args)
 
@@ -212,6 +250,19 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {d.name}")
         print()
         print(f"çalıştırmak için:  {Path(hedef) / 'baslat.cmd'}")
+        return 0
+
+    if target == "ghb":
+        if args.command == "emit":
+            sys.stdout.write(compilation.to_js())
+            return 0
+        hedef = args.out or (args.file.parent / "cikti" / title)
+        paket = ghb_paketle(compilation.to_js(), Path(hedef), title, args.file.name)
+        boyut = paket.stat().st_size
+        print(f"Nar uygulaması yazıldı: {paket}  ({boyut // 1024} KB)")
+        print()
+        print(f"çalıştırmak için:  nar ac {paket}")
+        print("çift tıklamayla açmak için bir kez:  nar uzanti-kur")
         return 0
 
     if target == "mobil":
