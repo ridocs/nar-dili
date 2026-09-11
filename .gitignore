@@ -6,6 +6,11 @@ cikti/
 !narc/runtime/*.js
 !testler/*.js
 
+# Yayına giden site. GitHub Pages bu klasörü sunuyor, o yüzden üretilmiş
+# hâli depoda durur: `python site/uret.py --cikti docs/index.html`
+!docs/
+!docs/**
+
 # Python
 __pycache__/
 *.py[cod]

@@ -75,7 +75,17 @@ nar uzanti-kur          bir kez çalıştır
 - **Sayfa**: DOM bağlaması ve bildirimsel arayüz kütüphanesi
 
 Tam anlatım ve çalışan örnekler için **belgeler sitesi**:
-`python site/uret.py` → `cikti/site/index.html`
+**<https://ridocs.github.io/nar-dili/>**
+
+Site depodan yayınlanıyor; yayına giden dosya `docs/index.html`. İçerik ya da
+tasarım değişince yeniden üretip birlikte commit'le:
+
+```
+python site/uret.py --cikti docs/index.html
+```
+
+Sitedeki bütün çıktılar üretim sırasında örnekler gerçekten derlenip
+çalıştırılarak alınır; bir örnek kırılırsa üretim durur.
 
 ## Depoda ne var
 
