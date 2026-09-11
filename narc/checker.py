@@ -2294,6 +2294,8 @@ def builtin_method(base: Type, name: str) -> FnT | None:
             "engelle": FnT((), VOID),      # tarayıcının varsayılan işini iptal et
             "durdur": FnT((), VOID),       # olayın yukarı yayılmasını durdur
             "kaynak": FnT((), OptT(ELEMENT)),  # olayın geldiği öğe
+            "x": FnT((), INT),             # fare: öğenin içindeki yatay konum (px)
+            "y": FnT((), INT),             # fare: öğenin içindeki dikey konum (px)
         }.get(name)
 
     if base == ELEMENT:
@@ -2362,7 +2364,7 @@ _BUILTIN_MEMBER_NAMES = {
                 "bul", "bulHepsi", "secimBasi", "secimSonu", "secimYap",
                 "yaziEkle", "kaydirmaUst", "kaydirmaUstYaz", "kaydirmaSol",
                 "isaretli", "isaretliYaz"],
-    "Olay": ["tus", "ctrl", "shift", "alt", "engelle", "durdur", "kaynak"],
+    "Olay": ["tus", "ctrl", "shift", "alt", "engelle", "durdur", "kaynak", "x", "y"],
     "Istek": ["yontem", "yol", "sorgu", "baslik", "govde", "ip"],
     "Yanit": ["baslikYaz", "durumYaz"],
 }

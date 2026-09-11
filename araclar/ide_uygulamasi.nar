@@ -308,7 +308,7 @@ fn sorunlariGoster() {
     html += "<div class=\"sorun " + s.seviye + "\" data-satir=\"${s.satir}\" data-sira=\"${i}\">" +
       "<span class=\"yer\">${s.satir}:${s.sutun}</span>" +
       "<div class=\"mesaj\">" + kacir(s.mesaj) + "</div>" +
-      ipucuHtml + kaynakHtml + "</div>"
+      ipucuHtml + kaynakHtml + duzeltmeDugmeleri(i, "kart") + "</div>"
   }
   panoYaz("pano-sorunlar", html)
 
@@ -316,6 +316,7 @@ fn sorunlariGoster() {
     let hedef = int(kart.ozellik("data-satir") ?? "0") ?? 0
     kart.dinle("click", || { satirGit(hedef) })
   }
+  duzeltDugmeleriniBagla(".sorun .duzelt", "kart")
 }
 
 // Sunucunun hata sözlüğünden Sorun üretir.
@@ -975,6 +976,314 @@ fn oneriUygula() {
   }
 }
 
+// --- hata baloncuğu ve düzeltmeler ----------------------------------------
+//
+// Fare hatalı aralığın üstünde kısa süre durunca mesaj, ipucu ve varsa
+// düzeltme düğmeleri çıkar. Düzeltmeler sorunun metninden türetilir;
+// derleyici ne dediyse ona göre bir eylem önerilir.
+
+struct Duzeltme {
+  etiket: String
+  uygula: () -> Void
+}
+
+var ipucuSirasi = -1          // baloncuğu açık olan sorun, yoksa -1
+var ipucuSayaci = 0           // bekleyen açılışı iptal etmek için
+var ipucuUzerinde = false     // fare baloncuğun kendisinde mi
+
+fn ipucuKutusu() -> Element? = bul("#ipucu")
+
+// Fare konumundan satır ve sütun (1 tabanlı). Katmanlar aynı ölçülerle
+// yazılır: 21px satır, 8.1px karakter, 12px/16px kenar boşluğu.
+fn fareKonumu(o: Olay) -> [Int] {
+  if let k = kodAlani() {
+    let satir = (o.y() + k.kaydirmaUst() - 12) / 21 + 1
+    let sutun = ((o.x() + k.kaydirmaSol() - 16) * 10) / 81 + 1
+    return [satir, sutun]
+  }
+  return [0, 0]
+}
+
+fn sorunBul(satir: Int, sutun: Int) -> Int {
+  for (i, s) in sorunlar {
+    if s.satir == satir && sutun >= s.sutun && sutun <= s.sutun + max(1, s.uzunluk) {
+      return i
+    }
+  }
+  return -1
+}
+
+// Mesajdaki ilk tırnaklı parça: 'toplam' → toplam.
+fn tirnakIci(metin: String) -> String {
+  let bas = metin.indexOf("'")
+  if bas < 0 {
+    return ""
+  }
+  let kalan = metin.slice(bas + 1, metin.len())
+  let son = kalan.indexOf("'")
+  if son < 0 {
+    return ""
+  }
+  return kalan.slice(0, son)
+}
+
+// İki ad arasındaki düzenleme uzaklığı (Levenshtein).
+fn uzaklik(a: String, b: String) -> Int {
+  let n = a.len()
+  let m = b.len()
+  var onceki: [Int] = []
+  for j in 0..=m {
+    onceki.push(j)
+  }
+  for i in 1..=n {
+    var simdiki: [Int] = [i]
+    for j in 1..=m {
+      var maliyet = 1
+      if karakter(a, i - 1) == karakter(b, j - 1) {
+        maliyet = 0
+      }
+      simdiki.push(min(min(onceki[j] + 1, simdiki[j - 1] + 1), onceki[j - 1] + maliyet))
+    }
+    onceki = simdiki
+  }
+  return onceki[m]
+}
+
+// Belgede ve sözlükte, verilene en çok benzeyen ad. Yoksa "".
+fn enYakinAd(ad: String) -> String {
+  var adaylar = belgedekiAdlar(kaynakMetni(), ad)
+  for o in sozluk {
+    if o.tur != "metot" && !adaylar.contains(o.ad) {
+      adaylar.push(o.ad)
+    }
+  }
+  var enIyi = ""
+  var enKucuk = 3          // en çok iki düzenleme uzakta olsun
+  for aday in adaylar {
+    let u = uzaklik(ad.lowerTr(), aday.lowerTr())
+    if u < enKucuk && u * 2 <= max(ad.len(), 2) + 1 {
+      enKucuk = u
+      enIyi = aday
+    }
+  }
+  return enIyi
+}
+
+// Satırdaki bir aralığı değiştirir; sütun 1 tabanlı.
+fn aralikDegistir(satir: Int, sutun: Int, uzunluk: Int, yeni: String) {
+  if let k = kodAlani() {
+    let satirlar = k.deger().split("\n")
+    if satir < 1 || satir > satirlar.len() {
+      return
+    }
+    let s = satirlar[satir - 1]
+    let bas = min(max(0, sutun - 1), s.len())
+    let son = min(bas + uzunluk, s.len())
+    satirlar[satir - 1] = s.slice(0, bas) + yeni + s.slice(son, s.len())
+    k.degerYaz(satirlar.join("\n"))
+    duzeltmeSonrasi()
+  }
+}
+
+fn satiriSil(satir: Int) {
+  if let k = kodAlani() {
+    let satirlar = k.deger().split("\n")
+    var kalan: [String] = []
+    for (i, s) in satirlar {
+      if i + 1 != satir {
+        kalan.push(s)
+      }
+    }
+    k.degerYaz(kalan.join("\n"))
+    duzeltmeSonrasi()
+  }
+}
+
+// Satırda `ad` kelimesinin sütununu bulur (1 tabanlı), yoksa 0.
+fn satirdaAdBul(satir: Int, ad: String) -> Int {
+  let satirlar = kaynakMetni().split("\n")
+  if satir < 1 || satir > satirlar.len() {
+    return 0
+  }
+  let s = satirlar[satir - 1]
+  var bas = 0
+  while bas <= s.len() {
+    let yer = s.slice(bas, s.len()).indexOf(ad)
+    if yer < 0 {
+      return 0
+    }
+    let mutlak = bas + yer
+    let oncesi = mutlak == 0 || !adKarakteriMi(karakter(s, mutlak - 1))
+    let sonrasi = mutlak + ad.len() >= s.len() || !adKarakteriMi(karakter(s, mutlak + ad.len()))
+    if oncesi && sonrasi {
+      return mutlak + 1
+    }
+    bas = mutlak + 1
+  }
+  return 0
+}
+
+// `let ad` bildirimini `var ad` yapar.
+fn letiVarYap(ad: String) {
+  let satirlar = kaynakMetni().split("\n")
+  for (i, s) in satirlar {
+    let yer = s.indexOf("let ")
+    if yer >= 0 && satirdaAdBul(i + 1, ad) == yer + 5 {
+      aralikDegistir(i + 1, yer + 1, 3, "var")
+      return
+    }
+  }
+}
+
+fn duzeltmeSonrasi() {
+  ipucuKapat()
+  ciz()
+  esitle()
+  imlecBildir()
+  denetimPlanla()
+}
+
+fn duzeltmeler(sira: Int) -> [Duzeltme] {
+  var liste: [Duzeltme] = []
+  if sira < 0 || sira >= sorunlar.len() {
+    return liste
+  }
+  let s = sorunlar[sira]
+  let ad = tirnakIci(s.mesaj)
+  let satir = s.satir
+
+  if s.mesaj.contains("hiç kullanılmamış") && ad != "" {
+    let sutun = satirdaAdBul(satir, ad)
+    if sutun > 0 {
+      liste.push(Duzeltme {
+        etiket: "_${ad} yap",
+        uygula: || { aralikDegistir(satir, sutun, ad.len(), "_" + ad) }
+      })
+    }
+    liste.push(Duzeltme { etiket: "satırı sil", uygula: || { satiriSil(satir) } })
+  }
+
+  if s.mesaj.contains("değişmez, değeri değiştirilemez") && ad != "" {
+    liste.push(Duzeltme { etiket: "let → var", uygula: || { letiVarYap(ad) } })
+  }
+
+  if (s.mesaj.startsWith("tanımsız isim") || s.mesaj.startsWith("tanımsız değişken")) && ad != "" {
+    let aday = enYakinAd(ad)
+    let sutun = satirdaAdBul(satir, ad)
+    if aday != "" && sutun > 0 {
+      liste.push(Duzeltme {
+        etiket: "${aday} olarak değiştir",
+        uygula: || { aralikDegistir(satir, sutun, ad.len(), aday) }
+      })
+    }
+  }
+  return liste
+}
+
+let DUZELT_IKONU = "<svg class=\"ikon\" viewBox=\"0 0 24 24\" fill=\"none\" " +
+  "stroke=\"currentColor\" stroke-width=\"1.8\" aria-hidden=\"true\">" +
+  "<path d=\"m5 12.5 4.5 4.5L19 7.5\"/></svg>"
+
+fn duzeltmeDugmeleri(sira: Int, onEk: String) -> String {
+  let d = duzeltmeler(sira)
+  if d.len() == 0 {
+    return ""
+  }
+  var html = "<div class=\"eylemler\">"
+  for (i, x) in d {
+    html += "<button type=\"button\" class=\"duzelt\" data-" + onEk + "=\"${sira}\" data-secim=\"${i}\">" +
+      DUZELT_IKONU + kacir(x.etiket) + "</button>"
+  }
+  return html + "</div>"
+}
+
+fn duzeltDugmeleriniBagla(secici: String, onEk: String) {
+  for b in bulHepsi(secici) {
+    let sira = int(b.ozellik("data-" + onEk) ?? "-1") ?? -1
+    let secim = int(b.ozellik("data-secim") ?? "0") ?? 0
+    b.dinle("mousedown", |o: Olay| {
+      o.engelle()
+      o.durdur()
+      let d = duzeltmeler(sira)
+      if secim < d.len() {
+        d[secim].uygula()
+      }
+    })
+    b.dinle("click", |o: Olay| { o.durdur() })
+  }
+}
+
+fn ipucuGoster(sira: Int) {
+  if sira < 0 || sira >= sorunlar.len() {
+    return
+  }
+  if let kutu = ipucuKutusu() {
+    let s = sorunlar[sira]
+    var seviyeAdi = "hata"
+    if s.seviye == "uyari" {
+      seviyeAdi = "uyarı"
+    }
+    var html = "<div class=\"ipucu-baslik\">" + seviyeAdi + " · satır ${s.satir}</div>" +
+      "<div class=\"ipucu-mesaj\">" + kacir(s.mesaj) + "</div>"
+    if s.ipucu != "" {
+      html += "<div class=\"ipucu-oneri\"><b>ipucu:</b> " + kacir(s.ipucu) + "</div>"
+    }
+    html += duzeltmeDugmeleri(sira, "baloncuk")
+    kutu.htmlYaz(html)
+    kutu.ozellikYaz("class", "ipucu acik " + s.seviye)
+
+    if let k = kodAlani() {
+      let ust = 12 + s.satir * 21 - k.kaydirmaUst() + 2
+      let sol = 16 + ((s.sutun - 1) * 81) / 10 - k.kaydirmaSol()
+      kutu.stil("top", "${ust}px")
+      kutu.stil("left", "${max(0, sol)}px")
+    }
+    ipucuSirasi = sira
+    duzeltDugmeleriniBagla("#ipucu .duzelt", "baloncuk")
+  }
+}
+
+fn ipucuKapat() {
+  ipucuSayaci += 1
+  if ipucuSirasi < 0 {
+    return
+  }
+  ipucuSirasi = -1
+  ipucuUzerinde = false
+  if let kutu = ipucuKutusu() {
+    kutu.ozellikYaz("class", "ipucu")
+  }
+}
+
+fn fareHareket(o: Olay) {
+  let yer = fareKonumu(o)
+  let sira = sorunBul(yer[0], yer[1])
+  if sira >= 0 && sira == ipucuSirasi {
+    return
+  }
+  if sira < 0 {
+    // Baloncuk açıkken fare dışarı kaydıysa küçük bir pay bırak: kullanıcı
+    // düğmeye gidiyor olabilir.
+    if ipucuSirasi >= 0 {
+      ipucuSayaci += 1
+      let benim = ipucuSayaci
+      zamanla(350, || {
+        if benim == ipucuSayaci && !ipucuUzerinde {
+          ipucuKapat()
+        }
+      })
+    }
+    return
+  }
+  ipucuSayaci += 1
+  let benim = ipucuSayaci
+  zamanla(250, || {
+    if benim == ipucuSayaci {
+      ipucuGoster(sira)
+    }
+  })
+}
+
 // --- klavye ---------------------------------------------------------------
 
 fn tusaBasildi(o: Olay) {
@@ -1071,17 +1380,36 @@ fn baslat() {
     ciz()
     esitle()
     oneriGuncelle()
+    ipucuKapat()
     denetimPlanla()
   })
   kod.dinle("scroll", || {
     esitle()
     oneriKapat()
+    ipucuKapat()
   })
   kod.dinle("click", || {
     imlecBildir()
     oneriKapat()
   })
   kod.dinle("blur", || { oneriKapat() })
+  kod.dinle("mousemove", |o: Olay| { fareHareket(o) })
+  kod.dinle("mouseleave", || {
+    ipucuSayaci += 1
+    let benim = ipucuSayaci
+    zamanla(350, || {
+      if benim == ipucuSayaci && !ipucuUzerinde {
+        ipucuKapat()
+      }
+    })
+  })
+  if let kutu = ipucuKutusu() {
+    kutu.dinle("mouseenter", || { ipucuUzerinde = true })
+    kutu.dinle("mouseleave", || {
+      ipucuUzerinde = false
+      ipucuKapat()
+    })
+  }
   kod.dinle("keyup", || { imlecBildir() })
   kod.dinle("keydown", |o: Olay| { tusaBasildi(o) })
 

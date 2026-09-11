@@ -142,6 +142,8 @@ OLAY_METHODS = {
     "engelle": "{0}.preventDefault()",
     "durdur": "{0}.stopPropagation()",
     "kaynak": "($olayKaynagi({0}))",
+    "x": "(({0}.offsetX | 0))",
+    "y": "(({0}.offsetY | 0))",
 }
 
 # Dosya, girdi ve zaman yerleşiklerinin çalışma zamanı karşılıkları.
