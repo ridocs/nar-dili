@@ -1711,21 +1711,48 @@ diliyle yazabilmelidir; buna <strong>self-hosting</strong> denir.
 <p>Nar bu yolda ilerliyor. Şu ana kadar Nar diliyle yazılanlar:</p>
 <table class="ref">
 <tr><td><code>derleyici/lexer.nar</code></td><td>Sözcüksel çözümleyici — kaynağı token'lara böler</td></tr>
-<tr><td><code>derleyici/ast.nar</code></td><td>Soyut sözdizim ağacı ve S-ifadesi yazıcı</td></tr>
+<tr><td><code>derleyici/ast.nar</code></td><td>Soyut sözdizim ağacı, konumlar ve S-ifadesi yazıcı</td></tr>
 <tr><td><code>derleyici/parser.nar</code></td><td>Sözdizim çözümleyici — token'lardan ağaç kurar</td></tr>
+<tr><td><code>derleyici/tipler.nar</code></td><td>Tip sistemi — atanabilirlik, ortak tip, tip çıkarımı</td></tr>
+<tr><td><code>derleyici/denetleyici.nar</code></td><td>Tip denetleyici (bildirim aşaması)</td></tr>
+<tr><td><code>derleyici/denetle.nar</code></td><td>Giriş noktası; içe aktarmaları izler</td></tr>
 <tr><td><code>araclar/renklendirici.nar</code></td><td>Sözdizimi renklendirici (bu sayfadaki renkler)</td></tr>
 <tr><td><code>araclar/bicimlendirici.nar</code></td><td>Kod biçimlendirici (<code>nar fmt</code>)</td></tr>
 <tr><td><code>araclar/arayuz.nar</code></td><td>Bildirimsel arayüz kütüphanesi</td></tr>
 <tr><td><code>araclar/json.nar</code></td><td>JSON okuyucu ve yazıcı</td></tr>
 <tr><td><code>araclar/ide_uygulamasi.nar</code></td><td>Nar IDE'nin tüm davranışı</td></tr>
 </table>
-<p>Sırada tip denetleyici ve kod üreteci var.</p>
+<p>Sırada gövde denetimi (ifadeler ve deyimler) ve kod üreteci var.</p>
 """,
-                "kod": '''# Nar ile yazılan lexer'ı kütüphane olarak derle
-nar build derleyici/lexer.nar --kutuphane -o cikti/nar-lexer.js
+                "kod": '''# Nar ile yazılmış derleyiciyle bir dosyayı denetle
+nar ozdenetim ornekler/yapilacaklar_uygulamasi.nar
 
-# Nar ile yazılan çözümleyiciyi derle
-nar build derleyici/parser.nar --kutuphane -o cikti/nar-parser.js''',
+# Derleyici kendi kaynağını da okuyabiliyor
+nar ozdenetim derleyici/parser.nar --kutuphane''',
+                "dil": "kabuk",
+                "calistirma": False,
+            },
+            {
+                "id": "ozdenetim",
+                "baslik": "nar ozdenetim",
+                "aciklama": """
+Nar ile yazılmış derleyiciyi elle denemek için bir komut var.
+<code>nar ozdenetim</code> önce o derleyiciyi (Nar kaynağından) JavaScript'e
+çevirir, sonra Node ile çalıştırıp verdiğin dosyayı denetler.
+<p>İçe aktarmaları da izler: <code>import</code> edilen dosyaların
+bildirimleri okunur, böylece başka dosyadaki tipler bilinir.</p>
+<p><strong>Kapsam:</strong> sözcüksel çözümleme, sözdizim çözümleme ve tip
+denetiminin <em>bildirim aşaması</em> — tipler, imzalar, arayüz uyumu.
+Gövde denetimi (ifadeler, deyimler) henüz Nar'a taşınmadı; tam denetim için
+<code>nar check</code> kullanılır.</p>
+""",
+                "kod": '''$ nar ozdenetim derleyici/denetleyici.nar --kutuphane
+tamam — hata yok
+
+$ nar ozdenetim bozuk.nar
+hata: 2:1 — 'A' tipi zaten tanımlı
+hata: 1:15 — bilinmeyen tip: 'Yok'
+''',
                 "dil": "kabuk",
                 "calistirma": False,
             },
@@ -1742,10 +1769,17 @@ Konum bilgisi yazılmaz — iki çözümleyicinin satır/sütun hesabı birebir
 aynı olmak zorunda değil, ağacın yapısı aynı olmak zorunda.</p>
 <p>Karşılaştırma yapay örneklerle sınırlı değil: projedeki
 <strong>bütün</strong> <code>.nar</code> dosyaları iki çözümleyiciden de
-geçirilir. Bu yöntem gerçek hatalar buldu — biri Türk alfabesinde
-olmadığı için harf listesinden düşen <code>q</code> harfi, biri de metin
-literalindeki <code>${'{...}'}</code> gömmesinin içeriğinin token'da
-saklanmaması.</p>
+geçirilir. Ayrı bir modda konumlar (satır, sütun) da karşılaştırılır —
+hata mesajlarının nereyi gösterdiği buna bağlı.</p>
+<p>Tip sistemi için aynı yöntem: iki taraf aynı 40 tipi kurar,
+atanabilirlik, ortak tip ve tip çıkarımı 1600 çift üzerinde
+karşılaştırılır. Denetleyicide ise hata listeleri — mesaj, satır ve
+sütunla birlikte.</p>
+<p>Bu yöntem gerçek hatalar buldu: Türk alfabesinde olmadığı için harf
+listesinden düşen <code>q</code> harfi; metin literalindeki
+<code>${'{...}'}</code> gömmesinin içeriğinin token'da saklanmaması;
+desende birden çok <code>_</code> kullanıldığında üretilen JavaScript'in
+çökmesi.</p>
 """,
                 "kod": '''// Kaynak
 fn kare(x: Int) -> Int = x * x

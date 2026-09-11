@@ -2,9 +2,13 @@
 //
 // Kaynak metinden başlayıp sözcüksel çözümleme, sözdizim çözümleme ve
 // (şimdilik bildirim aşamasıyla sınırlı) tip denetimini zincirler.
+// `import` satırlarını da izler: içe aktarılan dosyaların bildirimleri
+// tek bir modülde birleştirilir — Python'daki `narc/driver.py` gibi.
 //
 // Kütüphane olarak derlenir:
 //     nar build derleyici/denetle.nar --kutuphane -o cikti/nar-denetle.js
+//
+// Komut satırından denemek için:  nar ozdenetim dosya.nar
 
 import "parser.nar"
 import "denetleyici.nar"
@@ -14,7 +18,9 @@ enum DenetimSonucu {
   DCozumHatasi(String)        // kaynak zaten çözümlenemedi
 }
 
-// Kaynağı baştan sona işler.
+// --- tek kaynak -----------------------------------------------------------
+
+// Kaynağı baştan sona işler (içe aktarma izlenmez).
 fn kaynagiDenetle(kaynak: String, kutuphane: Bool) -> DenetimSonucu {
   match cozumle(kaynak) {
     CHata(h) -> return DCozumHatasi(h.goster())
@@ -22,9 +28,85 @@ fn kaynagiDenetle(kaynak: String, kutuphane: Bool) -> DenetimSonucu {
   }
 }
 
-// Hataları düz metin olarak verir; komut satırından kullanmak için.
-fn denetimRaporu(kaynak: String, kutuphane: Bool) -> String {
-  match kaynagiDenetle(kaynak, kutuphane) {
+// --- içe aktarma izleyen sürüm -------------------------------------------
+
+struct Yukleme {
+  var ogeler: [OgeD]
+  var gorulen: [String]
+  var hata: String?
+}
+
+// Dosya yolundan klasörünü çıkarır: "a/b/c.nar" → "a/b/"
+fn klasoru(yol: String) -> String {
+  var i = yol.len() - 1
+  while i >= 0 {
+    let c = yol.charAt(i)
+    if c == "/" || c == "\\" {
+      return yol.slice(0, i + 1)
+    }
+    i -= 1
+  }
+  return ""
+}
+
+// Göreli yolu çözer. `..` adımlarını sadeleştirir; Nar'ın `import` yolları
+// her zaman eğik çizgiyle yazılır.
+fn yoluBirlestir(klasor: String, goreli: String) -> String {
+  var parcalar: [String] = []
+  for p in (klasor + goreli).replace("\\", "/").split("/") {
+    if p == "" || p == "." {
+      continue
+    }
+    if p == ".." && parcalar.len() > 0 && parcalar.last() != ".." {
+      parcalar.pop()
+      continue
+    }
+    parcalar.push(p)
+  }
+  return parcalar.join("/")
+}
+
+fn dosyayiYukle(yol: String, y: Yukleme) {
+  if y.hata != none || y.gorulen.contains(yol) {
+    return
+  }
+  y.gorulen.push(yol)
+
+  let kaynak = dosyaOku(yol)
+  if kaynak == none {
+    y.hata = "dosya bulunamadı: ${yol}"
+    return
+  }
+
+  match cozumle(kaynak!) {
+    CHata(h) -> y.hata = "${yol}:${h.goster()}"
+    CTamam(m) -> {
+      let klasor = klasoru(yol)
+      for o in m.ogeler {
+        match o.ic {
+          OImport(hedef) -> dosyayiYukle(yoluBirlestir(klasor, hedef), y)
+          _ -> y.ogeler.push(o)
+        }
+      }
+    }
+  }
+}
+
+// Dosyayı ve içe aktardıklarını denetler.
+fn dosyayiDenetle(yol: String, kutuphane: Bool) -> DenetimSonucu {
+  let y = Yukleme { ogeler: [], gorulen: [], hata: none }
+  dosyayiYukle(yol, y)
+  if y.hata != none {
+    return DCozumHatasi(y.hata!)
+  }
+  let m = Modul { konum: Konum { satir: 1, sutun: 1 }, ogeler: y.ogeler }
+  return DTamam(bildirimleriDenetle(m, kutuphane))
+}
+
+// --- rapor ----------------------------------------------------------------
+
+fn raporla(sonuc: DenetimSonucu) -> String {
+  match sonuc {
     DCozumHatasi(mesaj) -> return "çözümleme hatası: " + mesaj
     DTamam(hatalar) -> {
       if hatalar.len() == 0 {
@@ -34,3 +116,10 @@ fn denetimRaporu(kaynak: String, kutuphane: Bool) -> String {
     }
   }
 }
+
+// Hataları düz metin olarak verir; komut satırından kullanmak için.
+fn denetimRaporu(kaynak: String, kutuphane: Bool) -> String =
+  raporla(kaynagiDenetle(kaynak, kutuphane))
+
+fn dosyaRaporu(yol: String, kutuphane: Bool) -> String =
+  raporla(dosyayiDenetle(yol, kutuphane))

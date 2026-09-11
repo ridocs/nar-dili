@@ -232,5 +232,80 @@ class NarDenetleyiciTesti(unittest.TestCase):
                 )
 
 
+
+@unittest.skipIf(NODE is None, "node bulunamadı")
+class OzDenetimTesti(unittest.TestCase):
+    """`nar ozdenetim` — Nar ile yazılmış derleyiciyi komut satırından çalıştırır.
+
+    Bu komut içe aktarmaları da izler: `import` edilen dosyaların
+    bildirimleri tek modülde birleştirilir. Böylece Nar derleyicisi kendi
+    kaynağını okuyabiliyor.
+    """
+
+    def ozdenetim(self, yol: Path, kutuphane: bool = False):
+        komut = [sys.executable, "-m", "narc", "ozdenetim", str(yol)]
+        if kutuphane:
+            komut.append("--kutuphane")
+        return subprocess.run(
+            komut, cwd=KOK, capture_output=True, text=True,
+            encoding="utf-8", timeout=300,
+        )
+
+    def test_kendi_kaynagini_denetleyebiliyor(self):
+        """Nar derleyicisi, Nar ile yazılmış derleyiciyi hatasız okumalı.
+
+        Bu self-hosting'in ölçüsü: derleyici kendi kaynağını anlıyor mu?
+        """
+        for ad in ("lexer.nar", "ast.nar", "parser.nar", "tipler.nar",
+                   "denetleyici.nar", "denetle.nar"):
+            with self.subTest(dosya=ad):
+                sonuc = self.ozdenetim(KOK / "derleyici" / ad, kutuphane=True)
+                self.assertIn("tamam", sonuc.stdout,
+                              f"{ad}: {sonuc.stdout}{sonuc.stderr}")
+
+    def test_arac_ve_ornekleri_denetleyebiliyor(self):
+        dosyalar = sorted((KOK / "araclar").glob("*.nar"))
+        self.assertGreater(len(dosyalar), 3)
+        for yol in dosyalar:
+            with self.subTest(dosya=yol.name):
+                sonuc = self.ozdenetim(yol, kutuphane=True)
+                self.assertIn("tamam", sonuc.stdout,
+                              f"{yol.name}: {sonuc.stdout}{sonuc.stderr}")
+
+    def test_hatayi_konumuyla_bildiriyor(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            yol = Path(tmp) / "bozuk.nar"
+            yol.write_text(
+                "struct A { x: Yok }\nstruct A { y: Int }\nfn main() { }\n",
+                encoding="utf-8",
+            )
+            sonuc = self.ozdenetim(yol)
+            self.assertIn("2:1 — 'A' tipi zaten tanımlı", sonuc.stdout)
+            self.assertIn("1:15 — bilinmeyen tip: 'Yok'", sonuc.stdout)
+            self.assertEqual(sonuc.returncode, 1, "hatalı dosyada 1 dönmeli")
+
+    def test_ice_aktarma_izleniyor(self):
+        """İçe aktarılan dosyadaki tipler bilinmeli."""
+        with tempfile.TemporaryDirectory() as tmp:
+            kok = Path(tmp)
+            (kok / "tipler_ek.nar").write_text(
+                "struct Nokta { x: Int  y: Int }\n", encoding="utf-8")
+            ana = kok / "ana.nar"
+            ana.write_text(
+                'import "tipler_ek.nar"\n\nfn uzaklik(n: Nokta) -> Int = n.x\n'
+                "fn main() { }\n",
+                encoding="utf-8",
+            )
+            sonuc = self.ozdenetim(ana)
+            self.assertIn("tamam", sonuc.stdout, sonuc.stdout + sonuc.stderr)
+
+    def test_olmayan_ice_aktarma_bildiriliyor(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ana = Path(tmp) / "ana.nar"
+            ana.write_text('import "yok.nar"\nfn main() { }\n', encoding="utf-8")
+            sonuc = self.ozdenetim(ana)
+            self.assertIn("dosya bulunamadı", sonuc.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -15,6 +15,17 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Hata mesajları ve çıktılar Türkçe. Windows'ta konsolun varsayılan kod
+# sayfası (cp1254 gibi) bunları yazamaz ve program çöker. `nar.cmd` bunu
+# PYTHONIOENCODING ile ayarlıyor ama `python -m narc` doğrudan çağrıldığında
+# da çalışmalı.
+for _akis in (sys.stdout, sys.stderr):
+    if hasattr(_akis, "reconfigure"):
+        try:
+            _akis.reconfigure(encoding="utf-8")
+        except (ValueError, OSError):
+            pass
+
 from . import __version__
 from .bicim import BicimHatasi, bicimlendir
 from .diagnostics import NarError, NarErrors
@@ -54,6 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
         ("build", "hedef kodu dosyaya yazar"),
         ("check", "yalnızca tip denetimi yapar"),
         ("emit", "üretilen kodu ekrana yazar"),
+        ("ozdenetim", "Nar ile yazılmış derleyiciyle denetler"),
     ):
         sub = subs.add_parser(name, help=help_text)
         sub.add_argument("file", type=Path, help="kaynak .nar dosyası")
@@ -63,7 +75,7 @@ def build_parser() -> argparse.ArgumentParser:
                              help="çıktı hedefi: js (Node), web (tek HTML), "
                                   "masaustu (kendi penceresinde açılan uygulama), "
                                   "mobil (Android/iOS projesi)")
-        if name in ("build", "emit", "check"):
+        if name in ("build", "emit", "check", "ozdenetim"):
             sub.add_argument("--kutuphane", action="store_true",
                              help="kütüphane olarak derle: 'main' gerekmez, "
                                   "fonksiyonlar globalThis.Nar altına açılır")
@@ -71,6 +83,63 @@ def build_parser() -> argparse.ArgumentParser:
             sub.add_argument("-o", "--out", type=Path, default=None,
                              help="çıktı dosyası")
     return parser
+
+
+def komut_ozdenetim(args) -> int:
+    """Nar ile yazılmış derleyiciyle denetler.
+
+    Derleyicinin kendisi Nar'la yazıldığı için önce Python derleyicisiyle
+    JavaScript'e çevrilir, sonra Node ile çalıştırılır. Bu, self-hosting'in
+    hangi noktada olduğunu elle görmenin yolu.
+
+    Kapsam: sözcüksel çözümleme, sözdizim çözümleme ve tip denetiminin
+    **bildirim aşaması** (tipler, imzalar, arayüz uyumu). Gövde denetimi
+    henüz Nar'a taşınmadı; onun için `nar check` kullanılır.
+    """
+    if not args.file.exists():
+        print(f"hata: dosya bulunamadı: {args.file}", file=sys.stderr)
+        return 1
+
+    node = shutil.which("node")
+    if node is None:
+        print("hata: 'node' bulunamadı. Node.js kurulu olmalı.", file=sys.stderr)
+        return 1
+
+    kok = Path(__file__).resolve().parent.parent
+    giris = kok / "derleyici" / "denetle.nar"
+    if not giris.exists():
+        print(f"hata: {giris} bulunamadı", file=sys.stderr)
+        return 1
+
+    try:
+        kod = compile_file(giris, kutuphane=True).to_js()
+    except NarError as err:
+        print("Nar derleyicisi derlenemedi:", err, file=sys.stderr)
+        return 1
+
+    build_dir = kok / ".narbuild"
+    build_dir.mkdir(exist_ok=True)
+    betik = build_dir / "nar-denetle.js"
+    betik.write_text(
+        kod + "\n"
+        "const yol = process.argv[2];\n"
+        "const kutuphane = process.argv[3] === 'kutuphane';\n"
+        "console.log(Nar.dosyaRaporu(yol, kutuphane));\n",
+        encoding="utf-8",
+    )
+
+    sonuc = subprocess.run(
+        [node, str(betik), str(args.file),
+         "kutuphane" if args.kutuphane else "program"],
+        capture_output=True, text=True, encoding="utf-8",
+    )
+    if sonuc.returncode != 0:
+        print(sonuc.stderr.strip(), file=sys.stderr)
+        return 1
+
+    cikti = sonuc.stdout.strip()
+    print(cikti)
+    return 0 if cikti.startswith("tamam") else 1
 
 
 def komut_fmt(args) -> int:
@@ -109,6 +178,9 @@ def komut_fmt(args) -> int:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     sources: dict[str, str] = {}
+
+    if args.command == "ozdenetim":
+        return komut_ozdenetim(args)
 
     if args.command == "fmt":
         return komut_fmt(args)
