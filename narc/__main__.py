@@ -33,6 +33,10 @@ from .masaustu_paket import paketle
 from .mobil_paket import paketle as mobil_paketle
 from .ghb_paket import paketle as ghb_paketle
 from . import ghb_calistir, uzanti_kayit
+from . import bytecode as bc
+from . import vm as vm_modulu
+from . import vm_metotlar
+from .backends import bytecode_uretici
 from .driver import compile_file, to_html
 
 
@@ -73,11 +77,13 @@ def build_parser() -> argparse.ArgumentParser:
         sub.add_argument("file", type=Path, help="kaynak .nar dosyası")
         if name in ("build", "emit"):
             sub.add_argument("--target", default="js",
-                             choices=["js", "web", "masaustu", "mobil", "ghb"],
+                             choices=["js", "web", "masaustu", "mobil", "ghb",
+                                      "narb"],
                              help="çıktı hedefi: js (Node), web (tek HTML), "
                                   "masaustu (kendi penceresinde açılan uygulama), "
                                   "mobil (Android/iOS projesi), "
-                                  "ghb (tek dosyalık Nar uygulaması)")
+                                  "ghb (tek dosyalık Nar uygulaması), "
+                                  "narb (Nar bytecode — kendi sanal makinesi)")
         if name in ("build", "emit", "check", "ozdenetim"):
             sub.add_argument("--kutuphane", action="store_true",
                              help="kütüphane olarak derle: 'main' gerekmez, "
@@ -85,6 +91,16 @@ def build_parser() -> argparse.ArgumentParser:
         if name == "build":
             sub.add_argument("-o", "--out", type=Path, default=None,
                              help="çıktı dosyası")
+    calistir = subs.add_parser(
+        "calistir", help="kendi sanal makinesinde çalıştırır (Node gerekmez)")
+    calistir.add_argument("file", type=Path, help=".nar ya da .narb dosyası")
+    calistir.add_argument("arguman", nargs="*",
+                          help="programa geçirilecek argümanlar")
+
+    bytecode_komutu = subs.add_parser(
+        "bytecode", help="üretilen bytecode'u okunabilir biçimde yazar")
+    bytecode_komutu.add_argument("file", type=Path, help="kaynak .nar dosyası")
+
     ac = subs.add_parser("ac", help=".ghb uygulamasını açar")
     ac.add_argument("file", type=Path, help="açılacak .ghb paketi")
 
@@ -94,6 +110,66 @@ def build_parser() -> argparse.ArgumentParser:
     subs.add_parser("uzanti-durum", help=".ghb ilişkilendirmesini gösterir")
 
     return parser
+
+
+def _bytecode_uret(yol: Path):
+    """Kaynağı bytecode'a çevirir; hataları çağırana bırakır."""
+    vm_metotlar.kur()
+    derleme = compile_file(yol)
+    return bytecode_uretici.uret(derleme.module, derleme.checker)
+
+
+def komut_calistir(args) -> int:
+    """Programı Nar'ın kendi sanal makinesinde çalıştırır.
+
+    JavaScript üretilmez, Node çağrılmaz. Sayfa (DOM) ve sunucu işlemleri
+    burada yoktur; onlar için `nar run` ya da `nar build --target web`.
+    """
+    if not args.file.exists():
+        print(f"hata: dosya bulunamadı: {args.file}", file=sys.stderr)
+        return 1
+
+    vm_metotlar.kur()
+    try:
+        if args.file.suffix == ".narb":
+            program = bc.oku_dosya(args.file.read_bytes())
+        else:
+            program = _bytecode_uret(args.file)
+    except NarError as err:
+        return fail(err, {args.file.name: args.file.read_text(encoding="utf-8-sig")})
+    except (ValueError, bytecode_uretici.UretimHatasi) as e:
+        print(f"hata: {e}", file=sys.stderr)
+        return 1
+
+    try:
+        vm_modulu.calistir(program, list(args.arguman))
+    except vm_modulu.NarCalismaHatasi as e:
+        print(f"çalışma hatası: {e}", file=sys.stderr)
+        return 1
+    except RecursionError:
+        print("çalışma hatası: özyineleme çok derin", file=sys.stderr)
+        return 1
+    return 0
+
+
+def komut_bytecode(args) -> int:
+    """Üretilen komutları okunabilir biçimde yazar."""
+    if not args.file.exists():
+        print(f"hata: dosya bulunamadı: {args.file}", file=sys.stderr)
+        return 1
+    try:
+        program = _bytecode_uret(args.file)
+    except NarError as err:
+        return fail(err, {args.file.name: args.file.read_text(encoding="utf-8-sig")})
+    except bytecode_uretici.UretimHatasi as e:
+        print(f"hata: {e}", file=sys.stderr)
+        return 1
+
+    print(bc.dokum(program.ana))
+    for islev in program.islevler:
+        print()
+        print(bc.dokum(islev))
+    return 0
 
 
 def komut_uzanti(komut: str) -> int:
@@ -211,6 +287,12 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     sources: dict[str, str] = {}
 
+    if args.command == "calistir":
+        return komut_calistir(args)
+
+    if args.command == "bytecode":
+        return komut_bytecode(args)
+
     if args.command == "ac":
         return ghb_calistir.calistir(args.file.resolve())
 
@@ -250,6 +332,19 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {d.name}")
         print()
         print(f"çalıştırmak için:  {Path(hedef) / 'baslat.cmd'}")
+        return 0
+
+    if target == "narb":
+        program = bytecode_uretici.uret(compilation.module, compilation.checker)
+        veri = bc.yaz_dosya(program)
+        if args.command == "emit":
+            sys.stdout.write(bc.dokum(program.ana))
+            return 0
+        out_path = args.out or args.file.with_suffix(".narb")
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_bytes(veri)
+        print(f"bytecode yazıldı: {out_path}  ({len(veri) // 1024} KB)")
+        print(f"çalıştırmak için:  nar calistir {out_path}")
         return 0
 
     if target == "ghb":
