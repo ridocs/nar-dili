@@ -1,32 +1,30 @@
-"""Tarayıcıda çalışan Nar deneme alanını (playground) üretir.
+"""Tarayıcıda çalışan Nar deneme alanı — IDE'nin kendisi, sunucusuz.
 
-Neden var: bir dili kimse kurup denemez. Nar'ı denemek için şimdiye kadar
-depoyu klonlamak, Python ve Node kurmak gerekiyordu. Bu sayfa o engeli
-kaldırıyor — kod yazılır, `Çalıştır`a basılır, çıktı ve ekran görünür.
+Deneme alanı artık ayrı bir arayüz değil: `ide/arayuz.html` ve Nar ile
+yazılmış `araclar/ide_uygulamasi.nar` olduğu gibi kullanılıyor. IDE her şeyi
+`/api/...` çağrılarıyla yaptığı için, tarayıcıda o çağrıları yakalayan bir
+köprü yetiyor:
 
-Nasıl çalışıyor:
+- `/api/denetle`, `/api/uretilen`, `/api/calistir` → derleyici Pyodide
+  üzerinde tarayıcıda çalışır (ilk kullanımda iner).
+- `/api/dosyalar`, `/api/dosya` → örnekler ve rehber konuları sayfaya gömülü;
+  "Çalışmalarım" tarayıcı depolamasında.
+- `/api/kaydet` → tarayıcı depolaması.
+- `/api/kelimeler` → kod önerisi sözlüğü sayfaya gömülü.
 
-- **Derleyici** tarayıcıda Pyodide üzerinde çalışır. `narc` saf Python
-  olduğu için olduğu gibi paketlenip yükleniyor; ilk `Çalıştır`a kadar
-  indirilmez.
-- **Renklendirme** Nar ile yazılmış renklendiriciden gelir
-  (`araclar/renklendirici.nar`), yani IDE ve belgeler sitesiyle aynı
-  kaynak. Yazarken sayfa kendi dilini kendi aracıyla boyuyor.
-- **Çalıştırma** ayrı kökenli, betik dışında hiçbir yetkisi olmayan bir
-  iframe içinde olur. Kullanıcı kodu sayfaya erişemez; çıktı `postMessage`
-  ile geri döner. Program sayfayla konuşuyorsa (`bul("#uygulama")`) o
-  iframe aynı zamanda ekranıdır — yani arayüz örnekleri gerçekten çizilir.
-- **Paylaşma** kodu adres çubuğuna gömer; sunucu yok, bağlantı yeter.
+Programlar ayrı kökenli, betik dışında yetkisi olmayan bir iframe'de
+çalışır; çıktı `postMessage` ile döner. Program sayfayla konuşuyorsa aynı
+iframe onun ekranıdır (Ekran sekmesi).
 
-Üretim:
-    python site/oyun.py                 -> docs/deneme/
+IDE'de ne varsa burada da var: dosya ağacı, Sorunlar paneli, uyarılar, hata
+altı çizgileri, kod önerisi, biçimlendirme. Tek kaynak, iki ev sahibi.
+
+Üretim: `python site/uret.py --cikti docs/index.html` deneme alanını da yazar.
 """
 
 from __future__ import annotations
 
-import argparse
 import base64
-import html
 import io
 import json
 import sys
@@ -36,21 +34,16 @@ from pathlib import Path
 KOK = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(KOK))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(KOK / "ide"))
 
-from narc import __version__  # noqa: E402
 from narc.driver import compile_file  # noqa: E402
-
-import tasarim  # noqa: E402
-from tasarim import (  # noqa: E402
-    IKON_AY, IKON_GUNES, IKON_KOD, IKON_KOPYA, IKON_OK, IKON_ONAY,
-)
-from icerik import BASLIK, DEPO  # noqa: E402
 
 # Pyodide sürümü sabitlenir: "latest" bir gün sessizce değişir ve sayfa
 # çalışmayı bırakır.
 PYODIDE = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/"
 
 ILK_KOD = """// Nar'a hoş geldin. Değiştir ve Çalıştır'a bas (Ctrl+Enter).
+// Yazarken kod önerisi çıkar; Tab ile uygula.
 
 struct Kisi {
   ad: String
@@ -76,11 +69,10 @@ fn main() {
 }
 """
 
-# Sol üstteki hazır örnekler. Hepsi kısa: amaç dilin farklı yanlarını tek
-# ekranda göstermek.
+# Hazır örnekler. Hepsi kısa: amaç dilin farklı yanlarını göstermek.
 ORNEKLER = [
-    ("Başlangıç", ILK_KOD),
-    ("Tip güvenliği", """// Nar tipleri derleme anında denetler.
+    ("baslangic", "Başlangıç", ILK_KOD),
+    ("tip-guvenligi", "Tip güvenliği", """// Nar tipleri derleme anında denetler.
 // Aşağıdaki satırın yorumunu kaldır, hatayı Türkçe gör.
 
 fn main() {
@@ -90,7 +82,7 @@ fn main() {
   print("yaş:", yas)
 }
 """),
-    ("match ve enum", """enum Sekil {
+    ("match-enum", "match ve enum", """enum Sekil {
   Daire(Float)
   Dikdortgen(Float, Float)
   Kare(Float)
@@ -109,33 +101,31 @@ fn main() {
   }
 }
 """),
-    ("Arayüz çizmek", """// Bu örnek ekrana çizer: sağdaki "Ekran" sekmesine bak.
+    ("arayuz", "Arayüz çizmek", """// Bu örnek ekrana çizer: sağdaki "Ekran" sekmesine bak.
 
 fn main() {
-  let alan = bul("#uygulama")
-  if alan == none {
+  if let alan = bul("#uygulama") {
+    var sayac = 0
+
+    let baslik = olustur("h2")
+    baslik.metinYaz("Sayaç")
+
+    let deger = olustur("p")
+    deger.metinYaz("0")
+
+    let dugme = olustur("button")
+    dugme.metinYaz("Artır")
+    dugme.dinle("click", |o| {
+      sayac += 1
+      deger.metinYaz("${sayac}")
+    })
+
+    alan.ekle(baslik)
+    alan.ekle(deger)
+    alan.ekle(dugme)
+  } else {
     print("Bu program bir sayfada çalışmalı.")
-    return
   }
-
-  var sayac = 0
-
-  let baslik = olustur("h2")
-  baslik.metinYaz("Sayaç")
-
-  let deger = olustur("p")
-  deger.metinYaz("0")
-
-  let dugme = olustur("button")
-  dugme.metinYaz("Artır")
-  dugme.dinle("click", |o| {
-    sayac += 1
-    deger.metinYaz("${sayac}")
-  })
-
-  alan!.ekle(baslik)
-  alan!.ekle(deger)
-  alan!.ekle(dugme)
 }
 """),
 ]
@@ -144,11 +134,11 @@ fn main() {
 # ------------------------------------------------------------------ paket
 
 # Derleyiciyi çalıştırmak için gereken en küçük küme. `__main__.py`,
-# masaüstü/mobil paketleyiciler ve sanal makine tarayıcıya gitmez.
+# paketleyiciler ve sanal makine tarayıcıya gitmez.
 PAKET_DISI = {
     "__main__.py", "masaustu_paket.py", "mobil_paket.py", "ghb_paket.py",
-    "ghb_calistir.py", "uzanti_kayit.py", "vm.py", "vm_metotlar.py",
-    "bytecode.py", "renk.py", "bicim.py",
+    "ghb_calistir.py", "uzanti_kayit.py", "exe_paket.py", "vm.py",
+    "vm_metotlar.py", "bytecode.py", "renk.py", "bicim.py",
 }
 
 
@@ -162,7 +152,6 @@ def narc_zip(hedef: Path) -> int:
             if yol.parent.name == "backends" and yol.name == "bytecode_uretici.py":
                 continue
             z.write(yol, str(yol.relative_to(KOK)).replace("\\", "/"))
-        # Üretilen programın başına gömülen çalışma zamanı.
         calisma = KOK / "narc" / "runtime" / "nar_runtime.js"
         z.write(calisma, "narc/runtime/nar_runtime.js")
 
@@ -171,9 +160,9 @@ def narc_zip(hedef: Path) -> int:
     return len(tampon.getvalue())
 
 
-def renklendirici_js() -> str:
-    """`araclar/renklendirici.nar`'ı kütüphane olarak JavaScript'e derler."""
-    return compile_file(KOK / "araclar" / "renklendirici.nar",
+def ide_js() -> str:
+    """IDE'nin Nar ile yazılmış davranışını kütüphane olarak derler."""
+    return compile_file(KOK / "araclar" / "ide_uygulamasi.nar",
                         kutuphane=True).to_js()
 
 
@@ -182,436 +171,8 @@ def kodu_sar(kaynak: str) -> str:
     return base64.urlsafe_b64encode(kaynak.encode("utf-8")).decode("ascii")
 
 
-# -------------------------------------------------------------------- stil
-
-def stil() -> str:
-    """Playground'a özgü stil. Renk ve yazı tipi belgelerle ortak."""
-    return """
-/* --------------------------------------------------------- deneme alanı */
-
-.deneme {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 1px;
-  background: var(--kenar);
-  height: calc(100vh - var(--bar));
-  border-top: 1px solid var(--kenar);
-}
-.bolme {
-  display: flex; flex-direction: column; min-width: 0; min-height: 0;
-  background: var(--zemin);
-}
-
-.arac {
-  display: flex; align-items: center; gap: 8px;
-  padding: 0 12px; height: 42px; flex: none;
-  border-bottom: 1px solid var(--kenar);
-  background: var(--yuzey);
-}
-.arac-etiket {
-  font-family: var(--mono); font-size: 10px; letter-spacing: .1em;
-  text-transform: uppercase; color: var(--metin-soluk);
-}
-.arac .sag { margin-left: auto; display: flex; align-items: center; gap: 6px; }
-
-.dugme {
-  display: inline-flex; align-items: center; gap: 6px;
-  height: 28px; padding: 0 10px;
-  font: inherit; font-size: 12.5px;
-  color: var(--metin); background: var(--yuzey-2);
-  border: 1px solid var(--kenar); border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: border-color .2s ease, background .2s ease, color .2s ease;
-}
-.dugme:hover { border-color: var(--kenar-guclu); }
-.dugme[disabled] { opacity: .5; cursor: default; }
-.dugme.bitti { color: var(--vurgu); }
-.dugme.bitti .onay { display: block; }
-.dugme.bitti .kopya { display: none; }
-.dugme .onay { display: none; }
-
-.dugme-birincil {
-  background: linear-gradient(180deg, var(--vurgu), var(--vurgu-uc));
-  color: var(--vurgu-metin); border-color: transparent;
-  font-weight: 500;
-  box-shadow: 0 1px 0 0 #ffffff2e inset;
-}
-.dugme-birincil:hover { filter: brightness(1.06); }
-
-select.dugme { padding-right: 6px; }
-
-/* --- düzenleyici --------------------------------------------------------
-   Yazma alanı saydam bir textarea; boyalı metin tam altında duran bir
-   <pre>. İkisinin yazı ölçüleri birebir aynı olmalı, yoksa imleç kayar. */
-
-.yazim { position: relative; flex: 1 1 auto; min-height: 0; overflow: auto; }
-
-.yazim pre, .yazim textarea {
-  margin: 0;
-  padding: 14px 16px 40vh;
-  font-family: var(--mono); font-size: 13.5px; line-height: 1.7;
-  tab-size: 2;
-  white-space: pre; word-wrap: normal;
-  border: 0;
-}
-.yazim pre {
-  min-height: 100%;
-  pointer-events: none;
-  color: var(--metin);
-}
-/* Tarayıcının kendi kuralı <code>'a `font-family: monospace` verir ve
-   pre'den devralınan fontu ezer; boyalı metin başka fontla çizilince imleç
-   sütun ilerledikçe kayar. İki katman aynı font, aynı boy, ligatürsüz. */
-.yazim pre code { font: inherit; letter-spacing: inherit; }
-.yazim pre, .yazim textarea {
-  font-variant-ligatures: none; font-feature-settings: 'liga' 0, 'calt' 0;
-  font-kerning: none;
-}
-.yazim textarea {
-  position: absolute; inset: 0;
-  width: 100%; height: 100%;
-  resize: none; outline: none;
-  background: transparent;
-  color: transparent;
-  caret-color: var(--vurgu);
-  overflow: hidden;
-}
-.yazim textarea::selection { background: color-mix(in srgb, var(--vurgu) 28%, transparent); }
-
-/* --- çıktı -------------------------------------------------------------- */
-
-.sekmeler { display: flex; gap: 2px; }
-.sekme {
-  height: 28px; padding: 0 10px;
-  font: inherit; font-size: 12.5px;
-  color: var(--metin-soluk); background: none;
-  border: 1px solid transparent; border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: color .2s ease, background .2s ease;
-}
-.sekme:hover { color: var(--metin); background: var(--yuzey-2); }
-.sekme[aria-selected="true"] {
-  color: var(--vurgu); background: var(--vurgu-zemin);
-  border-color: var(--kenar);
-}
-
-.pano { flex: 1 1 auto; min-height: 0; position: relative; }
-.pano > * { position: absolute; inset: 0; }
-.pano > [hidden] { display: none; }
-
-#cikti {
-  margin: 0; padding: 14px 16px;
-  overflow: auto;
-  font-family: var(--mono); font-size: 12.5px; line-height: 1.7;
-  white-space: pre-wrap; word-break: break-word;
-  color: var(--metin);
-}
-#cikti .hata { color: var(--hata); }
-#cikti .bilgi { color: var(--metin-soluk); }
-#cikti .sure {
-  display: block; margin-top: 10px;
-  color: var(--metin-soluk); font-size: 11px;
-}
-
-#ekran { width: 100%; height: 100%; border: 0; background: var(--yuzey); }
-
-.bos-ipucu {
-  display: flex; align-items: center; justify-content: center;
-  padding: 24px; text-align: center;
-  color: var(--metin-soluk); font-size: 13px;
-}
-
-/* --- durum çubuğu -------------------------------------------------------- */
-
-.durum {
-  flex: none; display: flex; align-items: center; gap: 8px;
-  padding: 0 12px; height: 30px;
-  border-top: 1px solid var(--kenar);
-  background: var(--yuzey);
-  font-family: var(--mono); font-size: 11px; color: var(--metin-soluk);
-}
-.durum .nokta {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--kenar-guclu);
-}
-.durum.hazir .nokta { background: var(--vurgu); }
-.durum.calisiyor .nokta { animation: nabiz 1s ease-in-out infinite; }
-@keyframes nabiz { 50% { opacity: .25; } }
-
-@media (max-width: 900px) {
-  .deneme { grid-template-columns: minmax(0, 1fr); height: auto; }
-  .bolme { height: 70vh; }
-}
-"""
-
-
-# ------------------------------------------------------------------- betik
-
-def betik() -> str:
-    return """
-(function () {
-  'use strict';
-
-  var kaynak = document.getElementById('kaynak');
-  var boya = document.getElementById('boya');
-  var cikti = document.getElementById('cikti');
-  var ekran = document.getElementById('ekran');
-  var calistirDugmesi = document.getElementById('calistir');
-  var durum = document.getElementById('durum');
-  var durumYazi = document.getElementById('durum-yazi');
-
-  // --- boyama ------------------------------------------------------
-  // Renklendirici Nar ile yazılmıştır; IDE ve belgeler sitesiyle aynı
-  // kaynaktan gelir, o yüzden üçü arasında sessizce fark oluşamaz.
-  function boya_() {
-    var metin = kaynak.value;
-    // Son satır boşsa <pre> onu yutar; imleç son satıra inince boya
-    // kayar. Sona bir boşluk eklemek hizayı korur.
-    boya.innerHTML = globalThis.Nar.renklendir(metin + '\\n');
-  }
-
-  kaynak.addEventListener('input', boya_);
-  kaynak.addEventListener('scroll', function () {
-    boya.parentNode.scrollTop = kaynak.scrollTop;
-  });
-
-  // Sekme tuşu odağı kaçırmasın: iki boşluk yazar.
-  kaynak.addEventListener('keydown', function (o) {
-    if (o.key === 'Tab') {
-      o.preventDefault();
-      var b = kaynak.selectionStart, s = kaynak.selectionEnd;
-      kaynak.value = kaynak.value.slice(0, b) + '  ' + kaynak.value.slice(s);
-      kaynak.selectionStart = kaynak.selectionEnd = b + 2;
-      boya_();
-    }
-    if ((o.ctrlKey || o.metaKey) && o.key === 'Enter') {
-      o.preventDefault();
-      calistir();
-    }
-  });
-
-  // --- çıktı -------------------------------------------------------
-  function yaz(metin, sinif) {
-    var s = document.createElement('span');
-    if (sinif) s.className = sinif;
-    s.textContent = metin + '\\n';
-    cikti.appendChild(s);
-  }
-  function temizle() { cikti.textContent = ''; }
-
-  function durumYaz(metin, sinif) {
-    durumYazi.textContent = metin;
-    durum.className = 'durum' + (sinif ? ' ' + sinif : '');
-  }
-
-  // --- sekmeler ----------------------------------------------------
-  var sekmeler = Array.prototype.slice.call(document.querySelectorAll('.sekme'));
-  function sekmeSec(ad) {
-    sekmeler.forEach(function (s) {
-      var secili = s.dataset.pano === ad;
-      s.setAttribute('aria-selected', secili ? 'true' : 'false');
-      document.getElementById(s.dataset.pano).hidden = !secili;
-    });
-  }
-  sekmeler.forEach(function (s) {
-    s.addEventListener('click', function () { sekmeSec(s.dataset.pano); });
-  });
-
-  // --- derleyici ---------------------------------------------------
-  // Pyodide ancak ilk çalıştırmada indirilir: sayfayı okumaya gelen
-  // kimse 9 MB ödemesin.
-  var pyodide = null;
-  var yukleniyor = null;
-
-  function derleyiciyiHazirla() {
-    if (pyodide) return Promise.resolve(pyodide);
-    if (yukleniyor) return yukleniyor;
-
-    durumYaz('derleyici indiriliyor…', 'calisiyor');
-    yukleniyor = new Promise(function (coz, kir) {
-      var s = document.createElement('script');
-      s.src = PYODIDE_URL + 'pyodide.js';
-      s.onload = coz;
-      s.onerror = function () { kir(new Error('Pyodide yüklenemedi')); };
-      document.head.appendChild(s);
-    }).then(function () {
-      return loadPyodide({ indexURL: PYODIDE_URL });
-    }).then(function (py) {
-      durumYaz('derleyici açılıyor…', 'calisiyor');
-      return fetch('narc.zip').then(function (y) {
-        if (!y.ok) throw new Error('narc.zip alınamadı');
-        return y.arrayBuffer();
-      }).then(function (paket) {
-        py.unpackArchive(paket, 'zip');
-        py.runPython(HAZIRLIK);
-        pyodide = py;
-        durumYaz('derleyici hazır', 'hazir');
-        return py;
-      });
-    }).catch(function (h) {
-      yukleniyor = null;
-      durumYaz('derleyici yüklenemedi', '');
-      throw h;
-    });
-    return yukleniyor;
-  }
-
-  // --- çalıştırma --------------------------------------------------
-  var calisiyorMu = false;
-
-  function calistir() {
-    if (calisiyorMu) return;
-    calisiyorMu = true;
-    calistirDugmesi.disabled = true;
-    temizle();
-    yaz('derleniyor…', 'bilgi');
-
-    derleyiciyiHazirla().then(function (py) {
-      temizle();
-      durumYaz('derleniyor…', 'calisiyor');
-      var baslangic = performance.now();
-      var sonuc = JSON.parse(py.runPython(
-        'derle(' + JSON.stringify(kaynak.value) + ')'));
-      var sure = Math.round(performance.now() - baslangic);
-
-      if (!sonuc.tamam) {
-        yaz(sonuc.hata, 'hata');
-        durumYaz('derleme hatası', '');
-        sekmeSec('pano-cikti');
-        return;
-      }
-      durumYaz('derlendi · ' + sure + ' ms', 'hazir');
-      programiCalistir(sonuc.kod);
-    }).catch(function (h) {
-      temizle();
-      yaz('Derleyici çalıştırılamadı: ' + h.message, 'hata');
-    }).then(function () {
-      calisiyorMu = false;
-      calistirDugmesi.disabled = false;
-    });
-  }
-
-  // Kullanıcı kodu ayrı kökenli bir iframe'de çalışır: sayfaya, çerezlere
-  // ve depolamaya erişemez. Çıktı postMessage ile geri gelir.
-  var ciziliMi = false;
-
-  function programiCalistir(kod) {
-    ciziliMi = false;
-    var belge =
-      '<!doctype html><html lang="tr"><head><meta charset="utf-8">' +
-      '<style>' + EKRAN_STILI + '</style></head><body>' +
-      '<div id="uygulama"></div><script>' + KOPRU + '<\\/script>' +
-      '<script>' + kod + '<\\/script>' +
-      '<script>parent.postMessage({t:"bitti",cizdi:' +
-      'document.getElementById("uygulama").childNodes.length>0},"*");<\\/script>' +
-      '</body></html>';
-    ekran.srcdoc = belge;
-  }
-
-  window.addEventListener('message', function (o) {
-    var v = o.data;
-    if (!v || typeof v !== 'object') return;
-    if (v.t === 'log') yaz(v.s);
-    else if (v.t === 'hata') { yaz(v.s, 'hata'); durumYaz('çalışma hatası', ''); }
-    else if (v.t === 'bitti') {
-      ciziliMi = v.cizdi;
-      if (ciziliMi) sekmeSec('pano-ekran');
-      else sekmeSec('pano-cikti');
-    }
-  });
-
-  // --- paylaşma ----------------------------------------------------
-  function sar(metin) {
-    var baytlar = new TextEncoder().encode(metin);
-    var ikilik = '';
-    baytlar.forEach(function (b) { ikilik += String.fromCharCode(b); });
-    return btoa(ikilik).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');
-  }
-  function coz(metin) {
-    var d = metin.replace(/-/g, '+').replace(/_/g, '/');
-    var ikilik = atob(d);
-    var baytlar = new Uint8Array(ikilik.length);
-    for (var i = 0; i < ikilik.length; i++) baytlar[i] = ikilik.charCodeAt(i);
-    return new TextDecoder().decode(baytlar);
-  }
-
-  var paylasDugmesi = document.getElementById('paylas');
-  paylasDugmesi.addEventListener('click', function () {
-    var adres = location.origin + location.pathname + '#k=' + sar(kaynak.value);
-    history.replaceState(null, '', '#k=' + sar(kaynak.value));
-    var bitir = function (oldu) {
-      paylasDugmesi.classList.toggle('bitti', oldu);
-      paylasDugmesi.querySelector('.yazi').textContent =
-        oldu ? 'kopyalandı' : 'olmadı';
-      setTimeout(function () {
-        paylasDugmesi.classList.remove('bitti');
-        paylasDugmesi.querySelector('.yazi').textContent = 'Paylaş';
-      }, 1600);
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(adres).then(function () { bitir(true); },
-                                                function () { bitir(false); });
-    } else { bitir(false); }
-  });
-
-  // --- örnekler ----------------------------------------------------
-  var secici = document.getElementById('ornek');
-  secici.addEventListener('change', function () {
-    if (!secici.value) return;
-    kaynak.value = ORNEKLER[+secici.value];
-    boya_();
-    history.replaceState(null, '', location.pathname);
-  });
-
-  // --- açılış ------------------------------------------------------
-  var basla = ORNEKLER[0];
-  if (location.hash.indexOf('#k=') === 0) {
-    try { basla = coz(location.hash.slice(3)); } catch (e) { /* bozuk bağlantı */ }
-  }
-  kaynak.value = basla;
-  boya_();
-  durumYaz('derleyici ilk çalıştırmada inecek', '');
-
-  calistirDugmesi.addEventListener('click', calistir);
-})();
-"""
-
-
-# Kullanıcı kodunun içinde çalışan köprü: konsolu ve hataları dışarı taşır.
-KOPRU = """
-(function () {
-  var yolla = function (t, s) { parent.postMessage({ t: t, s: String(s) }, '*'); };
-  var yaz = function () {
-    yolla('log', Array.prototype.map.call(arguments, function (x) {
-      return typeof x === 'string' ? x : JSON.stringify(x);
-    }).join(' '));
-  };
-  console.log = yaz;
-  console.info = yaz;
-  console.warn = yaz;
-  console.error = function () {
-    yolla('hata', Array.prototype.join.call(arguments, ' '));
-  };
-  window.onerror = function (m) { yolla('hata', m); return true; };
-  window.addEventListener('unhandledrejection', function (o) {
-    yolla('hata', o.reason);
-  });
-})();
-"""
-
-# İframe içindeki ekranın stili. Programın çizdiği arayüz burada görünür;
-# arayüz kütüphanesi kendi stilini zaten kendi getiriyor.
-EKRAN_STILI = """
-:root { color-scheme: light dark; }
-body {
-  margin: 0; padding: 16px;
-  font: 15px/1.6 'IBM Plex Sans', system-ui, sans-serif;
-  background: Canvas; color: CanvasText;
-}
-"""
-
-# Pyodide içinde bir kez çalışan hazırlık. `derle` tek bir kaynak metni
-# alır ve JSON döndürür; hata durumunda Türkçe hata metnini verir.
+# Pyodide içinde bir kez çalışan hazırlık. Sunucunun verdiği sözlüklerin
+# aynısını üretir; IDE ikisini ayırt edemez.
 HAZIRLIK = r'''
 import json
 
@@ -621,150 +182,337 @@ from narc.diagnostics import NarError
 from narc.parser import parse
 
 
+def _sozluk(err, kaynak):
+    return {
+        "mesaj": err.message,
+        "satir": err.span.line if err.span else None,
+        "sutun": err.span.col if err.span else None,
+        "uzunluk": err.span.length if err.span else 1,
+        "ipucu": err.hint,
+        "gosterim": err.render(kaynak),
+    }
+
+
+def _uyarilar(checker, kaynak):
+    if checker is None:
+        return []
+    return [dict(_sozluk(u, kaynak), seviye="uyari") for u in checker.warnings]
+
+
 def derle(kaynak):
+    checker = None
     try:
         modul = parse(kaynak, "deneme.nar")
-        denetci = Checker(modul, kaynak)
-        denetci.check()
-        kod = _js.generate(modul, denetci)
-    except NarError as hata:
-        return json.dumps({"tamam": False, "hata": hata.render(kaynak)})
+        checker = Checker(modul, kaynak)
+        checker.check()
+        kod = _js.generate(modul, checker)
+    except NarError as err:
+        sozluk = _sozluk(err, kaynak)
+        hepsi = getattr(err, "errors", None)
+        sozluk["hepsi"] = [_sozluk(h, kaynak) for h in hepsi] if hepsi else [dict(sozluk)]
+        sozluk["adet"] = len(sozluk["hepsi"])
+        if sozluk["adet"] > 1:
+            sozluk["gosterim"] = "\n\n".join(h["gosterim"] for h in sozluk["hepsi"])
+        return json.dumps({"tamam": False, "hata": sozluk,
+                           "uyarilar": _uyarilar(checker, kaynak)})
     except RecursionError:
-        return json.dumps({"tamam": False,
-                           "hata": "program çok derin: derleyici yığını taştı"})
-    return json.dumps({"tamam": True, "kod": kod})
+        return json.dumps({"tamam": False, "uyarilar": [], "hata": {
+            "mesaj": "program çok derin iç içe geçmiş (özyineleme sınırı)",
+            "satir": None, "sutun": None, "uzunluk": 1, "ipucu": None,
+            "gosterim": "hata: program çok derin iç içe geçmiş",
+            "hepsi": [], "adet": 1}})
+    return json.dumps({"tamam": True, "hata": None, "kod": kod,
+                       "uyarilar": _uyarilar(checker, kaynak)})
 '''
 
+# Kullanıcı kodunun içinde çalışan köprü: konsolu ve hataları dışarı taşır.
+IFRAME_KOPRUSU = """
+(function () {
+  var yolla = function (t, s) { parent.postMessage({ t: t, s: String(s) }, '*'); };
+  var yaz = function () {
+    yolla('log', Array.prototype.map.call(arguments, function (x) {
+      return typeof x === 'string' ? x : JSON.stringify(x);
+    }).join(' '));
+  };
+  console.log = yaz; console.info = yaz; console.warn = yaz;
+  console.error = function () { yolla('hata', Array.prototype.join.call(arguments, ' ')); };
+  window.onerror = function (m) { yolla('hata', m); return true; };
+  window.addEventListener('unhandledrejection', function (o) { yolla('hata', o.reason); });
+})();
+"""
 
-# -------------------------------------------------------------------- sayfa
-
-def sayfa(renklendirici: str) -> str:
-    ornek_secenekleri = "".join(
-        f'<option value="{i}">{html.escape(ad)}</option>'
-        for i, (ad, _) in enumerate(ORNEKLER)
-    )
-    ornek_kodlari = json.dumps([kod for _, kod in ORNEKLER], ensure_ascii=False)
-
-    sabitler = (
-        f"var PYODIDE_URL = {json.dumps(PYODIDE)};\n"
-        f"var ORNEKLER = {ornek_kodlari};\n"
-        f"var HAZIRLIK = {json.dumps(HAZIRLIK)};\n"
-        f"var KOPRU = {json.dumps(KOPRU)};\n"
-        f"var EKRAN_STILI = {json.dumps(EKRAN_STILI)};\n"
-    )
-
-    return f"""<!doctype html>
-<html lang="tr">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nar deneme alanı</title>
-<meta name="description" content="Nar'ı kurmadan tarayıcıda dene: yaz, çalıştır, bağlantıyı paylaş.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?\
-family=IBM+Plex+Sans:wght@400;500;600&\
-family=JetBrains+Mono:wght@400;500&display=swap">
-<style>{tasarim.stil()}</style>
-<style>{stil()}</style>
-</head>
-<body>
-<div lang="tr" class="kok">
-
-<header class="bar">
-  <a class="bar-marka" href="../">
-    <b>{html.escape(BASLIK)}</b>
-    <span class="surum">v{__version__}</span>
-  </a>
-  <span class="arac-etiket">deneme alanı</span>
-  <div class="bar-sag">
-    <a class="bar-dugme" href="../">{IKON_KOD}<span>Rehber</span></a>
-    <a class="bar-dugme" href="{html.escape(DEPO)}" rel="noreferrer">
-      <span>Kaynak</span></a>
-    <button id="tema" class="bar-dugme" type="button" aria-pressed="false">
-      <span class="gunes">{IKON_GUNES}</span><span class="ay">{IKON_AY}</span>
-      <span class="gizli-metin">Temayı değiştir</span>
-    </button>
-  </div>
-</header>
-
-<main class="deneme">
-  <section class="bolme" aria-label="Kod">
-    <div class="arac">
-      <button id="calistir" class="dugme dugme-birincil" type="button">
-        Çalıştır{IKON_OK}
-      </button>
-      <select id="ornek" class="dugme" aria-label="Hazır örnek seç">
-        <option value="">örnekler…</option>
-        {ornek_secenekleri}
-      </select>
-      <div class="sag">
-        <button id="paylas" class="dugme" type="button">
-          <span class="kopya">{IKON_KOPYA}</span>
-          <span class="onay">{IKON_ONAY}</span>
-          <span class="yazi">Paylaş</span>
-        </button>
-      </div>
-    </div>
-    <div class="yazim">
-      <pre aria-hidden="true"><code id="boya"></code></pre>
-      <textarea id="kaynak" spellcheck="false" autocomplete="off"
-                autocapitalize="off" autocorrect="off"
-                aria-label="Nar kaynağı"></textarea>
-    </div>
-    <div id="durum" class="durum">
-      <span class="nokta"></span><span id="durum-yazi">hazır</span>
-    </div>
-  </section>
-
-  <section class="bolme" aria-label="Sonuç">
-    <div class="arac">
-      <div class="sekmeler" role="tablist">
-        <button class="sekme" type="button" role="tab" data-pano="pano-cikti"
-                aria-selected="true">Çıktı</button>
-        <button class="sekme" type="button" role="tab" data-pano="pano-ekran"
-                aria-selected="false">Ekran</button>
-      </div>
-      <span class="sag arac-etiket">Ctrl+Enter</span>
-    </div>
-    <div class="pano">
-      <pre id="pano-cikti"><code id="cikti"></code></pre>
-      <div id="pano-ekran" hidden>
-        <iframe id="ekran" title="Programın çizdiği ekran"
-                sandbox="allow-scripts"></iframe>
-      </div>
-    </div>
-  </section>
-</main>
-
-</div>
-<script>{renklendirici}</script>
-<script>{sabitler}</script>
-<script>{tasarim.SCRIPT}</script>
-<script>{betik()}</script>
-</body>
-</html>
+EKRAN_STILI = """
+:root { color-scheme: light dark; }
+body { margin: 0; padding: 16px; font: 15px/1.6 'IBM Plex Sans', system-ui, sans-serif;
+       background: Canvas; color: CanvasText; }
 """
 
 
-def main() -> int:
-    ayristirici = argparse.ArgumentParser(
-        description="Nar deneme alanını (playground) üretir")
-    ayristirici.add_argument(
-        "--cikti", type=Path, default=KOK / "docs" / "deneme",
-        help="çıktı klasörü")
-    args = ayristirici.parse_args()
+# ------------------------------------------------------------------- köprü
 
-    args.cikti.mkdir(parents=True, exist_ok=True)
+KOPRU_JS = r"""
+(function () {
+  'use strict';
 
-    boyut = narc_zip(args.cikti / "narc.zip")
-    renklendirici = renklendirici_js()
-    (args.cikti / "index.html").write_text(sayfa(renklendirici), encoding="utf-8")
+  // --- gömülü veri ----------------------------------------------------
+  var DOSYALAR = __DOSYALAR__;          // yol -> kaynak
+  var LISTE = __LISTE__;                // [{ad, yol, grup}]
+  var KELIMELER = __KELIMELER__;
+  var ILK_KOD = __ILK_KOD__;
+  var PYODIDE_URL = __PYODIDE__;
+  var HAZIRLIK = __HAZIRLIK__;
+  var IFRAME_KOPRUSU = __IFRAME_KOPRUSU__;
+  var EKRAN_STILI = __EKRAN_STILI__;
+  var DEPO = 'nar-deneme-dosyalar';
 
-    print(f"yazıldı: {args.cikti / 'index.html'}")
-    print(f"derleyici paketi: {boyut // 1024} KB")
-    return 0
+  // --- tarayıcı depolaması: Çalışmalarım -------------------------------
+  function kayitli() {
+    try { return JSON.parse(localStorage.getItem(DEPO) || '{}'); } catch (e) { return {}; }
+  }
+  function sakla(map) {
+    try { localStorage.setItem(DEPO, JSON.stringify(map)); return true; } catch (e) { return false; }
+  }
+
+  // Adres çubuğuyla paylaşılan kod "deneme.nar" olarak açılır.
+  function coz(metin) {
+    var d = metin.replace(/-/g, '+').replace(/_/g, '/');
+    var ikilik = atob(d), b = new Uint8Array(ikilik.length);
+    for (var i = 0; i < ikilik.length; i++) b[i] = ikilik.charCodeAt(i);
+    return new TextDecoder().decode(b);
+  }
+  function sar(metin) {
+    var b = new TextEncoder().encode(metin), s = '';
+    b.forEach(function (x) { s += String.fromCharCode(x); });
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  var hashKod = null;
+  if (location.hash.indexOf('#k=') === 0) {
+    try { hashKod = coz(location.hash.slice(3)); } catch (e) { hashKod = null; }
+  }
+
+  function durumYaz(metin) {
+    var d = document.getElementById('durum');
+    if (d) d.textContent = metin;
+  }
+
+  // --- derleyici: Pyodide, ilk kullanımda -------------------------------
+  var pyodide = null, yukleniyor = null;
+  function derleyici() {
+    if (pyodide) return Promise.resolve(pyodide);
+    if (yukleniyor) return yukleniyor;
+    durumYaz('derleyici indiriliyor… (bir kez, ~10 MB)');
+    yukleniyor = new Promise(function (coz, kir) {
+      var s = document.createElement('script');
+      s.src = PYODIDE_URL + 'pyodide.js';
+      s.onload = coz; s.onerror = function () { kir(new Error('Pyodide yüklenemedi')); };
+      document.head.appendChild(s);
+    }).then(function () {
+      return loadPyodide({ indexURL: PYODIDE_URL });
+    }).then(function (py) {
+      durumYaz('derleyici açılıyor…');
+      return fetchAsil('narc.zip').then(function (y) { return y.arrayBuffer(); }).then(function (paket) {
+        py.unpackArchive(paket, 'zip');
+        py.runPython(HAZIRLIK);
+        pyodide = py;
+        durumYaz('derleyici hazır');
+        return py;
+      });
+    }).catch(function (h) { yukleniyor = null; durumYaz('derleyici yüklenemedi'); throw h; });
+    return yukleniyor;
+  }
+  function derle(kaynak) {
+    return derleyici().then(function (py) {
+      return JSON.parse(py.runPython('derle(' + JSON.stringify(kaynak) + ')'));
+    });
+  }
+
+  // --- çalıştırma: ayrı kökenli iframe ----------------------------------
+  var bekleyen = null;
+  window.addEventListener('message', function (o) {
+    var v = o.data;
+    if (!v || typeof v !== 'object' || !bekleyen) return;
+    if (v.t === 'log') bekleyen.cikti.push(v.s);
+    else if (v.t === 'hata') bekleyen.stderr.push(v.s);
+    else if (v.t === 'bitti') { bekleyen.cizdi = !!v.cizdi; bekleyen.bitir(); }
+  });
+  function programiCalistir(kod) {
+    return new Promise(function (coz) {
+      var ekran = document.getElementById('ekran');
+      var zaman = null;
+      bekleyen = {
+        cikti: [], stderr: [], cizdi: false,
+        bitir: function () {
+          clearTimeout(zaman);
+          var b = bekleyen; bekleyen = null;
+          coz({ cikti: b.cikti.join('\n'), stderr: b.stderr.join('\n'), cizdi: b.cizdi });
+        }
+      };
+      zaman = setTimeout(function () { if (bekleyen) bekleyen.bitir(); }, 10000);
+      ekran.srcdoc =
+        '<!doctype html><html lang="tr"><head><meta charset="utf-8">' +
+        '<style>' + EKRAN_STILI + '</style></head><body><div id="uygulama"></div>' +
+        '<script>' + IFRAME_KOPRUSU + '<\/script>' +
+        '<script>' + kod + '<\/script>' +
+        '<script>parent.postMessage({t:"bitti",cizdi:document.getElementById("uygulama").childNodes.length>0},"*");<\/script>' +
+        '</body></html>';
+    });
+  }
+
+  // --- /api köprüsü ------------------------------------------------------
+  var fetchAsil = window.fetch.bind(window);
+  function yanit(obj, kod) {
+    return new Response(JSON.stringify(obj), {
+      status: kod || 200, headers: { 'Content-Type': 'application/json' } });
+  }
+  function govdeOku(ayar) {
+    try { return ayar && ayar.body ? JSON.parse(ayar.body) : {}; } catch (e) { return {}; }
+  }
+  function dosyaListesi() {
+    var liste = [{ ad: 'deneme.nar', yol: 'deneme.nar', grup: 'Oyun alanı' }];
+    var k = kayitli();
+    Object.keys(k).sort().forEach(function (yol) {
+      if (yol !== 'deneme.nar') liste.push({ ad: yol.split('/').pop(), yol: yol, grup: 'Çalışmalarım' });
+    });
+    return liste.concat(LISTE);
+  }
+  function dosyaOku(yol) {
+    if (yol === 'deneme.nar') {
+      if (hashKod !== null) return hashKod;
+      var k = kayitli();
+      return k['deneme.nar'] !== undefined ? k['deneme.nar'] : ILK_KOD;
+    }
+    var kk = kayitli();
+    if (kk[yol] !== undefined) return kk[yol];
+    if (DOSYALAR[yol] !== undefined) return DOSYALAR[yol];
+    return null;
+  }
+
+  window.fetch = function (url, ayar) {
+    var u = String(url);
+    if (u.indexOf('/api/') !== 0) return fetchAsil(url, ayar);
+    var yol = u.split('?')[0];
+    var sorgu = new URLSearchParams(u.split('?')[1] || '');
+    var govde = govdeOku(ayar);
+
+    if (yol === '/api/dosyalar') return Promise.resolve(yanit({ dosyalar: dosyaListesi(), surum: __SURUM__ }));
+    if (yol === '/api/kelimeler') return Promise.resolve(yanit({ kelimeler: KELIMELER }));
+    if (yol === '/api/dosya') {
+      var y = sorgu.get('yol') || '';
+      var kaynak = dosyaOku(y);
+      if (kaynak === null) return Promise.resolve(yanit({ hata: 'dosya bulunamadı' }, 404));
+      return Promise.resolve(yanit({ yol: y, kaynak: kaynak }));
+    }
+    if (yol === '/api/kaydet') {
+      var map = kayitli();
+      map[govde.yol] = govde.kaynak;
+      if (govde.yol === 'deneme.nar') hashKod = null;
+      return Promise.resolve(sakla(map) ? yanit({ tamam: true, yol: govde.yol })
+                                        : yanit({ hata: 'tarayıcı depolaması kapalı' }, 400));
+    }
+    if (yol === '/api/denetle') {
+      return derle(govde.kaynak || '').then(function (s) {
+        return yanit({ tamam: s.tamam, hata: s.hata, uyarilar: s.uyarilar });
+      }).catch(function (h) { return yanit({ tamam: true, hata: null, uyarilar: [] }); });
+    }
+    if (yol === '/api/uretilen') {
+      return derle(govde.kaynak || '').then(function (s) {
+        return yanit({ kod: s.kod || '', hata: s.hata });
+      });
+    }
+    if (yol === '/api/calistir') {
+      return derle(govde.kaynak || '').then(function (s) {
+        if (!s.tamam) return yanit({ durum: 'derleme-hatasi', hata: s.hata, uyarilar: s.uyarilar, cikti: '' });
+        durumYaz('çalışıyor…');
+        return programiCalistir(s.kod).then(function (r) {
+          durumYaz('hazır');
+          return yanit({ durum: r.stderr ? 'calisma-hatasi' : 'tamam', cikti: r.cikti,
+                         stderr: r.stderr, hata: null, cizdi: r.cizdi, uyarilar: s.uyarilar });
+        });
+      }).catch(function (h) {
+        return yanit({ durum: 'ortam-hatasi', cikti: '', hata: {
+          mesaj: 'derleyici çalıştırılamadı: ' + h.message, satir: null, sutun: null,
+          uzunluk: 1, ipucu: null, gosterim: 'hata: ' + h.message, hepsi: [], adet: 1 } });
+      });
+    }
+    return Promise.resolve(yanit({ hata: 'bulunamadı' }, 404));
+  };
+
+  // --- ev sahibine özgü düğme: Paylaş -----------------------------------
+  document.addEventListener('DOMContentLoaded', function () {
+    var kaydet = document.getElementById('btn-kaydet');
+    if (!kaydet) return;
+    var d = document.createElement('button');
+    d.id = 'btn-paylas'; d.type = 'button'; d.title = 'Kodu bağlantı olarak kopyala';
+    d.innerHTML = '<svg class="ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">' +
+      '<path d="M10 14a4 4 0 0 0 6 .5l2-2a4 4 0 0 0-5.7-5.7L11 8M14 10a4 4 0 0 0-6-.5l-2 2A4 4 0 0 0 11.7 17L13 16"/></svg>Paylaş';
+    kaydet.parentNode.insertBefore(d, kaydet.nextSibling);
+    d.addEventListener('click', function () {
+      var kod = document.getElementById('kod').value;
+      var adres = location.origin + location.pathname + '#k=' + sar(kod);
+      history.replaceState(null, '', '#k=' + sar(kod));
+      var bitir = function (oldu) {
+        durumYaz(oldu ? 'bağlantı kopyalandı' : 'bağlantı adres çubuğunda');
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(adres).then(function () { bitir(true); }, function () { bitir(false); });
+      } else bitir(false);
+    });
+  });
+})();
+"""
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+def sayfa(ek_dosyalar: list[dict] | None = None) -> str:
+    """IDE'nin arayüzünü tarayıcı köprüsüyle birleştirip deneme sayfasını üretir.
+
+    `ek_dosyalar`: [{ad, yol, grup, kaynak}] — rehber konuları gibi ağaçta
+    görünecek ek dosyalar.
+    """
+    from narc import __version__
+    from sunucu import kelime_sozlugu  # ide/sunucu.py
+
+    html = (KOK / "ide" / "arayuz.html").read_text(encoding="utf-8")
+
+    dosyalar: dict[str, str] = {}
+    liste: list[dict] = []
+    for kimlik, ad, kod in ORNEKLER:
+        yol = f"ornekler/{kimlik}.nar"
+        dosyalar[yol] = kod
+        liste.append({"ad": f"{ad}.nar", "yol": yol, "grup": "Örnekler"})
+    for d in ek_dosyalar or []:
+        dosyalar[d["yol"]] = d["kaynak"]
+        liste.append({"ad": d["ad"], "yol": d["yol"], "grup": d["grup"]})
+
+    kopru = (KOPRU_JS
+             .replace("__DOSYALAR__", json.dumps(dosyalar, ensure_ascii=False))
+             .replace("__LISTE__", json.dumps(liste, ensure_ascii=False))
+             .replace("__KELIMELER__", json.dumps(kelime_sozlugu(), ensure_ascii=False))
+             .replace("__ILK_KOD__", json.dumps(ILK_KOD, ensure_ascii=False))
+             .replace("__PYODIDE__", json.dumps(PYODIDE))
+             .replace("__HAZIRLIK__", json.dumps(HAZIRLIK))
+             .replace("__IFRAME_KOPRUSU__", json.dumps(IFRAME_KOPRUSU))
+             .replace("__EKRAN_STILI__", json.dumps(EKRAN_STILI))
+             .replace("__SURUM__", json.dumps(__version__)))
+
+    # `</script>` gömülü metinlerde geçebilir; betiği erken kapatmasın.
+    kopru = kopru.replace("</script>", "<\\/script>")
+    bundle = ide_js().replace("</script>", "<\\/script>")
+
+    isaret = '<script src="/nar-ide.js"></script>'
+    assert isaret in html, "ide/arayuz.html içinde nar-ide.js işareti yok"
+    html = html.replace(
+        isaret,
+        "<!-- Tarayıcı köprüsü: IDE'nin /api çağrılarını burada karşılar. -->\n"
+        f"<script>{kopru}</script>\n"
+        "<!-- IDE'nin davranışı: araclar/ide_uygulamasi.nar, Nar ile yazıldı. -->\n"
+        f"<script>{bundle}</script>",
+    )
+    html = html.replace("<title>Nar IDE</title>",
+                        "<title>Nar deneme alanı</title>\n"
+                        '<meta name="description" content="Nar\'ı kurmadan tarayıcıda dene: '
+                        'IDE, derleyici ve çalıştırma tarayıcında.">')
+    # Rehbere dönüş bağlantısı: marka tıklanınca rehber açılsın.
+    html = html.replace('<div class="marka">Nar<span id="surum">IDE</span></div>',
+                        '<a class="marka" href="../" style="text-decoration:none" '
+                        'title="Rehbere dön">Nar<span id="surum">deneme</span></a>')
+    return html

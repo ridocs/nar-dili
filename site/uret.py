@@ -474,15 +474,26 @@ def main() -> int:
     print(f"{len(BOLUMLER)} bölüm, {konu_sayisi} konu, {len(sayfa) // 1024} KB")
 
     # Deneme alanı sayfanın yanına üretilir; ayrı bir komut olsaydı
-    # ikisinden biri er geç unutulurdu.
+    # ikisinden biri er geç unutulurdu. Rehberdeki her çalışan konu deneme
+    # alanının dosya ağacında "Rehber" altında açılabilir.
     if not args.artifact:
         deneme = args.cikti.parent / "deneme"
         deneme.mkdir(parents=True, exist_ok=True)
         boyut = oyun.narc_zip(deneme / "narc.zip")
-        (deneme / "index.html").write_text(
-            oyun.sayfa(oyun.renklendirici_js()), encoding="utf-8")
+        rehber = []
+        for bolum in BOLUMLER:
+            for konu in bolum["konular"]:
+                if konu.get("dil", "nar") != "nar" or not konu.get("calistirma", True):
+                    continue
+                rehber.append({
+                    "ad": konu["id"] + ".nar",
+                    "yol": f'rehber/{bolum["id"]}/{konu["id"]}.nar',
+                    "grup": "Rehber · " + bolum["baslik"],
+                    "kaynak": calistirilacak_kaynak(konu),
+                })
+        (deneme / "index.html").write_text(oyun.sayfa(rehber), encoding="utf-8")
         print(f"yazıldı: {deneme / 'index.html'} "
-              f"(derleyici paketi {boyut // 1024} KB)")
+              f"(derleyici paketi {boyut // 1024} KB, {len(rehber)} rehber konusu)")
     return 0
 
 

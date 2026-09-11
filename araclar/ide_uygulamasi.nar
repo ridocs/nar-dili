@@ -236,7 +236,7 @@ fn rozetYaz(metin: String, sinif: String) {
 
 // --- sağ panel sekmeleri --------------------------------------------------
 
-let PANOLAR = ["pano-cikti", "pano-sorunlar", "pano-js"]
+let PANOLAR = ["pano-cikti", "pano-sorunlar", "pano-js", "pano-ekran"]
 
 fn sekmeSec(ad: String) {
   for p in PANOLAR {
@@ -458,9 +458,17 @@ fn calismaSonucu(cevap: String) {
 
   let cikti = metinAl(alan(veri, "cikti")) ?? ""
   let stderr = metinAl(alan(veri, "stderr")) ?? ""
+  // Ev sahibi programı bir sayfada çalıştırdıysa ve program ekrana bir
+  // şey çizdiyse, asıl sonuç Ekran sekmesinde.
+  let cizdi = mantikAl(alan(veri, "cizdi")) ?? false
 
   if cikti.len() == 0 && stderr.len() == 0 {
-    ciktiYaz("<span class=\"bos\">program çalıştı, hiçbir şey yazdırmadı</span>")
+    if cizdi {
+      ciktiYaz("<span class=\"bos\">program ekrana çizdi; Ekran sekmesine bak</span>")
+      sekmeSec("pano-ekran")
+    } else {
+      ciktiYaz("<span class=\"bos\">program çalıştı, hiçbir şey yazdırmadı</span>")
+    }
     return
   }
 
@@ -469,6 +477,9 @@ fn calismaSonucu(cevap: String) {
     html += "<div class=\"hata-blok\">" + kacir(stderr.trim()) + "</div>"
   }
   ciktiYaz(html)
+  if cizdi && stderr.len() == 0 {
+    sekmeSec("pano-ekran")
+  }
 }
 
 // --- üretilen JavaScript --------------------------------------------------

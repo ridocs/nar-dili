@@ -4,1019 +4,575 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nar deneme alanı</title>
-<meta name="description" content="Nar'ı kurmadan tarayıcıda dene: yaz, çalıştır, bağlantıyı paylaş.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<meta name="description" content="Nar'ı kurmadan tarayıcıda dene: IDE, derleyici ve çalıştırma tarayıcında.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-/* ===================================================================
-   Nar dil rehberi
-   Bütün renkler çıplak :root'ta tanımlı; tema blokları yalnız üzerine
-   yazar. Böylece hiçbir renk yalnızca bir medya sorgusunun içinde
-   yaşamaz — sistem teması "otomatik"teyken de sayfa eksiksiz boyanır.
-   =================================================================== */
-
+/* Renkler belgeler sitesiyle aynı paletten; iki tema da ölçülmüş. */
 :root {
   --zemin: #FBF8F8;
   --yuzey: #FFFFFF;
   --yuzey-2: #F7F3F3;
-  --kod-zemin: #F6F2F2;
-  --cikti-zemin: #F2EFEE;
+  --kod-zemin: #FCFAFA;
+  --panel: #F4F1F0;
   --metin: #171110;
   --metin-soluk: #766763;
   --kenar: #E8E1E0;
   --kenar-guclu: #D6CDCB;
   --vurgu: #AC1922;
-  --vurgu-uc: #A10E2F;
-  --vurgu-metin: #FFFFFF;
   --vurgu-zemin: #FDF2F2;
+  --vurgu-metin: #FFFFFF;
   --hata: #A4132B;
   --hata-zemin: #FDF1F2;
-  --panel-golge: 0 48px 72px -12px #00000008, 0 32px 44px -12px #0000000f;
-  --hairline: linear-gradient(90deg, #00000005, #00000026 45%, #00000005);
-  --hayalet: #171110;
-  --hayalet-opaklik: .045;
-  --bar-zemin: #FBF8F8E6;
+  --uyari: #8A5A00;
+  --uyari-zemin: #FDF6E8;
+  --iyi: #2F7A4F;
+  --iyi-zemin: #EFF7F2;
+  --oluk: #A89E97;
+  --n-kw: #7A2D8F; --n-tip: #1B4FA8; --n-metin: #15693A; --n-sayi: #9A4A05;
+  --n-yorum: #736A65; --n-yerlesik: #0B6473; --n-fn: #2B2521; --n-op: #6F6661;
+  --tek: 'JetBrains Mono', ui-monospace, "Cascadia Code", Consolas, monospace;
+  --govde: 'IBM Plex Sans', "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+  --kod-boy: 13.5px;
+  --kod-satir: 21px;
+  --agac-genislik: 232px;
   color-scheme: light;
-  --n-kw: #7A2D8F;
-  --n-tip: #1B4FA8;
-  --n-metin: #15693A;
-  --n-sayi: #9A4A05;
-  --n-yorum: #736A65;
-  --n-yerlesik: #0B6473;
-  --n-fn: #2B2521;
-  --n-op: #6F6661;
-
-  /* 21st.dev'in yarıçap merdiveni */
-  --radius: .5rem;
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: .75rem;
-
-  --olcu: 72ch;
-  --bar: 48px;
-  /* Developer Mono eşleşmesi: başlıklar mono, gövde sans. */
-  --govde: 'IBM Plex Sans', 'Segoe UI', system-ui, -apple-system,
-           'Helvetica Neue', Arial, sans-serif;
-  --mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'SF Mono',
-          Consolas, 'Liberation Mono', monospace;
 }
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-tema='acik']) {
-    --zemin: #0C0808;
-    --yuzey: #1C1716;
-    --yuzey-2: #251F1E;
-    --kod-zemin: #141010;
-    --cikti-zemin: #111514;
-    --metin: #F8F4F3;
-    --metin-soluk: #A29592;
-    --kenar: #2C2625;
-    --kenar-guclu: #3D3635;
-    --vurgu: #F66D67;
-    --vurgu-uc: #EC6771;
-    --vurgu-metin: #2A0F0E;
-    --vurgu-zemin: #241413;
-    --hata: #F58A84;
-    --hata-zemin: #26100F;
-    --panel-golge: 0 12px 24px 0 #ffffff08 inset, 0 .5px .5px 0 #ffffff0f inset, 0 .25px .25px 0 #ffffff1f inset, 0 48px 72px -12px #0000003d, 0 32px 44px -12px #00000052;
-    --hairline: linear-gradient(90deg, #ffffff03, #ffffff4d 45%, #ffffff03);
-    --hayalet: #F8F4F3;
-    --hayalet-opaklik: .035;
-    --bar-zemin: #0C0808E6;
-    color-scheme: dark;
-    --n-kw: #D6A0E8;
-    --n-tip: #8FB6F0;
-    --n-metin: #84CFA0;
-    --n-sayi: #EBA96A;
-    --n-yorum: #8B807C;
-    --n-yerlesik: #6FC6D6;
-    --n-fn: #EDE7E3;
-    --n-op: #A29592;
-  }
-}
-
 :root[data-tema='koyu'] {
   --zemin: #0C0808;
   --yuzey: #1C1716;
   --yuzey-2: #251F1E;
   --kod-zemin: #141010;
-  --cikti-zemin: #111514;
+  --panel: #111514;
   --metin: #F8F4F3;
   --metin-soluk: #A29592;
   --kenar: #2C2625;
   --kenar-guclu: #3D3635;
   --vurgu: #F66D67;
-  --vurgu-uc: #EC6771;
-  --vurgu-metin: #2A0F0E;
   --vurgu-zemin: #241413;
+  --vurgu-metin: #2A0F0E;
   --hata: #F58A84;
   --hata-zemin: #26100F;
-  --panel-golge: 0 12px 24px 0 #ffffff08 inset, 0 .5px .5px 0 #ffffff0f inset, 0 .25px .25px 0 #ffffff1f inset, 0 48px 72px -12px #0000003d, 0 32px 44px -12px #00000052;
-  --hairline: linear-gradient(90deg, #ffffff03, #ffffff4d 45%, #ffffff03);
-  --hayalet: #F8F4F3;
-  --hayalet-opaklik: .035;
-  --bar-zemin: #0C0808E6;
+  --uyari: #D7A64A;
+  --uyari-zemin: #2A2418;
+  --iyi: #6FC395;
+  --iyi-zemin: #1B2620;
+  --oluk: #6E645F;
+  --n-kw: #D6A0E8; --n-tip: #8FB6F0; --n-metin: #84CFA0; --n-sayi: #EBA96A;
+  --n-yorum: #8B807C; --n-yerlesik: #6FC6D6; --n-fn: #EDE7E3; --n-op: #A29592;
   color-scheme: dark;
-  --n-kw: #D6A0E8;
-  --n-tip: #8FB6F0;
-  --n-metin: #84CFA0;
-  --n-sayi: #EBA96A;
-  --n-yorum: #8B807C;
-  --n-yerlesik: #6FC6D6;
-  --n-fn: #EDE7E3;
-  --n-op: #A29592;
 }
 
-*, *::before, *::after { box-sizing: border-box; }
-
-html { scroll-behavior: smooth; }
-
-@media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  *, *::before, *::after {
-    animation-duration: .01ms !important;
-    transition-duration: .01ms !important;
-  }
-}
-
+* { box-sizing: border-box; }
+html, body { height: 100%; }
 body {
-  margin: 0;
-  background: var(--zemin);
-  color: var(--metin);
-  font-family: var(--govde);
-  font-size: 16px;
-  line-height: 1.65;
-  -webkit-font-smoothing: antialiased;
+  margin: 0; background: var(--zemin); color: var(--metin);
+  font-family: var(--govde); font-size: 14px;
+  display: flex; flex-direction: column; overflow: hidden;
 }
+button, select {
+  font-family: var(--govde); font-size: 13px; color: var(--metin);
+  background: var(--yuzey); border: 1px solid var(--kenar);
+  border-radius: 6px; padding: 5px 10px; cursor: pointer;
+}
+button:hover { border-color: var(--kenar-guclu); background: var(--yuzey-2); }
+button:focus-visible, textarea:focus-visible { outline: 2px solid var(--vurgu); outline-offset: 1px; }
+button:disabled { opacity: .5; cursor: default; }
+button .ikon { width: 14px; height: 14px; vertical-align: -2px; margin-right: 5px; }
+button kbd { font-family: var(--tek); font-size: 10px; opacity: .7; margin-left: 6px; }
+.ara { flex: 1 1 auto; }
 
-.kok { background: var(--zemin); color: var(--metin); }
+/* --- üst araç çubuğu ---------------------------------------------------- */
+.ust {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 10px; height: 46px; flex: 0 0 auto;
+  background: var(--yuzey); border-bottom: 1px solid var(--kenar);
+}
+.marka { display: flex; align-items: baseline; gap: 6px; margin-right: 8px;
+  font-family: var(--tek); font-weight: 500; font-size: 15px; color: var(--vurgu); }
+.marka span { font-size: 10px; font-weight: 400; color: var(--metin-soluk); }
+.grup { display: flex; gap: 4px; padding: 0 8px; border-left: 1px solid var(--kenar); }
+.grup:first-of-type { border-left: 0; }
+button.birincil { background: var(--vurgu); border-color: var(--vurgu); color: var(--vurgu-metin); font-weight: 600; }
+button.birincil:hover { filter: brightness(1.06); }
 
-a { color: var(--vurgu); text-decoration-thickness: 1px; text-underline-offset: 2px; }
-a:hover { text-decoration-thickness: 2px; }
-
-:focus-visible {
-  outline: 2px solid var(--vurgu);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
-}
-
-.ikon { flex: none; }
-
-/* Kendi kabında kayan her şey ince bir çubuk gösterir; kalın sistem çubuğu
-   kod kutusunun içinde bir satır yüksekliği kadar yer kaplıyordu. */
-pre, .icindekiler, .ref-sar {
-  scrollbar-width: thin;
-  scrollbar-color: var(--kenar-guclu) transparent;
-}
-pre::-webkit-scrollbar, .icindekiler::-webkit-scrollbar,
-.ref-sar::-webkit-scrollbar { width: 8px; height: 8px; }
-pre::-webkit-scrollbar-thumb, .icindekiler::-webkit-scrollbar-thumb,
-.ref-sar::-webkit-scrollbar-thumb {
-  background: var(--kenar-guclu); border-radius: 8px;
-}
-pre::-webkit-scrollbar-track, .icindekiler::-webkit-scrollbar-track,
-.ref-sar::-webkit-scrollbar-track { background: transparent; }
-
-/* Ekran okuyucuya görünür, göze görünmez. */
-.gizli-metin {
-  position: absolute; width: 1px; height: 1px;
-  padding: 0; margin: -1px; overflow: hidden;
-  clip-path: inset(50%); white-space: nowrap;
-}
-
-.atla {
-  position: absolute; left: 8px; top: -60px; z-index: 60;
-  background: var(--vurgu); color: var(--vurgu-metin);
-  padding: 8px 14px; border-radius: var(--radius); font-size: 14px;
-  transition: top .2s ease;
-}
-.atla:focus { top: 8px; }
-
-/* Ortak genişlik: her bölüm aynı ızgaraya oturur. */
-.sinir {
-  max-width: 1200px; margin: 0 auto;
-  padding-inline: 24px;
-}
-
-/* ------------------------------------------------------------- üst bar */
-
-.bar {
-  position: sticky; top: 0; z-index: 40;
-  height: var(--bar);
-  display: flex; align-items: center; gap: 16px;
-  padding: 0 20px;
-  background: var(--bar-zemin);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--kenar);
-}
-
-.bar-marka {
-  display: flex; align-items: baseline; gap: 8px;
-  font-family: var(--mono); font-weight: 500; font-size: 14px;
-  letter-spacing: -.02em;
-  color: var(--metin); text-decoration: none;
-}
-.bar-marka b { color: var(--vurgu); font-weight: 500; }
-.bar-marka .surum {
-  font-size: 11px; font-weight: 400;
-  color: var(--metin-soluk); font-variant-numeric: tabular-nums;
-}
-
-.ara-sar {
-  position: relative;
-  flex: 1 1 auto; max-width: 420px; margin: 0 auto;
-  display: flex; align-items: center;
-}
-.ara-sar .ikon {
-  position: absolute; left: 10px; color: var(--metin-soluk); pointer-events: none;
-}
-#ara {
-  width: 100%; height: 30px;
-  padding: 0 52px 0 32px;
-  font: inherit; font-size: 13px;
-  color: var(--metin);
-  background: var(--yuzey-2);
-  border: 1px solid var(--kenar);
-  border-radius: var(--radius-md);
-  transition: border-color .2s ease, background .2s ease;
-}
-#ara::placeholder { color: var(--metin-soluk); }
-#ara:focus { outline: none; border-color: var(--kenar-guclu); }
-#ara:focus-visible { outline: 2px solid var(--vurgu); outline-offset: 1px; }
-
-kbd {
-  font-family: var(--mono); font-size: 10px; line-height: 1;
-  padding: 3px 5px; border-radius: var(--radius-sm);
-  color: var(--metin-soluk);
-  background: var(--zemin);
-  border: 1px solid var(--kenar);
-}
-.ara-sar kbd { position: absolute; right: 8px; pointer-events: none; }
-
-.bar-sag { display: flex; align-items: center; gap: 2px; margin-left: auto; }
-
-.bar-dugme {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  height: 30px; min-width: 30px; padding: 0 9px;
-  color: var(--metin-soluk);
-  background: none; border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  font: inherit; font-size: 13px; cursor: pointer;
-  text-decoration: none;
-  transition: background .2s ease, color .2s ease, border-color .2s ease;
-}
-.bar-dugme:hover {
-  color: var(--metin); background: var(--yuzey-2); border-color: var(--kenar);
-}
-.bar-dugme .ay { display: none; }
-:root[data-tema='koyu'] .bar-dugme .ay { display: block; }
-:root[data-tema='koyu'] .bar-dugme .gunes { display: none; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-tema='acik']) .bar-dugme .ay { display: block; }
-  :root:not([data-tema='acik']) .bar-dugme .gunes { display: none; }
-  :root[data-tema='acik'] .bar-dugme .ay { display: none; }
-  :root[data-tema='acik'] .bar-dugme .gunes { display: block; }
-}
-
-/* ---------------------------------------------------------------- giriş */
-
-.giris-alani { position: relative; overflow: hidden; }
-.giris-alani::before {
-  content: ''; position: absolute; inset: -30% -10% auto -10%; height: 70%;
-  background: radial-gradient(50% 60% at 30% 40%,
-              var(--vurgu-zemin), transparent 70%);
-  pointer-events: none;
-}
-
-.giris-ic {
-  position: relative;
-  padding-block: 64px 56px;
-  display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-  gap: 56px; align-items: center;
-}
-
-.eyebrow {
-  display: flex; align-items: center; gap: 8px;
-  margin: 0 0 16px;
-  font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
-  text-transform: uppercase; color: var(--metin-soluk);
-}
-.eyebrow .nokta {
-  width: 5px; height: 5px; border-radius: 50%;
-  background: var(--vurgu);
-}
-
-.giris h1 {
-  margin: 0 0 18px;
-  font-family: var(--mono); font-weight: 500;
-  font-size: clamp(27px, 3.2vw, 38px);
-  line-height: 1.2; letter-spacing: -.035em;
-  text-wrap: balance;
-}
-
-.giris-ozet {
-  margin: 0 0 24px; max-width: 48ch;
-  font-size: 16.5px; color: var(--metin-soluk);
-}
-.giris-ozet strong { color: var(--metin); font-weight: 600; }
-.giris-ozet p { margin: 0; }
-
-.eylemler { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 28px; }
-
-/* Tek canlı renk yalnız burada: birincil eylem. */
-.cta {
-  display: inline-flex; align-items: center; gap: 8px;
-  height: 38px; padding: 0 18px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--vurgu), var(--vurgu-uc));
-  color: var(--vurgu-metin);
-  font-size: 14px; font-weight: 500; text-decoration: none;
-  box-shadow: 0 1px 0 0 #ffffff2e inset;
-  transition: transform .2s ease, filter .2s ease;
-}
-.cta:hover { filter: brightness(1.06); transform: translateY(-1px); }
-.cta .ikon { transition: transform .2s ease; }
-.cta:hover .ikon { transform: translateX(2px); }
-
-.cta-ikincil {
-  display: inline-flex; align-items: center; gap: 8px;
-  height: 38px; padding: 0 16px;
-  border-radius: 999px;
-  color: var(--metin); text-decoration: none;
-  background: var(--yuzey-2); border: 1px solid var(--kenar);
-  font-size: 14px;
-  transition: border-color .2s ease, background .2s ease;
-}
-.cta-ikincil:hover { border-color: var(--kenar-guclu); }
-
-.giris-not {
-  margin: -18px 0 24px; max-width: 46ch;
-  font-size: 13px; color: var(--metin-soluk);
-}
-
-.hedefler {
-  display: flex; flex-wrap: wrap; gap: 6px;
-  margin: 0; padding: 0; list-style: none;
-}
-.hedefler li {
-  font-family: var(--mono); font-size: 11px; letter-spacing: .02em;
-  padding: 3px 9px; border-radius: 999px;
-  color: var(--metin-soluk);
-  background: var(--yuzey-2); border: 1px solid var(--kenar);
-}
-
-/* Yüzen panel — 21st'in imza detayı: dev yumuşak gölge, beyaz inset
-   hairline, üst kenarda gradyanlı saç çizgisi. */
-.panel {
-  position: relative;
-  border: 1px solid var(--kenar);
-  border-radius: var(--radius-xl);
-  background: var(--yuzey);
-  box-shadow: var(--panel-golge);
-  overflow: hidden;
-}
-.panel::before {
-  content: ''; position: absolute; inset: 0 0 auto; height: 1px;
-  background: var(--hairline);
-  z-index: 1;
-}
-.panel .kod-kutu, .panel .cikti {
-  margin: 0; border: none; border-radius: 0; box-shadow: none;
-}
-.panel .cikti { border-top: 1px solid var(--kenar); }
-
-/* -------------------------------------------------------- bölüm dizini */
-
-.dizin-alani {
-  border-top: 1px solid var(--kenar);
-  border-bottom: 1px solid var(--kenar);
-  background: var(--yuzey);
-}
-.dizin-ic { padding-block: 28px 32px; }
-
-.dizin-basi {
-  display: flex; align-items: baseline; gap: 12px;
-  margin-bottom: 18px;
-}
-.dizin-basi h2 {
-  margin: 0; font-family: var(--mono); font-size: 13px; font-weight: 500;
-  letter-spacing: -.01em;
-}
-.dizin-basi p { margin: 0; font-size: 12px; color: var(--metin-soluk); }
-.dizin-basi .sag {
-  margin-left: auto; font-size: 12px; color: var(--metin-soluk);
-  text-decoration: none;
-}
-.dizin-basi .sag:hover { color: var(--vurgu); }
-
-/* Yoğun çok sütunlu kategori listesi: kalın küçük etiket, minik çizgi
-   ikon, sağa yaslı mono sayaç. */
-.dizin {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 1px 24px;
-  margin: 0; padding: 0; list-style: none;
-}
-.dizin a {
-  display: flex; align-items: center; gap: 8px;
-  padding: 5px 8px; margin-inline: -8px;
-  border-radius: var(--radius-md);
-  color: var(--metin); text-decoration: none;
-  font-size: 12.5px; font-weight: 500;
-  transition: background .2s ease, color .2s ease;
-}
-.dizin a .ikon { color: var(--metin-soluk); }
-.dizin a .ad { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dizin a .adet {
-  margin-left: auto;
-  font-family: var(--mono); font-size: 11px; font-weight: 400;
-  color: var(--metin-soluk); font-variant-numeric: tabular-nums;
-}
-.dizin a:hover { background: var(--yuzey-2); }
-.dizin a:hover .ikon { color: var(--vurgu); }
-
-/* ------------------------------------------------------------ kod kutusu */
-
-.kod-kutu {
-  margin: 0 0 14px;
-  background: var(--kod-zemin);
-  border: 1px solid var(--kenar);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-}
-
-.kod-basi {
-  display: flex; align-items: center; gap: 8px;
-  padding: 0 8px 0 12px; height: 34px;
-  background: var(--yuzey-2);
-  border-bottom: 1px solid var(--kenar);
-}
-.kod-dil {
-  font-family: var(--mono); font-size: 10px; letter-spacing: .1em;
-  text-transform: uppercase; color: var(--metin-soluk);
-}
-
-/* Kod kutusunun sağ üstündeki eylemler. */
-.kod-eylem { margin-left: auto; display: flex; align-items: center; gap: 2px; }
-
-.dene {
-  display: inline-flex; align-items: center; gap: 5px;
-  height: 24px; padding: 0 8px;
-  font-family: var(--mono); font-size: 11px;
-  color: var(--vurgu); text-decoration: none;
-  border: 1px solid transparent; border-radius: var(--radius-sm);
-  transition: background .2s ease, border-color .2s ease;
-}
-.dene:hover { background: var(--vurgu-zemin); border-color: var(--kenar); }
-.dene .ikon { width: 12px; height: 12px; }
-
-.kopyala {
-  display: inline-flex; align-items: center; gap: 5px;
-  height: 24px; padding: 0 8px;
-  font-family: var(--mono); font-size: 11px;
-  color: var(--metin-soluk);
-  background: none; border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background .2s ease, color .2s ease, border-color .2s ease;
-}
-.kopyala:hover {
-  color: var(--metin); background: var(--zemin); border-color: var(--kenar);
-}
-.kopyala .onay { display: none; }
-.kopyala.bitti { color: var(--vurgu); }
-.kopyala.bitti .onay { display: block; }
-.kopyala.bitti .kopya { display: none; }
-
-pre.kod {
-  margin: 0; padding: 14px 16px;
-  overflow-x: auto;
-  font-family: var(--mono); font-size: 13px; line-height: 1.7;
-  tab-size: 2;
-}
-pre.kod code { font: inherit; }
-
-.n-kw { color: var(--n-kw); }
-.n-tip { color: var(--n-tip); }
-.n-metin { color: var(--n-metin); }
-.n-sayi { color: var(--n-sayi); }
-.n-yorum { color: var(--n-yorum); }
-.n-yerlesik { color: var(--n-yerlesik); }
-.n-fn { color: var(--n-fn); }
-.n-op { color: var(--n-op); }
-
-/* ------------------------------------------------------------------ çıktı */
-
-.cikti {
-  margin: -14px 0 18px;
-  border: 1px solid var(--kenar); border-top: none;
-  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-  background: var(--cikti-zemin);
-}
-.cikti-etiket {
-  display: block; padding: 8px 16px 0;
-  font-family: var(--mono); font-size: 10px; letter-spacing: .1em;
-  text-transform: uppercase; color: var(--metin-soluk);
-}
-.cikti pre {
-  margin: 0; padding: 4px 16px 14px;
-  overflow-x: auto;
-  font-family: var(--mono); font-size: 12.5px; line-height: 1.6;
-  color: var(--metin);
-}
-.cikti.hatali {
-  background: var(--hata-zemin); border-color: var(--hata);
-}
-.cikti.hatali .cikti-etiket, .cikti.hatali pre { color: var(--hata); }
-
-/* Kod kutusunun altına çıktı geliyorsa alt köşeleri düzleşir. */
-.kod-kutu:has(+ .cikti) {
-  border-bottom-left-radius: 0; border-bottom-right-radius: 0;
-}
-
-/* ---------------------------------------------------------------- kabuk */
-
-.kabuk {
+/* --- gövde: ağaç | düzenleyici | sağ panel ---------------------------- */
+.govde {
+  flex: 1 1 auto; min-height: 0;
   display: grid;
-  grid-template-columns: 236px minmax(0, 1fr);
-  gap: 56px;
-  padding-block: 40px 80px;
+  grid-template-columns: var(--agac-genislik) minmax(0, 1.35fr) minmax(0, 1fr);
 }
+body.agac-kapali .govde { grid-template-columns: 0 minmax(0, 1.35fr) minmax(0, 1fr); }
+body.agac-kapali .kenar-cubugu { display: none; }
+.sutun { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.sutun + .sutun { border-left: 1px solid var(--kenar); }
+.sutun-baslik {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+  padding: 0 12px; height: 32px;
+  font-family: var(--tek); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--metin-soluk); background: var(--zemin); border-bottom: 1px solid var(--kenar);
+}
+.rozet {
+  font-family: var(--tek); text-transform: none; letter-spacing: 0; font-size: 11px;
+  padding: 1px 7px; border-radius: 999px; border: 1px solid var(--kenar);
+}
+.rozet.iyi { color: var(--iyi); background: var(--iyi-zemin); }
+.rozet.kotu { color: var(--hata); background: var(--hata-zemin); }
+.rozet.uyari { color: var(--uyari); background: var(--uyari-zemin); }
 
-/* ------------------------------------------------------------ içindekiler */
-
-.icindekiler {
-  position: sticky; top: calc(var(--bar) + 16px);
-  align-self: start;
-  max-height: calc(100vh - var(--bar) - 32px);
-  overflow-y: auto;
-  padding-right: 8px;
-  font-size: 13px;
-}
-.icindekiler summary {
-  display: none;
-  font-family: var(--mono); font-size: 13px;
-  font-weight: 500; cursor: pointer; padding: 8px 0;
-}
-
-.ic-grup { margin-bottom: 18px; }
-.ic-baslik {
-  display: flex; align-items: center; gap: 8px;
-  margin-bottom: 6px;
-  font-family: var(--mono); font-size: 10px; letter-spacing: .1em;
-  text-transform: uppercase; color: var(--metin-soluk);
-}
-.ic-baslik .sayi {
-  margin-left: auto; font-variant-numeric: tabular-nums; opacity: .75;
-}
-.ic-grup ul { margin: 0; padding: 0; list-style: none; }
-.ic-grup li { margin: 0; }
-.ic-grup a {
-  display: block; padding: 3px 10px;
-  margin-left: -10px;
-  color: var(--metin-soluk); text-decoration: none;
-  border-left: 2px solid transparent;
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-  transition: color .2s ease, background .2s ease;
-}
-.ic-grup a:hover { color: var(--metin); background: var(--yuzey-2); }
-.ic-grup a.etkin {
-  color: var(--vurgu); border-left-color: var(--vurgu);
-  background: var(--vurgu-zemin); font-weight: 500;
-}
-.ic-grup[hidden] { display: none; }
-
-.ara-bos { padding: 8px 0; color: var(--metin-soluk); font-size: 13px; }
-
-/* --------------------------------------------------------------- içerik */
-
-.icerik { min-width: 0; max-width: var(--olcu); }
-
-.bolum {
-  position: relative;
-  margin-bottom: 64px;
-  scroll-margin-top: calc(var(--bar) + 16px);
-}
-
-/* Bölüm başlığı kalıbı: kalın başlık + soluk alt satır, sağda sonraki adım.
-   Arkasındaki dev rakam sırayı gösteriyor — rehber baştan sona okunmak
-   üzere yazıldı. */
-.bolum-basi {
-  position: relative;
-  margin-bottom: 28px; padding-bottom: 12px;
-  border-bottom: 1px solid var(--kenar);
-}
-.bolum-basi h2 {
-  display: flex; align-items: baseline; gap: 10px;
-  margin: 0;
-  font-family: var(--mono); font-size: 15px; font-weight: 500;
-  letter-spacing: -.01em;
-}
-.bolum-basi .alt {
-  margin: 2px 0 0;
-  font-size: 12.5px; color: var(--metin-soluk);
-}
-/* Sayaç başlığın yanında küçük bir mono rozet; sağ kenar hayalet rakama
-   ayrıldı, ikisi aynı yerde dururken üst üste biniyordu. */
-.bolum-basi .sayi {
-  padding: 2px 7px; border-radius: 999px;
-  background: var(--yuzey-2); border: 1px solid var(--kenar);
-  font-size: 10px; font-weight: 400; color: var(--metin-soluk);
-  font-variant-numeric: tabular-nums;
-}
-.bolum-basi .hayalet-no {
-  position: absolute; right: 0; top: 50%;
-  transform: translateY(-54%);
-  font-family: var(--mono); font-weight: 500;
-  font-size: clamp(44px, 6vw, 76px); line-height: 1;
-  letter-spacing: -.07em;
-  color: var(--hayalet); opacity: var(--hayalet-opaklik);
-  pointer-events: none; user-select: none;
-}
-
-.konu {
-  margin-bottom: 38px;
-  scroll-margin-top: calc(var(--bar) + 16px);
-}
-.konu h3 {
-  margin: 0 0 8px;
-  font-family: var(--mono); font-size: 17px; font-weight: 500;
-  letter-spacing: -.025em; line-height: 1.35;
-}
-.konu h3 .capa {
-  color: inherit; text-decoration: none;
-  display: inline-flex; align-items: baseline; gap: 8px;
-}
-.konu h3 .capa .ikon {
-  opacity: 0; color: var(--metin-soluk);
-  transition: opacity .2s ease;
-}
-.konu h3:hover .capa .ikon, .capa:focus-visible .ikon { opacity: 1; }
-
-.aciklama { margin: 0 0 14px; }
-.aciklama p { margin: 0 0 10px; }
-.aciklama p:last-child { margin-bottom: 0; }
-.aciklama ul, .aciklama ol { margin: 0 0 10px; padding-left: 22px; }
-.aciklama li { margin-bottom: 4px; }
-
-code {
-  font-family: var(--mono); font-size: .86em;
-  padding: .12em .34em; border-radius: var(--radius-sm);
-  background: var(--yuzey-2); border: 1px solid var(--kenar);
-}
-pre code { padding: 0; background: none; border: none; }
-
-.not {
-  margin: 0 0 14px; padding: 10px 14px;
-  font-size: 14px; color: var(--metin-soluk);
-  background: var(--yuzey-2);
-  border: 1px solid var(--kenar);
-  border-left: 2px solid var(--kenar-guclu);
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-}
-.not code { background: var(--zemin); }
-
-/* -------------------------------------------------------------- başlangıç */
-
-.kart {
-  margin-bottom: 52px;
-  padding: 18px 20px;
-  background: var(--yuzey);
-  border: 1px solid var(--kenar);
-  border-radius: var(--radius-lg);
-}
-.kart > h2 {
-  display: flex; align-items: center; gap: 8px;
-  margin: 0 0 12px;
-  font-family: var(--mono); font-size: 10px; font-weight: 500;
-  letter-spacing: .1em; text-transform: uppercase;
+/* --- dosya ağacı ---------------------------------------------------------- */
+.kenar-cubugu { background: var(--yuzey); }
+.agac { flex: 1 1 auto; overflow: auto; padding: 6px 6px 12px; font-size: 13px; }
+.agac details { margin-bottom: 4px; }
+.agac summary {
+  list-style: none; cursor: pointer; user-select: none;
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 8px; border-radius: 6px;
+  font-family: var(--tek); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
   color: var(--metin-soluk);
 }
-.kart p { margin: 0 0 10px; font-size: 14.5px; }
-.kart p:last-child { margin-bottom: 0; }
-.kart pre.komut {
-  margin: 0 0 12px; padding: 12px 14px;
-  overflow-x: auto;
-  background: var(--kod-zemin);
-  border: 1px solid var(--kenar); border-radius: var(--radius-md);
-  font-family: var(--mono); font-size: 12.5px; line-height: 1.7;
+.agac summary::-webkit-details-marker { display: none; }
+.agac summary .ok { display: inline-block; width: 8px; transition: transform .15s; }
+.agac details[open] summary .ok { transform: rotate(90deg); }
+.agac summary .adet { margin-left: auto; opacity: .7; }
+.agac ul { list-style: none; margin: 0; padding: 0 0 0 10px; }
+.agac .dosya {
+  display: flex; align-items: center; gap: 7px; width: 100%; text-align: left;
+  padding: 4px 8px; border: 1px solid transparent; border-radius: 6px;
+  background: none; font-size: 13px; color: var(--metin);
 }
-.kart pre.komut code { padding: 0; background: none; border: none; }
+.agac .dosya .ikon { width: 13px; height: 13px; color: var(--metin-soluk); flex: none; }
+.agac .dosya:hover { background: var(--yuzey-2); }
+.agac .dosya.secili { background: var(--vurgu-zemin); color: var(--vurgu); border-color: var(--kenar); }
+.agac .dosya.secili .ikon { color: var(--vurgu); }
+.agac .dosya .nokta { margin-left: auto; color: var(--uyari); }
 
-/* ------------------------------------------------------------- başvuru */
-
-.ref-grup { margin-bottom: 28px; }
-.ref-grup h3 {
-  margin: 0 0 4px;
-  font-family: var(--mono); font-size: 15px; font-weight: 500;
-  letter-spacing: -.02em;
+/* --- düzenleyici --------------------------------------------------------- */
+.duzenleyici { flex: 1 1 auto; display: flex; min-height: 0; background: var(--kod-zemin); position: relative; overflow: hidden; }
+.satirlar {
+  flex: 0 0 auto; padding: 12px 8px 12px 12px; text-align: right;
+  font-family: var(--tek); font-size: var(--kod-boy); line-height: var(--kod-satir);
+  color: var(--oluk); background: var(--kod-zemin); border-right: 1px solid var(--kenar);
+  user-select: none; overflow: hidden; white-space: pre; min-width: 44px;
 }
-.ref-grup .aciklama { font-size: 14px; color: var(--metin-soluk); }
-
-.ref-sar {
-  overflow-x: auto;
-  border: 1px solid var(--kenar); border-radius: var(--radius-lg);
-}
-/* Konu metninin içine doğrudan yazılmış tablolar da kendi kabında kayar;
-   ilk sütun kırılmadığı için dar ekranda gövdeyi yatay kaydırıyorlardı. */
-.aciklama table.ref {
-  display: block; overflow-x: auto; max-width: 100%;
-  margin-bottom: 10px;
-  border: 1px solid var(--kenar); border-radius: var(--radius-lg);
-}
-table.ref {
-  width: 100%; border-collapse: collapse;
-  font-size: 14px;
-}
-table.ref td {
-  padding: 8px 14px;
-  border-top: 1px solid var(--kenar);
-  vertical-align: baseline;
-}
-table.ref tr:first-child td { border-top: none; }
-table.ref tr:nth-child(even) { background: var(--yuzey-2); }
-table.ref td:first-child { width: 1%; white-space: nowrap; }
-table.ref code { font-size: 12.5px; background: var(--zemin); }
-
-/* ----------------------------------------------------------------- alt */
-
-.sayfa-alti {
-  border-top: 1px solid var(--kenar);
-  background: var(--yuzey);
-}
-.sayfa-alti-ic {
-  padding-block: 28px 40px;
-  display: flex; flex-wrap: wrap; gap: 16px 32px;
-  align-items: baseline;
-  font-size: 13.5px; color: var(--metin-soluk);
-}
-.sayfa-alti p { margin: 0; max-width: 62ch; }
-.sayfa-alti .tarih {
-  margin-left: auto; font-family: var(--mono); font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ------------------------------------------------------------- responsive */
-
-@media (max-width: 1040px) {
-  .giris-ic { grid-template-columns: minmax(0, 1fr); gap: 36px; }
-  .bolum-basi .hayalet-no { display: none; }
-}
-
-@media (max-width: 900px) {
-  .kabuk { grid-template-columns: minmax(0, 1fr); gap: 24px; }
-  .icerik { max-width: none; }
-  .icindekiler {
-    position: static; max-height: none; overflow: visible;
-    padding: 0 0 8px;
-    border: 1px solid var(--kenar); border-radius: var(--radius-lg);
-    background: var(--yuzey);
-  }
-  .icindekiler summary { display: list-item; padding: 10px 14px; }
-  .icindekiler > details[open] > *:not(summary) { padding-inline: 14px; }
-  .ara-sar { max-width: none; }
-  .ara-sar kbd { display: none; }
-  #ara { padding-right: 12px; }
-}
-
-@media (max-width: 600px) {
-  .bar { padding: 0 12px; gap: 8px; }
-  .bar-marka .surum { display: none; }
-  .bar-dugme span:not(.gizli-metin) { display: none; }
-  .sinir { padding-inline: 16px; }
-  .giris-ic { padding-block: 40px 36px; }
-  .dizin { grid-template-columns: minmax(0, 1fr); }
-}
-</style>
-<style>
-/* --------------------------------------------------------- deneme alanı */
-
-.deneme {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 1px;
-  background: var(--kenar);
-  height: calc(100vh - var(--bar));
-  border-top: 1px solid var(--kenar);
-}
-.bolme {
-  display: flex; flex-direction: column; min-width: 0; min-height: 0;
-  background: var(--zemin);
-}
-
-.arac {
-  display: flex; align-items: center; gap: 8px;
-  padding: 0 12px; height: 42px; flex: none;
-  border-bottom: 1px solid var(--kenar);
-  background: var(--yuzey);
-}
-.arac-etiket {
-  font-family: var(--mono); font-size: 10px; letter-spacing: .1em;
-  text-transform: uppercase; color: var(--metin-soluk);
-}
-.arac .sag { margin-left: auto; display: flex; align-items: center; gap: 6px; }
-
-.dugme {
-  display: inline-flex; align-items: center; gap: 6px;
-  height: 28px; padding: 0 10px;
-  font: inherit; font-size: 12.5px;
-  color: var(--metin); background: var(--yuzey-2);
-  border: 1px solid var(--kenar); border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: border-color .2s ease, background .2s ease, color .2s ease;
-}
-.dugme:hover { border-color: var(--kenar-guclu); }
-.dugme[disabled] { opacity: .5; cursor: default; }
-.dugme.bitti { color: var(--vurgu); }
-.dugme.bitti .onay { display: block; }
-.dugme.bitti .kopya { display: none; }
-.dugme .onay { display: none; }
-
-.dugme-birincil {
-  background: linear-gradient(180deg, var(--vurgu), var(--vurgu-uc));
-  color: var(--vurgu-metin); border-color: transparent;
-  font-weight: 500;
-  box-shadow: 0 1px 0 0 #ffffff2e inset;
-}
-.dugme-birincil:hover { filter: brightness(1.06); }
-
-select.dugme { padding-right: 6px; }
-
-/* --- düzenleyici --------------------------------------------------------
-   Yazma alanı saydam bir textarea; boyalı metin tam altında duran bir
-   <pre>. İkisinin yazı ölçüleri birebir aynı olmalı, yoksa imleç kayar. */
-
-.yazim { position: relative; flex: 1 1 auto; min-height: 0; overflow: auto; }
-
-.yazim pre, .yazim textarea {
-  margin: 0;
-  padding: 14px 16px 40vh;
-  font-family: var(--mono); font-size: 13.5px; line-height: 1.7;
-  tab-size: 2;
-  white-space: pre; word-wrap: normal;
-  border: 0;
-}
-.yazim pre {
-  min-height: 100%;
-  pointer-events: none;
-  color: var(--metin);
+.satirlar b { color: var(--hata); font-weight: 600; position: relative; }
+.satirlar b::before { content: ''; position: absolute; left: -9px; top: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--hata); }
+.satirlar i { color: var(--uyari); font-style: normal; font-weight: 600; position: relative; }
+.satirlar i::before { content: ''; position: absolute; left: -9px; top: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--uyari); }
+.alan { position: relative; flex: 1 1 auto; min-width: 0; overflow: hidden; }
+.boya, .altcizgi, .alan textarea {
+  margin: 0; padding: 12px 16px; border: 0;
+  font-family: var(--tek); font-size: var(--kod-boy); line-height: var(--kod-satir);
+  white-space: pre; overflow-wrap: normal; tab-size: 2;
+  position: absolute; inset: 0; overflow: auto;
 }
 /* Tarayıcının kendi kuralı <code>'a `font-family: monospace` verir ve
-   pre'den devralınan fontu ezer; boyalı metin başka fontla çizilince imleç
-   sütun ilerledikçe kayar. İki katman aynı font, aynı boy, ligatürsüz. */
-.yazim pre code { font: inherit; letter-spacing: inherit; }
-.yazim pre, .yazim textarea {
+   pre'den devralınan fontu ezer; boyalı metin başka fontla çizilince
+   imleç sütun ilerledikçe kayar. Üç katman aynı ölçülerle yazılmalı:
+   aynı font, aynı boy, ligatürsüz. */
+.boya code, .altcizgi code { font: inherit; letter-spacing: inherit; }
+.boya, .altcizgi, .alan textarea, .satirlar {
   font-variant-ligatures: none; font-feature-settings: 'liga' 0, 'calt' 0;
   font-kerning: none;
 }
-.yazim textarea {
-  position: absolute; inset: 0;
-  width: 100%; height: 100%;
-  resize: none; outline: none;
-  background: transparent;
-  color: transparent;
-  caret-color: var(--vurgu);
-  overflow: hidden;
+.boya { pointer-events: none; color: var(--metin); background: transparent; }
+/* Hata altı çizgisi ayrı bir katmanda: boyalı metnin ortasına sütun
+   hesabıyla etiket sokmak yerine aynı ölçülerde ikinci bir katman. */
+.altcizgi { pointer-events: none; color: transparent; }
+.altcizgi .dalgali {
+  background: color-mix(in srgb, var(--hata) 14%, transparent);
+  box-shadow: inset 0 -2px 0 var(--hata);
+  border-radius: 2px;
 }
-.yazim textarea::selection { background: color-mix(in srgb, var(--vurgu) 28%, transparent); }
+.altcizgi .dalgali.uyari {
+  background: color-mix(in srgb, var(--uyari) 14%, transparent);
+  box-shadow: inset 0 -2px 0 var(--uyari);
+}
+.alan textarea { resize: none; color: transparent; background: transparent; caret-color: var(--vurgu); outline: none; }
+/* Kod önerisi kutusu: imlecin altında, Tab ile uygulanır. */
+.oneri {
+  position: absolute; z-index: 5; min-width: 220px; max-width: 360px;
+  background: var(--yuzey); border: 1px solid var(--kenar); border-radius: 8px;
+  box-shadow: 0 8px 24px -12px rgba(0,0,0,.45); padding: 4px; display: none;
+  font-size: 13px;
+}
+.oneri.acik { display: block; }
+.oneri-satir { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 5px; cursor: pointer; }
+.oneri-satir.secili, .oneri-satir:hover { background: var(--vurgu-zemin); }
+.oneri-satir .ad { font-family: var(--tek); color: var(--metin); }
+.oneri-satir .ad b { color: var(--vurgu); font-weight: 600; }
+.oneri-satir .tur { margin-left: auto; font-family: var(--tek); font-size: 10px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--metin-soluk); }
+.oneri-ipucu { padding: 3px 8px 2px; font-size: 11px; color: var(--metin-soluk); border-top: 1px solid var(--kenar); margin-top: 3px; }
+.oneri-ipucu kbd { font-family: var(--tek); border: 1px solid var(--kenar); border-radius: 4px; padding: 0 4px; }
+.alan textarea::selection { background: color-mix(in srgb, var(--vurgu) 24%, transparent); }
+.n-kw { color: var(--n-kw); } .n-tip { color: var(--n-tip); } .n-metin { color: var(--n-metin); }
+.n-sayi { color: var(--n-sayi); } .n-yorum { color: var(--n-yorum); font-style: italic; }
+.n-yerlesik { color: var(--n-yerlesik); } .n-fn { color: var(--n-fn); } .n-op { color: var(--n-op); }
 
-/* --- çıktı -------------------------------------------------------------- */
-
+/* --- sağ panel: sekmeler ------------------------------------------------- */
 .sekmeler { display: flex; gap: 2px; }
 .sekme {
-  height: 28px; padding: 0 10px;
-  font: inherit; font-size: 12.5px;
-  color: var(--metin-soluk); background: none;
-  border: 1px solid transparent; border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: color .2s ease, background .2s ease;
+  height: 24px; padding: 0 9px; font: inherit; font-size: 12px;
+  text-transform: none; letter-spacing: 0;
+  color: var(--metin-soluk); background: none; border: 1px solid transparent; border-radius: 6px;
 }
 .sekme:hover { color: var(--metin); background: var(--yuzey-2); }
-.sekme[aria-selected="true"] {
-  color: var(--vurgu); background: var(--vurgu-zemin);
-  border-color: var(--kenar);
+.sekme[aria-selected="true"] { color: var(--vurgu); background: var(--vurgu-zemin); border-color: var(--kenar); }
+.sekme .sayi {
+  font-family: var(--tek); font-size: 10px; margin-left: 5px; padding: 0 5px;
+  border-radius: 999px; background: var(--hata); color: #fff;
 }
-
+.sekme .sayi.uyari { background: var(--uyari); color: #1a1200; }
+.sekme .sayi:empty { display: none; }
 .pano { flex: 1 1 auto; min-height: 0; position: relative; }
-.pano > * { position: absolute; inset: 0; }
+.pano > * { position: absolute; inset: 0; overflow: auto; }
 .pano > [hidden] { display: none; }
-
-#cikti {
-  margin: 0; padding: 14px 16px;
-  overflow: auto;
-  font-family: var(--mono); font-size: 12.5px; line-height: 1.7;
-  white-space: pre-wrap; word-break: break-word;
-  color: var(--metin);
-}
-#cikti .hata { color: var(--hata); }
-#cikti .bilgi { color: var(--metin-soluk); }
-#cikti .sure {
-  display: block; margin-top: 10px;
-  color: var(--metin-soluk); font-size: 11px;
-}
-
+/* Program sayfayla konuşuyorsa çizdiği şey burada görünür. */
 #ekran { width: 100%; height: 100%; border: 0; background: var(--yuzey); }
 
-.bos-ipucu {
-  display: flex; align-items: center; justify-content: center;
-  padding: 24px; text-align: center;
-  color: var(--metin-soluk); font-size: 13px;
+.cikti-govde {
+  padding: 12px 16px; margin: 0; background: var(--panel);
+  font-family: var(--tek); font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word;
+}
+.cikti-govde .bos { font-family: var(--govde); color: var(--metin-soluk); font-style: italic; }
+.cikti-govde .hata-blok {
+  color: var(--hata); background: var(--hata-zemin); border-left: 3px solid var(--hata);
+  padding: 10px 12px; margin: 0 0 10px; border-radius: 0 6px 6px 0; cursor: pointer;
+}
+.cikti-govde .uyari-blok {
+  color: var(--uyari); background: var(--uyari-zemin); border-left: 3px solid var(--uyari);
+  padding: 10px 12px; margin: 0 0 10px; border-radius: 0 6px 6px 0;
 }
 
-/* --- durum çubuğu -------------------------------------------------------- */
+/* Sorunlar: her hata bir kart; satıra tıklayınca gidilir. */
+.sorunlar { padding: 10px 12px; background: var(--panel); }
+.sorunlar .bos { color: var(--metin-soluk); font-style: italic; }
+.sorun {
+  display: grid; grid-template-columns: auto 1fr; gap: 2px 10px;
+  padding: 9px 11px; margin-bottom: 8px;
+  background: var(--yuzey); border: 1px solid var(--kenar); border-left: 3px solid var(--hata);
+  border-radius: 0 8px 8px 0; cursor: pointer;
+}
+.sorun:hover { border-color: var(--kenar-guclu); border-left-color: var(--hata); }
+.sorun.uyari { border-left-color: var(--uyari); }
+.sorun.uyari:hover { border-left-color: var(--uyari); }
+.sorun.uyari .yer { color: var(--uyari); }
+.sorun.uyari .kaynak mark { background: color-mix(in srgb, var(--uyari) 18%, transparent); box-shadow: inset 0 -2px 0 var(--uyari); }
+.sorun .yer { grid-row: 1 / span 3; font-family: var(--tek); font-size: 11px; color: var(--hata);
+  font-variant-numeric: tabular-nums; padding-top: 2px; }
+.sorun .mesaj { font-size: 13.5px; }
+.sorun .ipucu { font-size: 12.5px; color: var(--metin-soluk); }
+.sorun .ipucu b { color: var(--iyi); font-weight: 600; }
+.sorun .kaynak { margin-top: 4px; font-family: var(--tek); font-size: 12px; white-space: pre; overflow-x: auto;
+  color: var(--metin-soluk); }
+.sorun .kaynak mark { background: color-mix(in srgb, var(--hata) 18%, transparent); color: var(--metin);
+  box-shadow: inset 0 -2px 0 var(--hata); }
 
-.durum {
-  flex: none; display: flex; align-items: center; gap: 8px;
-  padding: 0 12px; height: 30px;
-  border-top: 1px solid var(--kenar);
-  background: var(--yuzey);
-  font-family: var(--mono); font-size: 11px; color: var(--metin-soluk);
+/* --- alt çubuk ------------------------------------------------------------ */
+.alt {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 14px; height: 28px;
+  padding: 0 12px; background: var(--yuzey); border-top: 1px solid var(--kenar);
+  font-family: var(--tek); font-size: 11.5px; color: var(--metin-soluk);
 }
-.durum .nokta {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--kenar-guclu);
-}
-.durum.hazir .nokta { background: var(--vurgu); }
-.durum.calisiyor .nokta { animation: nabiz 1s ease-in-out infinite; }
-@keyframes nabiz { 50% { opacity: .25; } }
+.alt .durum { display: flex; align-items: center; gap: 6px; }
+.alt .nokta { width: 7px; height: 7px; border-radius: 50%; background: var(--iyi); }
+.alt .nokta.kotu { background: var(--hata); }
+.alt .tiklanir { cursor: pointer; color: var(--hata); }
+.alt .tiklanir:hover { text-decoration: underline; }
 
 @media (max-width: 900px) {
-  .deneme { grid-template-columns: minmax(0, 1fr); height: auto; }
-  .bolme { height: 70vh; }
+  .govde { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1.4fr 1fr; }
+  .kenar-cubugu { max-height: 160px; }
+  .sutun + .sutun { border-left: 0; border-top: 1px solid var(--kenar); }
+  .ust { flex-wrap: wrap; height: auto; padding: 6px 8px; }
 }
 </style>
 </head>
 <body>
-<div lang="tr" class="kok">
 
-<header class="bar">
-  <a class="bar-marka" href="../">
-    <b>Nar</b>
-    <span class="surum">v0.6.0</span>
-  </a>
-  <span class="arac-etiket">deneme alanı</span>
-  <div class="bar-sag">
-    <a class="bar-dugme" href="../"><svg class="ikon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 8-5 4 5 4M15 8l5 4-5 4"/></svg><span>Rehber</span></a>
-    <a class="bar-dugme" href="https://github.com/ridocs/nar-dili" rel="noreferrer">
-      <span>Kaynak</span></a>
-    <button id="tema" class="bar-dugme" type="button" aria-pressed="false">
-      <span class="gunes"><svg class="ikon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/></svg></span><span class="ay"><svg class="ikon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13.5A8 8 0 1 1 10.5 4a6.5 6.5 0 0 0 9.5 9.5Z"/></svg></span>
-      <span class="gizli-metin">Temayı değiştir</span>
-    </button>
+<header class="ust">
+  <a class="marka" href="../" style="text-decoration:none" title="Rehbere dön">Nar<span id="surum">deneme</span></a>
+  <div class="grup">
+    <button id="btn-agac" title="Dosya ağacını göster/gizle (Ctrl+B)"><svg class="ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>Dosyalar</button>
+    <button id="btn-yeni" title="Çalışmalarım altında yeni dosya"><svg class="ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg>Yeni</button>
+    <button id="btn-kaydet" title="Ctrl+S"><svg class="ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg>Kaydet</button>
+  </div>
+  <div class="grup">
+    <button id="btn-bicim" title="Kodu yeniden girintiler (Ctrl+Shift+D) — biçimlendirici Nar ile yazılmıştır"><svg class="ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h16M8 12h12M4 18h16"/></svg>Düzenle</button>
+    <button id="btn-denetle" title="Tip denetimi (yazarken zaten çalışır)"><svg class="ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>Denetle</button>
+    <button id="btn-js" title="Üretilen JavaScript'i göster"><svg class="ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m9 8-5 4 5 4M15 8l5 4-5 4"/></svg>JavaScript</button>
+  </div>
+  <div class="ara"></div>
+  <div class="grup">
+    <button id="btn-tema" title="Açık/koyu tema"><svg class="ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 13.5A8 8 0 1 1 10.5 4a6.5 6.5 0 0 0 9.5 9.5Z"/></svg>Tema</button>
+    <button id="btn-calistir" class="birincil"><svg class="ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 5.5v13l11-6.5-11-6.5Z"/></svg>Çalıştır<kbd>Ctrl+↵</kbd></button>
   </div>
 </header>
 
-<main class="deneme">
-  <section class="bolme" aria-label="Kod">
-    <div class="arac">
-      <button id="calistir" class="dugme dugme-birincil" type="button">
-        Çalıştır<svg class="ikon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13m-5-5 5 5-5 5"/></svg>
-      </button>
-      <select id="ornek" class="dugme" aria-label="Hazır örnek seç">
-        <option value="">örnekler…</option>
-        <option value="0">Başlangıç</option><option value="1">Tip güvenliği</option><option value="2">match ve enum</option><option value="3">Arayüz çizmek</option>
-      </select>
-      <div class="sag">
-        <button id="paylas" class="dugme" type="button">
-          <span class="kopya"><svg class="ikon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg></span>
-          <span class="onay"><svg class="ikon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
-          <span class="yazi">Paylaş</span>
-        </button>
+<div class="govde">
+  <aside class="sutun kenar-cubugu">
+    <div class="sutun-baslik"><span>Dosyalar</span><div class="ara"></div><span class="rozet" id="dosya-sayisi"></span></div>
+    <nav class="agac" id="agac" aria-label="Dosyalar"></nav>
+  </aside>
+
+  <section class="sutun">
+    <div class="sutun-baslik">
+      <span id="dosya-adi" style="text-transform:none;letter-spacing:0;font-size:12px;color:var(--metin)">deneme.nar</span>
+      <span id="degisti" style="display:none;color:var(--uyari)">•</span>
+      <div class="ara"></div>
+      <span class="rozet" id="denetim">denetleniyor…</span>
+    </div>
+    <div class="duzenleyici">
+      <div class="satirlar" id="satirlar">1</div>
+      <div class="alan">
+        <pre class="boya" id="boya" aria-hidden="true"><code></code></pre>
+        <pre class="altcizgi" id="altcizgi" aria-hidden="true"><code></code></pre>
+        <textarea id="kod" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" aria-label="Nar kaynak kodu"></textarea>
+        <div class="oneri" id="oneri" role="listbox" aria-label="Kod önerileri"></div>
       </div>
-    </div>
-    <div class="yazim">
-      <pre aria-hidden="true"><code id="boya"></code></pre>
-      <textarea id="kaynak" spellcheck="false" autocomplete="off"
-                autocapitalize="off" autocorrect="off"
-                aria-label="Nar kaynağı"></textarea>
-    </div>
-    <div id="durum" class="durum">
-      <span class="nokta"></span><span id="durum-yazi">hazır</span>
     </div>
   </section>
 
-  <section class="bolme" aria-label="Sonuç">
-    <div class="arac">
+  <section class="sutun">
+    <div class="sutun-baslik">
       <div class="sekmeler" role="tablist">
-        <button class="sekme" type="button" role="tab" data-pano="pano-cikti"
-                aria-selected="true">Çıktı</button>
-        <button class="sekme" type="button" role="tab" data-pano="pano-ekran"
-                aria-selected="false">Ekran</button>
+        <button class="sekme" role="tab" data-pano="pano-cikti" aria-selected="true">Çıktı</button>
+        <button class="sekme" role="tab" data-pano="pano-sorunlar" aria-selected="false">Sorunlar<span class="sayi" id="sorun-sayisi"></span></button>
+        <button class="sekme" role="tab" data-pano="pano-js" aria-selected="false">JavaScript</button>
+        <button class="sekme" role="tab" data-pano="pano-ekran" aria-selected="false">Ekran</button>
       </div>
-      <span class="sag arac-etiket">Ctrl+Enter</span>
+      <div class="ara"></div>
+      <span class="rozet" id="sure"></span>
     </div>
     <div class="pano">
-      <pre id="pano-cikti"><code id="cikti"></code></pre>
-      <div id="pano-ekran" hidden>
-        <iframe id="ekran" title="Programın çizdiği ekran"
-                sandbox="allow-scripts"></iframe>
-      </div>
+      <pre class="cikti-govde" id="pano-cikti"><span class="bos">Çalıştır'a bas (Ctrl+Enter) — programın çıktısı burada görünür.</span></pre>
+      <div class="sorunlar" id="pano-sorunlar" hidden><span class="bos">Sorun yok.</span></div>
+      <pre class="cikti-govde" id="pano-js" hidden><span class="bos">JavaScript düğmesine bas; üretilen kod burada görünür.</span></pre>
+      <div id="pano-ekran" hidden><iframe id="ekran" title="Programın çizdiği ekran" sandbox="allow-scripts"></iframe></div>
     </div>
   </section>
-</main>
-
 </div>
+
+<footer class="alt">
+  <div class="durum"><span class="nokta" id="nokta"></span><span id="durum">hazır</span></div>
+  <div class="ara"></div>
+  <span id="motor" title="Bu düzenleyicinin renklendiricisi, biçimlendiricisi ve tüm davranışı Nar diliyle yazılmıştır (araclar/*.nar)">araçlar: —</span>
+  <span id="imlec">satır 1, sütun 1</span>
+</footer>
+
+<!-- Davranış Nar ile yazılmıştır: araclar/ide_uygulamasi.nar -->
+<!-- Tarayıcı köprüsü: IDE'nin /api çağrılarını burada karşılar. -->
+<script>
+(function () {
+  'use strict';
+
+  // --- gömülü veri ----------------------------------------------------
+  var DOSYALAR = {"ornekler/baslangic.nar": "// Nar'a hoş geldin. Değiştir ve Çalıştır'a bas (Ctrl+Enter).\n// Yazarken kod önerisi çıkar; Tab ile uygula.\n\nstruct Kisi {\n  ad: String\n  yas: Int\n}\n\nfn selamla(k: Kisi) -> String =\n  \"Merhaba ${k.ad}, ${k.yas} yaşındasın.\"\n\nfn main() {\n  let kisiler = [\n    Kisi { ad: \"Ayşe\", yas: 30 },\n    Kisi { ad: \"Mehmet\", yas: 17 },\n    Kisi { ad: \"Zeynep\", yas: 24 }\n  ]\n\n  for k in kisiler {\n    print(selamla(k))\n  }\n\n  let yetiskinler = kisiler.filter(|k| k.yas >= 18)\n  print(\"yetişkin sayısı:\", yetiskinler.len())\n}\n", "ornekler/tip-guvenligi.nar": "// Nar tipleri derleme anında denetler.\n// Aşağıdaki satırın yorumunu kaldır, hatayı Türkçe gör.\n\nfn main() {\n  let yas: Int = 30\n  // let ad: String = yas\n\n  print(\"yaş:\", yas)\n}\n", "ornekler/match-enum.nar": "enum Sekil {\n  Daire(Float)\n  Dikdortgen(Float, Float)\n  Kare(Float)\n}\n\nfn alan(s: Sekil) -> Float = match s {\n  Daire(r) -> 3.14159 * r * r\n  Dikdortgen(en, boy) -> en * boy\n  Kare(k) -> k * k\n}\n\nfn main() {\n  let sekiller = [Daire(2.0), Dikdortgen(3.0, 4.0), Kare(5.0)]\n  for s in sekiller {\n    print(alan(s))\n  }\n}\n", "ornekler/arayuz.nar": "// Bu örnek ekrana çizer: sağdaki \"Ekran\" sekmesine bak.\n\nfn main() {\n  if let alan = bul(\"#uygulama\") {\n    var sayac = 0\n\n    let baslik = olustur(\"h2\")\n    baslik.metinYaz(\"Sayaç\")\n\n    let deger = olustur(\"p\")\n    deger.metinYaz(\"0\")\n\n    let dugme = olustur(\"button\")\n    dugme.metinYaz(\"Artır\")\n    dugme.dinle(\"click\", |o| {\n      sayac += 1\n      deger.metinYaz(\"${sayac}\")\n    })\n\n    alan.ekle(baslik)\n    alan.ekle(deger)\n    alan.ekle(dugme)\n  } else {\n    print(\"Bu program bir sayfada çalışmalı.\")\n  }\n}\n", "rehber/baslangic/ilk-program.nar": "fn main() {\n  print(\"Merhaba dünya!\")\n}", "rehber/baslangic/yorumlar.nar": "fn main() {\n  // Bu satır bir yorum, çalıştırılmaz.\n\n  /* Birden çok satırı\n     kaplayan yorum da yazılabilir. */\n\n  print(\"yorumlar çıktıyı etkilemez\")\n}\n", "rehber/baslangic/yazdirma.nar": "fn main() {\n  print(\"tek değer\")\n  print(\"ad:\", \"Ayşe\", \"yaş:\", 30)\n  print([1, 2, 3])\n  print(3.5, true, none)\n}\n", "rehber/degiskenler/let-var.nar": "fn main() {\n  let ad = \"Mustafa\"      // değişmez\n  var sayac = 0           // değişebilir\n\n  sayac = sayac + 1\n  sayac += 5              // aynı şeyin kısa yazımı\n\n  print(ad, sayac)\n}\n", "rehber/degiskenler/tipler.nar": "fn main() {\n  let a = 42              // Int  (kendisi anladı)\n  let b = 3.14            // Float\n  let c = \"merhaba\"       // String\n  let d = true            // Bool\n\n  let e: Float = 10       // istersen açıkça yaz\n  let f: String = \"elma\"\n\n  print(a, b, c, d, e, f)\n}\n", "rehber/degiskenler/sayilar.nar": "fn main() {\n  print(2 + 3)            // 5\n  print(10 - 4)           // 6\n  print(3 * 4)            // 12\n  print(7 / 2)            // 3    <- tam bölme\n  print(7 / 2.0)          // 3.5  <- ondalıklı\n  print(7 % 3)            // 1    <- kalan\n  print(1 + 2.5)          // 3.5  <- karışık kullanılabilir\n\n  print(sqrt(16), abs(-5), min(3, 8), max(3, 8))\n  print(floor(3.7), ceil(3.2), round(3.5))\n}\n", "rehber/degiskenler/metinler.nar": "fn main() {\n  let ad = \"Ayşe\"\n  let yas = 30\n\n  print(\"Merhaba \" + ad)\n  print(\"Yaş: \" + yas)              // sayı otomatik yazıya döner\n  print(\"${ad} ${yas} yaşında\")     // gömme — en okunaklısı\n  print(\"Toplam: ${yas + 5}\")       // içinde işlem de yapılır\n}\n", "rehber/degiskenler/metin-metotlari.nar": "fn main() {\n  let s = \"  Merhaba Dünya  \"\n\n  print(s.trim())                  // baştaki/sondaki boşlukları atar\n  print(s.trim().len())            // harf sayısı\n  print(s.trim().lower())\n  print(\"istanbul\".upperTr())      // Türkçe: İSTANBUL\n  print(\"IĞDIR\".lowerTr())         // Türkçe: ığdır\n  print(\"a-b-c\".split(\"-\"))\n  print(\"a-b-c\".replace(\"-\", \"+\"))\n  print(\"merhaba\".contains(\"hab\"))\n  print(\"merhaba\".slice(0, 3))     // ilk 3 harf\n  print(\"ab\".repeat(3))\n}\n", "rehber/degiskenler/karakter-kodu.nar": "fn main() {\n  print(\"A\".kodu())          // 65\n  print(\"a\".kodu())          // 97\n  print(koddan(65))          // A\n\n  // Türkçe harfler de aynı şekilde\n  print(\"ı\".kodu())\n  print(koddan(305))\n\n  // Sezar şifresi: her harfi üç ileri kaydır\n  let harf = \"d\"\n  print(koddan(harf.kodu() + 3))\n}\n", "rehber/degiskenler/bool.nar": "fn main() {\n  print(5 > 3)             // true\n  print(5 == 5)            // eşit mi\n  print(5 != 3)            // eşit değil mi\n  print(5 >= 5, 2 <= 1)\n\n  let a = true\n  let b = false\n  print(a && b)            // ve   — ikisi de doğruysa\n  print(a || b)            // veya — biri doğruysa\n  print(!a)                // değil\n}\n", "rehber/kararlar/if.nar": "fn main() {\n  let not = 85\n\n  if not >= 90 {\n    print(\"A aldın\")\n  } else if not >= 80 {\n    print(\"B aldın\")\n  } else {\n    print(\"Daha çok çalış\")\n  }\n}\n", "rehber/kararlar/if-ifade.nar": "fn main() {\n  let yas = 20\n\n  let durum = if yas >= 18 { \"yetişkin\" } else { \"çocuk\" }\n  print(durum)\n\n  // zincirlenebilir\n  let not = 85\n  let harf = if not >= 90 { \"A\" } else if not >= 80 { \"B\" } else { \"C\" }\n  print(\"harf:\", harf)\n\n  // başka bir ifadenin içinde de kullanılabilir\n  print(\"ücret: \" + if yas < 12 { 0 } else { 50 })\n}\n", "rehber/kararlar/blok-ifadesi.nar": "enum Hava {\n  Gunesli\n  Yagmurlu\n  Karli\n}\n\nfn oneri(h: Hava) -> String = match h {\n  Gunesli -> \"şapka al\"\n  Yagmurlu -> {\n    let arac = \"şemsiye\"\n    let sebep = \"yağmur\"\n    \"${arac} al (${sebep})\"\n  }\n  Karli -> {\n    let katman = 3\n    \"${katman} kat giy\"\n  }\n}\n\nfn sinif(not: Int) -> String = if not >= 90 {\n  \"A\"\n} else if not >= 80 {\n  let fark = 90 - not\n  \"B (A'ya ${fark} puan)\"\n} else {\n  \"C\"\n}\n\nfn main() {\n  print(oneri(Yagmurlu))\n  print(oneri(Karli))\n  print(sinif(85))\n}", "rehber/donguler/for.nar": "fn main() {\n  for i in 1..4 {\n    print(\"sayı\", i)\n  }\n\n  for i in 1..=3 {\n    print(\"dahil\", i)\n  }\n\n  for meyve in [\"elma\", \"armut\", \"kiraz\"] {\n    print(meyve)\n  }\n\n  for harf in \"abc\" {\n    print(harf)\n  }\n}\n", "rehber/donguler/indeksli-for.nar": "fn main() {\n  let sehirler = [\"İstanbul\", \"Ankara\", \"İzmir\"]\n  for (sira, sehir) in sehirler {\n    print(\"${sira + 1}. ${sehir}\")\n  }\n\n  for (i, harf) in \"açık\" {\n    print(i, harf)\n  }\n\n  let yaslar = {\"Ayşe\": 30, \"Mehmet\": 24}\n  for (ad, yas) in yaslar {\n    print(ad, yas)\n  }\n}\n", "rehber/donguler/while.nar": "fn main() {\n  var sayi = 1\n\n  while sayi < 100 {\n    sayi = sayi * 2\n  }\n\n  print(\"100'ü aşan ilk ikinin kuvveti:\", sayi)\n}\n", "rehber/donguler/break-continue.nar": "fn main() {\n  for i in 1..=10 {\n    if i % 2 == 0 {\n      continue          // çiftleri atla\n    }\n    if i > 7 {\n      break             // 7'yi geçince dur\n    }\n    print(i)\n  }\n}\n", "rehber/listeler/liste.nar": "fn main() {\n  var sayilar = [5, 3, 8, 1]\n\n  print(sayilar)\n  print(\"ilk eleman:\", sayilar[0])\n  print(\"kaç eleman:\", sayilar.len())\n\n  sayilar.push(10)              // sona ekle\n  print(sayilar)\n\n  print(\"sıralı:\", sayilar.sort())\n  print(\"ters:\", sayilar.reverse())\n  print(\"içinde 8 var mı:\", sayilar.contains(8))\n  print(\"bir kısmı:\", sayilar.slice(1, 3))\n}\n", "rehber/listeler/liste-kolay.nar": "fn main() {\n  let sayilar = [5, 3, 8, 1, 3]\n\n  print(\"toplam:\", sayilar.toplam())\n  print(\"ortalama:\", sayilar.ortalama())\n  print(\"çarpım:\", sayilar.carpim())\n  print(\"en büyük:\", sayilar.enBuyuk() ?? 0)\n  print(\"en küçük:\", sayilar.enKucuk() ?? 0)\n\n  print(\"iki katları:\", sayilar.kat(2))\n  print(\"10 artırılmış:\", sayilar.artir(10))\n  print(\"3'ten büyükler:\", sayilar.buyukler(3))\n  print(\"3'ten küçükler:\", sayilar.kucukler(3))\n  print(\"çiftler:\", sayilar.ciftler())\n  print(\"tekler:\", sayilar.tekler())\n\n  print(\"benzersiz:\", sayilar.benzersiz())\n  print(\"kaç tane 3 var:\", sayilar.say(3))\n\n  let kelimeler = [\"nar\", \"elma\", \"kiraz\"]\n  print(\"büyük harf:\", kelimeler.buyukHarf())\n  print(\"'a' içerenler:\", kelimeler.icerenler(\"a\"))\n}\n", "rehber/listeler/liste-donusum.nar": "fn main() {\n  let sayilar = [1, 2, 3, 4, 5]\n\n  print(sayilar.map(|x| x * x))          // her birinin karesi\n  print(sayilar.filter(|x| x % 2 == 0))  // sadece çiftler\n  print(sayilar.reduce(|a, b| a + b, 0)) // toplamı\n\n  // zincirlenebilir\n  print(sayilar.filter(|x| x > 2).map(|x| x * 10))\n\n  let kelimeler = [\"nar\", \"elma\", \"kiraz\"]\n  print(kelimeler.map(|k| k.upperTr()).join(\", \"))\n}\n", "rehber/listeler/sozluk.nar": "fn main() {\n  var stok = {\"elma\": 12, \"armut\": 3}\n\n  stok.set(\"kiraz\", 7)\n\n  print(stok)\n  print(\"kaç çeşit:\", stok.len())\n  print(\"elma:\", stok.get(\"elma\") ?? 0)\n  print(\"muz:\", stok.get(\"muz\") ?? 0)      // yok -> 0\n  print(\"armut var mı:\", stok.has(\"armut\"))\n\n  for (urun, adet) in stok {\n    print(\"${urun}: ${adet} adet\")\n  }\n}\n", "rehber/fonksiyonlar/fonksiyon.nar": "fn selamla(ad: String) {\n  print(\"Merhaba \" + ad)\n}\n\nfn topla(a: Int, b: Int) -> Int {\n  return a + b\n}\n\nfn main() {\n  selamla(\"Nar\")\n  print(topla(3, 4))\n}", "rehber/fonksiyonlar/kisa-fonksiyon.nar": "fn kare(x: Int) -> Int = x * x\n\nfn selam(ad: String) -> String = \"Merhaba \" + ad\n\nfn buyuk_mu(n: Int) -> Bool = n > 100\n\nfn main() {\n  print(kare(9))\n  print(selam(\"Nar\"))\n  print(buyuk_mu(150))\n}", "rehber/fonksiyonlar/ozyineleme.nar": "fn faktoriyel(n: Int) -> Int {\n  if n <= 1 {\n    return 1\n  }\n  return n * faktoriyel(n - 1)\n}\n\nfn fib(n: Int) -> Int = if n < 2 { n } else { fib(n - 1) + fib(n - 2) }\n\nfn main() {\n  print(\"6! =\", faktoriyel(6))\n  print(\"fib(20) =\", fib(20))\n}", "rehber/fonksiyonlar/lambda.nar": "fn main() {\n  let iki_kat = |x: Int| x * 2\n  print(iki_kat(21))\n\n  // birden çok satır gerekiyorsa\n  let mesafe = |a: Int, b: Int| {\n    let fark = a - b\n    return abs(fark)\n  }\n  print(mesafe(3, 10))\n\n  // bir listeye uygularken tip yazmaya gerek yok\n  print([1, 2, 3].map(|x| x + 100))\n}\n", "rehber/tipler/struct.nar": "struct Kisi {\n  ad: String\n  var yas: Int\n}\n\nfn main() {\n  let k = Kisi { ad: \"Ayşe\", yas: 30 }\n  print(k)\n  print(k.ad, \"->\", k.yas)\n  k.yas = 31\n  print(\"doğum günü sonrası:\", k.yas)\n}", "rehber/tipler/metot.nar": "struct Dikdortgen {\n  en: Float\n  boy: Float\n\n  fn alan() -> Float = self.en * self.boy\n  fn cevre() -> Float = 2.0 * (self.en + self.boy)\n  fn kare_mi() -> Bool = self.en == self.boy\n\n  fn buyut(kat: Float) -> Dikdortgen {\n    return Dikdortgen { en: self.en * kat, boy: self.boy * kat }\n  }\n}\n\nfn main() {\n  let d = Dikdortgen { en: 3.0, boy: 4.0 }\n  print(\"alan:\", d.alan())\n  print(\"çevre:\", d.cevre())\n  print(\"kare mi:\", d.kare_mi())\n  print(\"iki katı:\", d.buyut(2.0))\n}", "rehber/tipler/enum.nar": "enum Hava {\n  Gunesli\n  Yagmurlu\n  Karli\n}\n\nfn main() {\n  let bugun = Hava.Yagmurlu\n  print(bugun)\n}", "rehber/tipler/kisa-varyant.nar": "enum Hava {\n  Gunesli\n  Yagmurlu\n  Karli\n}\n\nfn oneri(h: Hava) -> String = match h {\n  Gunesli -> \"şapka al\"\n  Yagmurlu -> \"şemsiye al\"\n  Karli -> \"atkı al\"\n}\n\nfn main() {\n  print(oneri(Yagmurlu))\n  print(oneri(Hava.Karli))\n}", "rehber/tipler/match.nar": "enum Hava {\n  Gunesli\n  Yagmurlu\n  Karli\n}\n\nfn tavsiye(h: Hava) -> String = match h {\n  Hava.Gunesli -> \"Şapka al.\"\n  Hava.Yagmurlu -> \"Şemsiye al.\"\n  Hava.Karli -> \"Mont al.\"\n}\n\nfn main() {\n  for h in [Hava.Gunesli, Hava.Yagmurlu, Hava.Karli] {\n    print(tavsiye(h))\n  }\n  let n = 3\n  print(match n {\n    1 -> \"bir\"\n    2 -> \"iki\"\n    _ -> \"çok\"\n  })\n}", "rehber/tipler/enum-veri.nar": "enum Sonuc {\n  Tamam(Int)\n  Hata(String)\n}\n\nfn bol(a: Int, b: Int) -> Sonuc {\n  if b == 0 {\n    return Sonuc.Hata(\"sıfıra bölünemez\")\n  }\n  return Sonuc.Tamam(a / b)\n}\n\nfn main() {\n  for bolen in [4, 0, 5] {\n    match bol(100, bolen) {\n      Sonuc.Tamam(deger) -> print(\"100 / ${bolen} = ${deger}\")\n      Sonuc.Hata(mesaj) -> print(\"olmadı: ${mesaj}\")\n    }\n  }\n}", "rehber/generic/generic-giris.nar": "struct Kutu<T> {\n  deger: T\n  fn al() -> T = self.deger\n}\n\nfn main() {\n  let sayiKutusu = Kutu { deger: 5 }\n  let metinKutusu = Kutu { deger: \"merhaba\" }\n  print(sayiKutusu.al())\n  print(metinKutusu.al())\n  let acik = Kutu<Float> { deger: 2.5 }\n  print(acik.deger)\n}", "rehber/generic/generic-fonksiyon.nar": "fn ilk<T>(liste: [T]) -> T? {\n  if liste.len() == 0 {\n    return none\n  }\n  return liste[0]\n}\n\nfn ikiKat<T>(x: T) -> [T] = [x, x]\n\nfn main() {\n  print(ilk([3, 4, 5]) ?? 0)\n  print(ilk([\"a\", \"b\"]) ?? \"yok\")\n  let bos: [Int] = []\n  print(ilk(bos) ?? -1)\n  print(ikiKat(7))\n  print(ikiKat(\"x\"))\n}", "rehber/generic/sonuc-tipi.nar": "enum Sonuc<T, H> {\n  Tamam(T)\n  Hata(H)\n}\n\nfn bol(a: Int, b: Int) -> Sonuc<Int, String> {\n  if b == 0 {\n    return Sonuc.Hata(\"sıfıra bölünemez\")\n  }\n  return Sonuc.Tamam(a / b)\n}\n\nfn main() {\n  for bolen in [4, 0] {\n    match bol(100, bolen) {\n      Sonuc.Tamam(deger) -> print(\"100 / ${bolen} = ${deger}\")\n      Sonuc.Hata(mesaj) -> print(\"olmadı: ${mesaj}\")\n    }\n  }\n}", "rehber/generic/generic-ozyineli.nar": "enum Agac<T> {\n  Yaprak(T)\n  Dal([Agac<T>])\n}\n\nfn topla(a: Agac<Int>) -> Int = match a {\n  Agac.Yaprak(n) -> n\n  Agac.Dal(dallar) -> dallar.map(|d| topla(d)).toplam()\n}\n\nfn main() {\n  let agac = Agac.Dal([\n    Agac.Yaprak(1),\n    Agac.Dal([Agac.Yaprak(2), Agac.Yaprak(3)])\n  ])\n  print(\"yaprakların toplamı:\", topla(agac))\n}", "rehber/arayuz/arayuz-giris.nar": "interface Yazdirilabilir {\n  fn yaz() -> String\n}\n\nstruct Nokta: Yazdirilabilir {\n  x: Float\n  y: Float\n  fn yaz() -> String = \"(${self.x}, ${self.y})\"\n}\n\nstruct Kisi: Yazdirilabilir {\n  ad: String\n  fn yaz() -> String = \"kişi: \" + self.ad\n}\n\nfn goster(sey: Yazdirilabilir) {\n  print(sey.yaz())\n}\n\nfn main() {\n  goster(Nokta { x: 1.0, y: 2.0 })\n  goster(Kisi { ad: \"Ayşe\" })\n}", "rehber/arayuz/arayuz-liste.nar": "interface Yazdirilabilir {\n  fn yaz() -> String\n}\n\nstruct Kisi: Yazdirilabilir {\n  ad: String\n  fn yaz() -> String = \"kişi: \" + self.ad\n}\n\nenum Durum: Yazdirilabilir {\n  Acik\n  Kapali\n  fn yaz() -> String = match self {\n    Durum.Acik -> \"açık\"\n    Durum.Kapali -> \"kapalı\"\n  }\n}\n\nfn main() {\n  let hepsi: [Yazdirilabilir] = [\n    Kisi { ad: \"Ayşe\" },\n    Durum.Acik,\n    Durum.Kapali\n  ]\n  for e in hepsi {\n    print(\"- \" + e.yaz())\n  }\n}", "rehber/arayuz/arayuz-generic.nar": "interface Olculebilir {\n  fn olcu() -> Float\n}\n\nstruct Nokta: Olculebilir {\n  x: Float\n  y: Float\n  fn olcu() -> Float = sqrt(self.x * self.x + self.y * self.y)\n}\n\nfn enBuyuk<T: Olculebilir>(liste: [T]) -> Float {\n  var en = 0.0\n  for e in liste {\n    if e.olcu() > en {\n      en = e.olcu()\n    }\n  }\n  return en\n}\n\nfn main() {\n  print(enBuyuk([\n    Nokta { x: 3.0, y: 4.0 },\n    Nokta { x: 6.0, y: 8.0 }\n  ]))\n}", "rehber/opsiyonel/none.nar": "fn main() {\n  let takma: String? = none\n  let gercek: String? = \"Nar\"\n\n  print(takma)\n  print(gercek)\n\n  // ?? ile yedek değer ver\n  print(takma ?? \"takma adı yok\")\n  print(gercek ?? \"takma adı yok\")\n}\n", "rehber/opsiyonel/opsiyonel-kullanim.nar": "fn main() {\n  let sayilar = [10, 20, 30]\n\n  let ilk = sayilar.first()        // İlk eleman olmayabilir (liste boşsa)\n  print(\"ilk:\", ilk ?? 0)\n\n  if ilk != none {\n    print(\"var, iki katı:\", ilk * 2)   // burada artık kesin var\n  }\n\n  var bos: [Int] = []\n  print(\"boş listenin ilki:\", bos.first() ?? -1)\n}\n", "rehber/opsiyonel/if-let.nar": "fn yas(ad: String) -> Int? {\n  let defter = {\"Ayşe\": 30, \"Mehmet\": 24}\n  return defter.get(ad)\n}\n\nfn main() {\n  if let y = yas(\"Ayşe\") {\n    print(\"Ayşe ${y} yaşında\")\n  } else {\n    print(\"Ayşe defterde yok\")\n  }\n\n  if let y = yas(\"Zeynep\") {\n    print(\"Zeynep ${y} yaşında\")\n  } else if let y = yas(\"Mehmet\") {\n    print(\"Zeynep yok ama Mehmet ${y} yaşında\")\n  } else {\n    print(\"ikisi de yok\")\n  }\n}", "rehber/opsiyonel/soru-operatoru.nar": "// Satırların ilkindeki sayıyı okur.\n// Herhangi bir adım tutmazsa sonuç none olur.\nfn ilkSayi(satirlar: [String]) -> Int? {\n  let satir = satirlar.first()?\n  return int(satir.trim())?\n}\n\nfn main() {\n  print(ilkSayi([\"  42  \", \"başka satır\"]) ?? -1)\n  print(ilkSayi([\"sayı değil\"]) ?? -1)\n  print(ilkSayi([]) ?? -1)\n}", "rehber/opsiyonel/guvenli-zincir.nar": "struct Adres {\n  sehir: String\n}\n\nstruct Kisi {\n  ad: String\n  adres: Adres?\n}\n\nfn main() {\n  let a = Kisi { ad: \"Ayşe\", adres: Adres { sehir: \"Ankara\" } }\n  let b = Kisi { ad: \"Veli\", adres: none }\n  print(a.adres?.sehir ?? \"adres yok\")\n  print(b.adres?.sehir ?? \"adres yok\")\n}", "rehber/duzen/hata-mesajlari.nar": "fn main() {\n  let sayi = 5\n  sayi = 6\n}\n", "rehber/duzen/hata-eksik-dal.nar": "enum Durum {\n  Acik\n  Kapali\n  Bekliyor\n}\n\nfn main() {\n  match Durum.Acik {\n    Durum.Acik -> print(\"açık\")\n    Durum.Kapali -> print(\"kapalı\")\n  }\n}"};          // yol -> kaynak
+  var LISTE = [{"ad": "Başlangıç.nar", "yol": "ornekler/baslangic.nar", "grup": "Örnekler"}, {"ad": "Tip güvenliği.nar", "yol": "ornekler/tip-guvenligi.nar", "grup": "Örnekler"}, {"ad": "match ve enum.nar", "yol": "ornekler/match-enum.nar", "grup": "Örnekler"}, {"ad": "Arayüz çizmek.nar", "yol": "ornekler/arayuz.nar", "grup": "Örnekler"}, {"ad": "ilk-program.nar", "yol": "rehber/baslangic/ilk-program.nar", "grup": "Rehber · Başlangıç"}, {"ad": "yorumlar.nar", "yol": "rehber/baslangic/yorumlar.nar", "grup": "Rehber · Başlangıç"}, {"ad": "yazdirma.nar", "yol": "rehber/baslangic/yazdirma.nar", "grup": "Rehber · Başlangıç"}, {"ad": "let-var.nar", "yol": "rehber/degiskenler/let-var.nar", "grup": "Rehber · Değişkenler ve veri"}, {"ad": "tipler.nar", "yol": "rehber/degiskenler/tipler.nar", "grup": "Rehber · Değişkenler ve veri"}, {"ad": "sayilar.nar", "yol": "rehber/degiskenler/sayilar.nar", "grup": "Rehber · Değişkenler ve veri"}, {"ad": "metinler.nar", "yol": "rehber/degiskenler/metinler.nar", "grup": "Rehber · Değişkenler ve veri"}, {"ad": "metin-metotlari.nar", "yol": "rehber/degiskenler/metin-metotlari.nar", "grup": "Rehber · Değişkenler ve veri"}, {"ad": "karakter-kodu.nar", "yol": "rehber/degiskenler/karakter-kodu.nar", "grup": "Rehber · Değişkenler ve veri"}, {"ad": "bool.nar", "yol": "rehber/degiskenler/bool.nar", "grup": "Rehber · Değişkenler ve veri"}, {"ad": "if.nar", "yol": "rehber/kararlar/if.nar", "grup": "Rehber · Karar vermek"}, {"ad": "if-ifade.nar", "yol": "rehber/kararlar/if-ifade.nar", "grup": "Rehber · Karar vermek"}, {"ad": "blok-ifadesi.nar", "yol": "rehber/kararlar/blok-ifadesi.nar", "grup": "Rehber · Karar vermek"}, {"ad": "for.nar", "yol": "rehber/donguler/for.nar", "grup": "Rehber · Tekrar etmek"}, {"ad": "indeksli-for.nar", "yol": "rehber/donguler/indeksli-for.nar", "grup": "Rehber · Tekrar etmek"}, {"ad": "while.nar", "yol": "rehber/donguler/while.nar", "grup": "Rehber · Tekrar etmek"}, {"ad": "break-continue.nar", "yol": "rehber/donguler/break-continue.nar", "grup": "Rehber · Tekrar etmek"}, {"ad": "liste.nar", "yol": "rehber/listeler/liste.nar", "grup": "Rehber · Listeler ve sözlükler"}, {"ad": "liste-kolay.nar", "yol": "rehber/listeler/liste-kolay.nar", "grup": "Rehber · Listeler ve sözlükler"}, {"ad": "liste-donusum.nar", "yol": "rehber/listeler/liste-donusum.nar", "grup": "Rehber · Listeler ve sözlükler"}, {"ad": "sozluk.nar", "yol": "rehber/listeler/sozluk.nar", "grup": "Rehber · Listeler ve sözlükler"}, {"ad": "fonksiyon.nar", "yol": "rehber/fonksiyonlar/fonksiyon.nar", "grup": "Rehber · Fonksiyonlar"}, {"ad": "kisa-fonksiyon.nar", "yol": "rehber/fonksiyonlar/kisa-fonksiyon.nar", "grup": "Rehber · Fonksiyonlar"}, {"ad": "ozyineleme.nar", "yol": "rehber/fonksiyonlar/ozyineleme.nar", "grup": "Rehber · Fonksiyonlar"}, {"ad": "lambda.nar", "yol": "rehber/fonksiyonlar/lambda.nar", "grup": "Rehber · Fonksiyonlar"}, {"ad": "struct.nar", "yol": "rehber/tipler/struct.nar", "grup": "Rehber · Kendi tiplerini yapmak"}, {"ad": "metot.nar", "yol": "rehber/tipler/metot.nar", "grup": "Rehber · Kendi tiplerini yapmak"}, {"ad": "enum.nar", "yol": "rehber/tipler/enum.nar", "grup": "Rehber · Kendi tiplerini yapmak"}, {"ad": "kisa-varyant.nar", "yol": "rehber/tipler/kisa-varyant.nar", "grup": "Rehber · Kendi tiplerini yapmak"}, {"ad": "match.nar", "yol": "rehber/tipler/match.nar", "grup": "Rehber · Kendi tiplerini yapmak"}, {"ad": "enum-veri.nar", "yol": "rehber/tipler/enum-veri.nar", "grup": "Rehber · Kendi tiplerini yapmak"}, {"ad": "generic-giris.nar", "yol": "rehber/generic/generic-giris.nar", "grup": "Rehber · Her tiple çalışan kod"}, {"ad": "generic-fonksiyon.nar", "yol": "rehber/generic/generic-fonksiyon.nar", "grup": "Rehber · Her tiple çalışan kod"}, {"ad": "sonuc-tipi.nar", "yol": "rehber/generic/sonuc-tipi.nar", "grup": "Rehber · Her tiple çalışan kod"}, {"ad": "generic-ozyineli.nar", "yol": "rehber/generic/generic-ozyineli.nar", "grup": "Rehber · Her tiple çalışan kod"}, {"ad": "arayuz-giris.nar", "yol": "rehber/arayuz/arayuz-giris.nar", "grup": "Rehber · Ortak davranış: arayüzler"}, {"ad": "arayuz-liste.nar", "yol": "rehber/arayuz/arayuz-liste.nar", "grup": "Rehber · Ortak davranış: arayüzler"}, {"ad": "arayuz-generic.nar", "yol": "rehber/arayuz/arayuz-generic.nar", "grup": "Rehber · Ortak davranış: arayüzler"}, {"ad": "none.nar", "yol": "rehber/opsiyonel/none.nar", "grup": "Rehber · Olmayabilen değerler"}, {"ad": "opsiyonel-kullanim.nar", "yol": "rehber/opsiyonel/opsiyonel-kullanim.nar", "grup": "Rehber · Olmayabilen değerler"}, {"ad": "if-let.nar", "yol": "rehber/opsiyonel/if-let.nar", "grup": "Rehber · Olmayabilen değerler"}, {"ad": "soru-operatoru.nar", "yol": "rehber/opsiyonel/soru-operatoru.nar", "grup": "Rehber · Olmayabilen değerler"}, {"ad": "guvenli-zincir.nar", "yol": "rehber/opsiyonel/guvenli-zincir.nar", "grup": "Rehber · Olmayabilen değerler"}, {"ad": "hata-mesajlari.nar", "yol": "rehber/duzen/hata-mesajlari.nar", "grup": "Rehber · Programı düzenlemek"}, {"ad": "hata-eksik-dal.nar", "yol": "rehber/duzen/hata-eksik-dal.nar", "grup": "Rehber · Programı düzenlemek"}];                // [{ad, yol, grup}]
+  var KELIMELER = [{"ad": "break", "tur": "anahtar", "arg": 0}, {"ad": "continue", "tur": "anahtar", "arg": 0}, {"ad": "else", "tur": "anahtar", "arg": 0}, {"ad": "enum", "tur": "anahtar", "arg": 0}, {"ad": "false", "tur": "anahtar", "arg": 0}, {"ad": "fn", "tur": "anahtar", "arg": 0}, {"ad": "for", "tur": "anahtar", "arg": 0}, {"ad": "if", "tur": "anahtar", "arg": 0}, {"ad": "import", "tur": "anahtar", "arg": 0}, {"ad": "in", "tur": "anahtar", "arg": 0}, {"ad": "interface", "tur": "anahtar", "arg": 0}, {"ad": "let", "tur": "anahtar", "arg": 0}, {"ad": "match", "tur": "anahtar", "arg": 0}, {"ad": "none", "tur": "anahtar", "arg": 0}, {"ad": "return", "tur": "anahtar", "arg": 0}, {"ad": "self", "tur": "anahtar", "arg": 0}, {"ad": "struct", "tur": "anahtar", "arg": 0}, {"ad": "true", "tur": "anahtar", "arg": 0}, {"ad": "type", "tur": "anahtar", "arg": 0}, {"ad": "var", "tur": "anahtar", "arg": 0}, {"ad": "while", "tur": "anahtar", "arg": 0}, {"ad": "abs", "tur": "yerlesik", "arg": 1}, {"ad": "argumanlar", "tur": "yerlesik", "arg": 1}, {"ad": "assert", "tur": "yerlesik", "arg": 1}, {"ad": "bul", "tur": "yerlesik", "arg": 1}, {"ad": "bulHepsi", "tur": "yerlesik", "arg": 1}, {"ad": "ceil", "tur": "yerlesik", "arg": 1}, {"ad": "cik", "tur": "yerlesik", "arg": 1}, {"ad": "dosyaEkle", "tur": "yerlesik", "arg": 1}, {"ad": "dosyaOku", "tur": "yerlesik", "arg": 1}, {"ad": "dosyaSil", "tur": "yerlesik", "arg": 1}, {"ad": "dosyaVarMi", "tur": "yerlesik", "arg": 1}, {"ad": "dosyaYaz", "tur": "yerlesik", "arg": 1}, {"ad": "float", "tur": "yerlesik", "arg": 1}, {"ad": "floor", "tur": "yerlesik", "arg": 1}, {"ad": "govde", "tur": "yerlesik", "arg": 1}, {"ad": "icerikTipi", "tur": "yerlesik", "arg": 1}, {"ad": "int", "tur": "yerlesik", "arg": 1}, {"ad": "istek", "tur": "yerlesik", "arg": 1}, {"ad": "klasorListele", "tur": "yerlesik", "arg": 1}, {"ad": "klasorMu", "tur": "yerlesik", "arg": 1}, {"ad": "klasorOlustur", "tur": "yerlesik", "arg": 1}, {"ad": "koddan", "tur": "yerlesik", "arg": 1}, {"ad": "len", "tur": "yerlesik", "arg": 1}, {"ad": "max", "tur": "yerlesik", "arg": 1}, {"ad": "medyaDinle", "tur": "yerlesik", "arg": 1}, {"ad": "medyaEslesir", "tur": "yerlesik", "arg": 1}, {"ad": "min", "tur": "yerlesik", "arg": 1}, {"ad": "odaklanan", "tur": "yerlesik", "arg": 1}, {"ad": "olustur", "tur": "yerlesik", "arg": 1}, {"ad": "ortam", "tur": "yerlesik", "arg": 1}, {"ad": "panic", "tur": "yerlesik", "arg": 1}, {"ad": "pow", "tur": "yerlesik", "arg": 1}, {"ad": "print", "tur": "yerlesik", "arg": 1}, {"ad": "random", "tur": "yerlesik", "arg": 1}, {"ad": "rastgeleMetin", "tur": "yerlesik", "arg": 1}, {"ad": "round", "tur": "yerlesik", "arg": 1}, {"ad": "satirOku", "tur": "yerlesik", "arg": 1}, {"ad": "sha256", "tur": "yerlesik", "arg": 1}, {"ad": "simdi", "tur": "yerlesik", "arg": 1}, {"ad": "sqrt", "tur": "yerlesik", "arg": 1}, {"ad": "str", "tur": "yerlesik", "arg": 1}, {"ad": "sunucu", "tur": "yerlesik", "arg": 1}, {"ad": "tumGirdi", "tur": "yerlesik", "arg": 1}, {"ad": "yanit", "tur": "yerlesik", "arg": 1}, {"ad": "yanitDosya", "tur": "yerlesik", "arg": 1}, {"ad": "yanitHtml", "tur": "yerlesik", "arg": 1}, {"ad": "yanitJson", "tur": "yerlesik", "arg": 1}, {"ad": "yanitMetin", "tur": "yerlesik", "arg": 1}, {"ad": "yonlendir", "tur": "yerlesik", "arg": 1}, {"ad": "zamanMetni", "tur": "yerlesik", "arg": 1}, {"ad": "zamanla", "tur": "yerlesik", "arg": 1}, {"ad": "len", "tur": "metot", "arg": 0, "sahip": "metin"}, {"ad": "upper", "tur": "metot", "arg": 0, "sahip": "metin"}, {"ad": "lower", "tur": "metot", "arg": 0, "sahip": "metin"}, {"ad": "upperTr", "tur": "metot", "arg": 0, "sahip": "metin"}, {"ad": "lowerTr", "tur": "metot", "arg": 0, "sahip": "metin"}, {"ad": "trim", "tur": "metot", "arg": 0, "sahip": "metin"}, {"ad": "split", "tur": "metot", "arg": 1, "sahip": "metin"}, {"ad": "contains", "tur": "metot", "arg": 1, "sahip": "metin"}, {"ad": "replace", "tur": "metot", "arg": 2, "sahip": "metin"}, {"ad": "startsWith", "tur": "metot", "arg": 1, "sahip": "metin"}, {"ad": "endsWith", "tur": "metot", "arg": 1, "sahip": "metin"}, {"ad": "slice", "tur": "metot", "arg": 2, "sahip": "metin"}, {"ad": "charAt", "tur": "metot", "arg": 1, "sahip": "metin"}, {"ad": "indexOf", "tur": "metot", "arg": 1, "sahip": "metin"}, {"ad": "repeat", "tur": "metot", "arg": 1, "sahip": "metin"}, {"ad": "kodu", "tur": "metot", "arg": 0, "sahip": "metin"}, {"ad": "push", "tur": "metot", "arg": 1, "sahip": "liste"}, {"ad": "pop", "tur": "metot", "arg": 0, "sahip": "liste"}, {"ad": "reverse", "tur": "metot", "arg": 0, "sahip": "liste"}, {"ad": "sort", "tur": "metot", "arg": 0, "sahip": "liste"}, {"ad": "first", "tur": "metot", "arg": 0, "sahip": "liste"}, {"ad": "last", "tur": "metot", "arg": 0, "sahip": "liste"}, {"ad": "map", "tur": "metot", "arg": 1, "sahip": "liste"}, {"ad": "filter", "tur": "metot", "arg": 1, "sahip": "liste"}, {"ad": "reduce", "tur": "metot", "arg": 2, "sahip": "liste"}, {"ad": "join", "tur": "metot", "arg": 1, "sahip": "liste"}, {"ad": "benzersiz", "tur": "metot", "arg": 0, "sahip": "liste"}, {"ad": "say", "tur": "metot", "arg": 1, "sahip": "liste"}, {"ad": "toplam", "tur": "metot", "arg": 0, "sahip": "liste"}, {"ad": "carpim", "tur": "metot", "arg": 0, "sahip": "liste"}, {"ad": "ortalama", "tur": "metot", "arg": 0, "sahip": "liste"}, {"ad": "enBuyuk", "tur": "metot", "arg": 0, "sahip": "liste"}, {"ad": "enKucuk", "tur": "metot", "arg": 0, "sahip": "liste"}, {"ad": "kat", "tur": "metot", "arg": 1, "sahip": "liste"}, {"ad": "artir", "tur": "metot", "arg": 1, "sahip": "liste"}, {"ad": "buyukler", "tur": "metot", "arg": 1, "sahip": "liste"}, {"ad": "kucukler", "tur": "metot", "arg": 1, "sahip": "liste"}, {"ad": "ciftler", "tur": "metot", "arg": 0, "sahip": "liste"}, {"ad": "tekler", "tur": "metot", "arg": 0, "sahip": "liste"}, {"ad": "buyukHarf", "tur": "metot", "arg": 0, "sahip": "liste"}, {"ad": "kucukHarf", "tur": "metot", "arg": 0, "sahip": "liste"}, {"ad": "icerenler", "tur": "metot", "arg": 1, "sahip": "liste"}, {"ad": "get", "tur": "metot", "arg": 1, "sahip": "eşleme"}, {"ad": "set", "tur": "metot", "arg": 2, "sahip": "eşleme"}, {"ad": "has", "tur": "metot", "arg": 1, "sahip": "eşleme"}, {"ad": "remove", "tur": "metot", "arg": 1, "sahip": "eşleme"}, {"ad": "keys", "tur": "metot", "arg": 0, "sahip": "eşleme"}, {"ad": "values", "tur": "metot", "arg": 0, "sahip": "eşleme"}, {"ad": "metin", "tur": "metot", "arg": 0, "sahip": "öğe"}, {"ad": "metinYaz", "tur": "metot", "arg": 1, "sahip": "öğe"}, {"ad": "html", "tur": "metot", "arg": 0, "sahip": "öğe"}, {"ad": "htmlYaz", "tur": "metot", "arg": 1, "sahip": "öğe"}, {"ad": "deger", "tur": "metot", "arg": 0, "sahip": "öğe"}, {"ad": "degerYaz", "tur": "metot", "arg": 1, "sahip": "öğe"}, {"ad": "sinifEkle", "tur": "metot", "arg": 1, "sahip": "öğe"}, {"ad": "sinifSil", "tur": "metot", "arg": 1, "sahip": "öğe"}, {"ad": "sinifVarMi", "tur": "metot", "arg": 1, "sahip": "öğe"}, {"ad": "ozellik", "tur": "metot", "arg": 1, "sahip": "öğe"}, {"ad": "ozellikYaz", "tur": "metot", "arg": 2, "sahip": "öğe"}, {"ad": "stil", "tur": "metot", "arg": 2, "sahip": "öğe"}, {"ad": "dinle", "tur": "metot", "arg": 2, "sahip": "öğe"}, {"ad": "ekle", "tur": "metot", "arg": 1, "sahip": "öğe"}, {"ad": "cikar", "tur": "metot", "arg": 0, "sahip": "öğe"}, {"ad": "temizle", "tur": "metot", "arg": 0, "sahip": "öğe"}, {"ad": "odaklan", "tur": "metot", "arg": 0, "sahip": "öğe"}, {"ad": "bul", "tur": "metot", "arg": 1, "sahip": "öğe"}, {"ad": "bulHepsi", "tur": "metot", "arg": 1, "sahip": "öğe"}, {"ad": "secimBasi", "tur": "metot", "arg": 0, "sahip": "öğe"}, {"ad": "secimSonu", "tur": "metot", "arg": 0, "sahip": "öğe"}, {"ad": "secimYap", "tur": "metot", "arg": 2, "sahip": "öğe"}, {"ad": "yaziEkle", "tur": "metot", "arg": 1, "sahip": "öğe"}, {"ad": "kaydirmaUst", "tur": "metot", "arg": 0, "sahip": "öğe"}, {"ad": "kaydirmaUstYaz", "tur": "metot", "arg": 1, "sahip": "öğe"}, {"ad": "kaydirmaSol", "tur": "metot", "arg": 0, "sahip": "öğe"}, {"ad": "isaretli", "tur": "metot", "arg": 0, "sahip": "öğe"}, {"ad": "isaretliYaz", "tur": "metot", "arg": 1, "sahip": "öğe"}, {"ad": "tus", "tur": "metot", "arg": 0, "sahip": "olay"}, {"ad": "ctrl", "tur": "metot", "arg": 0, "sahip": "olay"}, {"ad": "shift", "tur": "metot", "arg": 0, "sahip": "olay"}, {"ad": "alt", "tur": "metot", "arg": 0, "sahip": "olay"}, {"ad": "engelle", "tur": "metot", "arg": 0, "sahip": "olay"}, {"ad": "durdur", "tur": "metot", "arg": 0, "sahip": "olay"}, {"ad": "kaynak", "tur": "metot", "arg": 0, "sahip": "olay"}];
+  var ILK_KOD = "// Nar'a hoş geldin. Değiştir ve Çalıştır'a bas (Ctrl+Enter).\n// Yazarken kod önerisi çıkar; Tab ile uygula.\n\nstruct Kisi {\n  ad: String\n  yas: Int\n}\n\nfn selamla(k: Kisi) -> String =\n  \"Merhaba ${k.ad}, ${k.yas} yaşındasın.\"\n\nfn main() {\n  let kisiler = [\n    Kisi { ad: \"Ayşe\", yas: 30 },\n    Kisi { ad: \"Mehmet\", yas: 17 },\n    Kisi { ad: \"Zeynep\", yas: 24 }\n  ]\n\n  for k in kisiler {\n    print(selamla(k))\n  }\n\n  let yetiskinler = kisiler.filter(|k| k.yas >= 18)\n  print(\"yetişkin sayısı:\", yetiskinler.len())\n}\n";
+  var PYODIDE_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
+  var HAZIRLIK = "\nimport json\n\nfrom narc.backends import js as _js\nfrom narc.checker import Checker\nfrom narc.diagnostics import NarError\nfrom narc.parser import parse\n\n\ndef _sozluk(err, kaynak):\n    return {\n        \"mesaj\": err.message,\n        \"satir\": err.span.line if err.span else None,\n        \"sutun\": err.span.col if err.span else None,\n        \"uzunluk\": err.span.length if err.span else 1,\n        \"ipucu\": err.hint,\n        \"gosterim\": err.render(kaynak),\n    }\n\n\ndef _uyarilar(checker, kaynak):\n    if checker is None:\n        return []\n    return [dict(_sozluk(u, kaynak), seviye=\"uyari\") for u in checker.warnings]\n\n\ndef derle(kaynak):\n    checker = None\n    try:\n        modul = parse(kaynak, \"deneme.nar\")\n        checker = Checker(modul, kaynak)\n        checker.check()\n        kod = _js.generate(modul, checker)\n    except NarError as err:\n        sozluk = _sozluk(err, kaynak)\n        hepsi = getattr(err, \"errors\", None)\n        sozluk[\"hepsi\"] = [_sozluk(h, kaynak) for h in hepsi] if hepsi else [dict(sozluk)]\n        sozluk[\"adet\"] = len(sozluk[\"hepsi\"])\n        if sozluk[\"adet\"] > 1:\n            sozluk[\"gosterim\"] = \"\\n\\n\".join(h[\"gosterim\"] for h in sozluk[\"hepsi\"])\n        return json.dumps({\"tamam\": False, \"hata\": sozluk,\n                           \"uyarilar\": _uyarilar(checker, kaynak)})\n    except RecursionError:\n        return json.dumps({\"tamam\": False, \"uyarilar\": [], \"hata\": {\n            \"mesaj\": \"program \u00e7ok derin i\u00e7 i\u00e7e ge\u00e7mi\u015f (\u00f6zyineleme s\u0131n\u0131r\u0131)\",\n            \"satir\": None, \"sutun\": None, \"uzunluk\": 1, \"ipucu\": None,\n            \"gosterim\": \"hata: program \u00e7ok derin i\u00e7 i\u00e7e ge\u00e7mi\u015f\",\n            \"hepsi\": [], \"adet\": 1}})\n    return json.dumps({\"tamam\": True, \"hata\": None, \"kod\": kod,\n                       \"uyarilar\": _uyarilar(checker, kaynak)})\n";
+  var IFRAME_KOPRUSU = "\n(function () {\n  var yolla = function (t, s) { parent.postMessage({ t: t, s: String(s) }, '*'); };\n  var yaz = function () {\n    yolla('log', Array.prototype.map.call(arguments, function (x) {\n      return typeof x === 'string' ? x : JSON.stringify(x);\n    }).join(' '));\n  };\n  console.log = yaz; console.info = yaz; console.warn = yaz;\n  console.error = function () { yolla('hata', Array.prototype.join.call(arguments, ' ')); };\n  window.onerror = function (m) { yolla('hata', m); return true; };\n  window.addEventListener('unhandledrejection', function (o) { yolla('hata', o.reason); });\n})();\n";
+  var EKRAN_STILI = "\n:root { color-scheme: light dark; }\nbody { margin: 0; padding: 16px; font: 15px/1.6 'IBM Plex Sans', system-ui, sans-serif;\n       background: Canvas; color: CanvasText; }\n";
+  var DEPO = 'nar-deneme-dosyalar';
+
+  // --- tarayıcı depolaması: Çalışmalarım -------------------------------
+  function kayitli() {
+    try { return JSON.parse(localStorage.getItem(DEPO) || '{}'); } catch (e) { return {}; }
+  }
+  function sakla(map) {
+    try { localStorage.setItem(DEPO, JSON.stringify(map)); return true; } catch (e) { return false; }
+  }
+
+  // Adres çubuğuyla paylaşılan kod "deneme.nar" olarak açılır.
+  function coz(metin) {
+    var d = metin.replace(/-/g, '+').replace(/_/g, '/');
+    var ikilik = atob(d), b = new Uint8Array(ikilik.length);
+    for (var i = 0; i < ikilik.length; i++) b[i] = ikilik.charCodeAt(i);
+    return new TextDecoder().decode(b);
+  }
+  function sar(metin) {
+    var b = new TextEncoder().encode(metin), s = '';
+    b.forEach(function (x) { s += String.fromCharCode(x); });
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  var hashKod = null;
+  if (location.hash.indexOf('#k=') === 0) {
+    try { hashKod = coz(location.hash.slice(3)); } catch (e) { hashKod = null; }
+  }
+
+  function durumYaz(metin) {
+    var d = document.getElementById('durum');
+    if (d) d.textContent = metin;
+  }
+
+  // --- derleyici: Pyodide, ilk kullanımda -------------------------------
+  var pyodide = null, yukleniyor = null;
+  function derleyici() {
+    if (pyodide) return Promise.resolve(pyodide);
+    if (yukleniyor) return yukleniyor;
+    durumYaz('derleyici indiriliyor… (bir kez, ~10 MB)');
+    yukleniyor = new Promise(function (coz, kir) {
+      var s = document.createElement('script');
+      s.src = PYODIDE_URL + 'pyodide.js';
+      s.onload = coz; s.onerror = function () { kir(new Error('Pyodide yüklenemedi')); };
+      document.head.appendChild(s);
+    }).then(function () {
+      return loadPyodide({ indexURL: PYODIDE_URL });
+    }).then(function (py) {
+      durumYaz('derleyici açılıyor…');
+      return fetchAsil('narc.zip').then(function (y) { return y.arrayBuffer(); }).then(function (paket) {
+        py.unpackArchive(paket, 'zip');
+        py.runPython(HAZIRLIK);
+        pyodide = py;
+        durumYaz('derleyici hazır');
+        return py;
+      });
+    }).catch(function (h) { yukleniyor = null; durumYaz('derleyici yüklenemedi'); throw h; });
+    return yukleniyor;
+  }
+  function derle(kaynak) {
+    return derleyici().then(function (py) {
+      return JSON.parse(py.runPython('derle(' + JSON.stringify(kaynak) + ')'));
+    });
+  }
+
+  // --- çalıştırma: ayrı kökenli iframe ----------------------------------
+  var bekleyen = null;
+  window.addEventListener('message', function (o) {
+    var v = o.data;
+    if (!v || typeof v !== 'object' || !bekleyen) return;
+    if (v.t === 'log') bekleyen.cikti.push(v.s);
+    else if (v.t === 'hata') bekleyen.stderr.push(v.s);
+    else if (v.t === 'bitti') { bekleyen.cizdi = !!v.cizdi; bekleyen.bitir(); }
+  });
+  function programiCalistir(kod) {
+    return new Promise(function (coz) {
+      var ekran = document.getElementById('ekran');
+      var zaman = null;
+      bekleyen = {
+        cikti: [], stderr: [], cizdi: false,
+        bitir: function () {
+          clearTimeout(zaman);
+          var b = bekleyen; bekleyen = null;
+          coz({ cikti: b.cikti.join('\n'), stderr: b.stderr.join('\n'), cizdi: b.cizdi });
+        }
+      };
+      zaman = setTimeout(function () { if (bekleyen) bekleyen.bitir(); }, 10000);
+      ekran.srcdoc =
+        '<!doctype html><html lang="tr"><head><meta charset="utf-8">' +
+        '<style>' + EKRAN_STILI + '</style></head><body><div id="uygulama"></div>' +
+        '<script>' + IFRAME_KOPRUSU + '<\/script>' +
+        '<script>' + kod + '<\/script>' +
+        '<script>parent.postMessage({t:"bitti",cizdi:document.getElementById("uygulama").childNodes.length>0},"*");<\/script>' +
+        '</body></html>';
+    });
+  }
+
+  // --- /api köprüsü ------------------------------------------------------
+  var fetchAsil = window.fetch.bind(window);
+  function yanit(obj, kod) {
+    return new Response(JSON.stringify(obj), {
+      status: kod || 200, headers: { 'Content-Type': 'application/json' } });
+  }
+  function govdeOku(ayar) {
+    try { return ayar && ayar.body ? JSON.parse(ayar.body) : {}; } catch (e) { return {}; }
+  }
+  function dosyaListesi() {
+    var liste = [{ ad: 'deneme.nar', yol: 'deneme.nar', grup: 'Oyun alanı' }];
+    var k = kayitli();
+    Object.keys(k).sort().forEach(function (yol) {
+      if (yol !== 'deneme.nar') liste.push({ ad: yol.split('/').pop(), yol: yol, grup: 'Çalışmalarım' });
+    });
+    return liste.concat(LISTE);
+  }
+  function dosyaOku(yol) {
+    if (yol === 'deneme.nar') {
+      if (hashKod !== null) return hashKod;
+      var k = kayitli();
+      return k['deneme.nar'] !== undefined ? k['deneme.nar'] : ILK_KOD;
+    }
+    var kk = kayitli();
+    if (kk[yol] !== undefined) return kk[yol];
+    if (DOSYALAR[yol] !== undefined) return DOSYALAR[yol];
+    return null;
+  }
+
+  window.fetch = function (url, ayar) {
+    var u = String(url);
+    if (u.indexOf('/api/') !== 0) return fetchAsil(url, ayar);
+    var yol = u.split('?')[0];
+    var sorgu = new URLSearchParams(u.split('?')[1] || '');
+    var govde = govdeOku(ayar);
+
+    if (yol === '/api/dosyalar') return Promise.resolve(yanit({ dosyalar: dosyaListesi(), surum: "0.6.0" }));
+    if (yol === '/api/kelimeler') return Promise.resolve(yanit({ kelimeler: KELIMELER }));
+    if (yol === '/api/dosya') {
+      var y = sorgu.get('yol') || '';
+      var kaynak = dosyaOku(y);
+      if (kaynak === null) return Promise.resolve(yanit({ hata: 'dosya bulunamadı' }, 404));
+      return Promise.resolve(yanit({ yol: y, kaynak: kaynak }));
+    }
+    if (yol === '/api/kaydet') {
+      var map = kayitli();
+      map[govde.yol] = govde.kaynak;
+      if (govde.yol === 'deneme.nar') hashKod = null;
+      return Promise.resolve(sakla(map) ? yanit({ tamam: true, yol: govde.yol })
+                                        : yanit({ hata: 'tarayıcı depolaması kapalı' }, 400));
+    }
+    if (yol === '/api/denetle') {
+      return derle(govde.kaynak || '').then(function (s) {
+        return yanit({ tamam: s.tamam, hata: s.hata, uyarilar: s.uyarilar });
+      }).catch(function (h) { return yanit({ tamam: true, hata: null, uyarilar: [] }); });
+    }
+    if (yol === '/api/uretilen') {
+      return derle(govde.kaynak || '').then(function (s) {
+        return yanit({ kod: s.kod || '', hata: s.hata });
+      });
+    }
+    if (yol === '/api/calistir') {
+      return derle(govde.kaynak || '').then(function (s) {
+        if (!s.tamam) return yanit({ durum: 'derleme-hatasi', hata: s.hata, uyarilar: s.uyarilar, cikti: '' });
+        durumYaz('çalışıyor…');
+        return programiCalistir(s.kod).then(function (r) {
+          durumYaz('hazır');
+          return yanit({ durum: r.stderr ? 'calisma-hatasi' : 'tamam', cikti: r.cikti,
+                         stderr: r.stderr, hata: null, cizdi: r.cizdi, uyarilar: s.uyarilar });
+        });
+      }).catch(function (h) {
+        return yanit({ durum: 'ortam-hatasi', cikti: '', hata: {
+          mesaj: 'derleyici çalıştırılamadı: ' + h.message, satir: null, sutun: null,
+          uzunluk: 1, ipucu: null, gosterim: 'hata: ' + h.message, hepsi: [], adet: 1 } });
+      });
+    }
+    return Promise.resolve(yanit({ hata: 'bulunamadı' }, 404));
+  };
+
+  // --- ev sahibine özgü düğme: Paylaş -----------------------------------
+  document.addEventListener('DOMContentLoaded', function () {
+    var kaydet = document.getElementById('btn-kaydet');
+    if (!kaydet) return;
+    var d = document.createElement('button');
+    d.id = 'btn-paylas'; d.type = 'button'; d.title = 'Kodu bağlantı olarak kopyala';
+    d.innerHTML = '<svg class="ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">' +
+      '<path d="M10 14a4 4 0 0 0 6 .5l2-2a4 4 0 0 0-5.7-5.7L11 8M14 10a4 4 0 0 0-6-.5l-2 2A4 4 0 0 0 11.7 17L13 16"/></svg>Paylaş';
+    kaydet.parentNode.insertBefore(d, kaydet.nextSibling);
+    d.addEventListener('click', function () {
+      var kod = document.getElementById('kod').value;
+      var adres = location.origin + location.pathname + '#k=' + sar(kod);
+      history.replaceState(null, '', '#k=' + sar(kod));
+      var bitir = function (oldu) {
+        durumYaz(oldu ? 'bağlantı kopyalandı' : 'bağlantı adres çubuğunda');
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(adres).then(function () { bitir(true); }, function () { bitir(false); });
+      } else bitir(false);
+    });
+  });
+})();
+</script>
+<!-- IDE'nin davranışı: araclar/ide_uygulamasi.nar, Nar ile yazıldı. -->
 <script>// Nar çalışma zamanı — JavaScript arka ucu.
 // Üretilen kodun başına gömülür. Tüm isimler `$` ile başlar; Nar
 // tanımlayıcıları `$` içeremediği için çakışma olamaz.
@@ -1032,6 +588,29 @@ class NarPanic extends Error {
 
 function $panic(message) {
   throw new NarPanic(message);
+}
+
+// --- sayılar ---------------------------------------------------------------
+function $idiv(a, b) {
+  if (b === 0) $panic("sıfıra bölme");
+  return Math.trunc(a / b);
+}
+
+function $imod(a, b) {
+  if (b === 0) $panic("sıfıra bölme (mod)");
+  return a % b;
+}
+
+// --- opsiyoneller ----------------------------------------------------------
+function $unwrap(value, where) {
+  if (value === null || value === undefined) {
+    $panic("'none' değeri açılmaya çalışıldı" + (where ? " (" + where + ")" : ""));
+  }
+  return value;
+}
+
+function $lowerTr(s) {
+  return s.replace(/I/g, "ı").replace(/İ/g, "i").toLowerCase();
 }
 
 // --- eşitlik ---------------------------------------------------------------
@@ -1065,6 +644,121 @@ function $eq(a, b) {
   return true;
 }
 
+// --- metne çevirme ---------------------------------------------------------
+// Tip bilgisi kod üreticiden gelir; JavaScript `4` ile `4.0` arasını
+// ayıramadığı için Float'ların doğru yazılması buna bağlıdır.
+//
+// Tip kodu:  "Int" | "Float" | "Bool" | "String" | <tip adı>
+//            ["l", T]  liste   ["m", K, V]  eşleme   ["o", T]  opsiyonel
+const $types = Object.create(null);
+
+function $defType(name, def) {
+  $types[name] = def;
+}
+
+function $strFloat(v) {
+  if (v === null || v === undefined) return "none";
+  if (!Number.isFinite(v)) return String(v);
+  return Number.isInteger(v) ? v.toFixed(1) : String(v);
+}
+
+function $fmt(v, t, quoted) {
+  if (v === null || v === undefined) return "none";
+
+  if (Array.isArray(t)) {
+    if (t[0] === "o") return $fmt(v, t[1], quoted);
+    if (t[0] === "u") return $fmtGenerik(v, t[1], t[2], quoted);
+    if (t[0] === "l") return "[" + v.map((x) => $fmt(x, t[1], true)).join(", ") + "]";
+    if (t[0] === "m") {
+      const parts = [];
+      for (const [k, val] of v) parts.push($fmt(k, t[1], true) + ": " + $fmt(val, t[2], true));
+      return "{" + parts.join(", ") + "}";
+    }
+  }
+
+  if (t === "Float") return $strFloat(v);
+  if (t === "String") return quoted ? JSON.stringify(v) : v;
+
+  if (typeof v === "string") return quoted ? JSON.stringify(v) : v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  if (typeof v === "function") return "<fonksiyon>";
+
+  if (Array.isArray(v)) return "[" + v.map((x) => $fmt(x, undefined, true)).join(", ") + "]";
+  if (v instanceof Map) {
+    const parts = [];
+    for (const [k, val] of v) parts.push($fmt(k, undefined, true) + ": " + $fmt(val, undefined, true));
+    return "{" + parts.join(", ") + "}";
+  }
+
+  // Sayfa öğeleri: `<div id="x" class="y">` biçiminde kısaca gösterilir.
+  if (typeof Element !== "undefined" && v instanceof Element) {
+    let etiket = v.tagName.toLowerCase();
+    if (v.id) etiket += "#" + v.id;
+    if (v.className && typeof v.className === "string") {
+      etiket += "." + v.className.trim().split(/\s+/).join(".");
+    }
+    return "<" + etiket + ">";
+  }
+
+  const name = v.constructor && v.constructor.$narName;
+  const def = name ? $types[name] : undefined;
+
+  if (v.$tag !== undefined) {
+    const payload = def && def.variants ? def.variants[v.$tag] : undefined;
+    if (!v.$values || v.$values.length === 0) return name + "." + v.$tag;
+    const shown = v.$values.map((x, i) => $fmt(x, payload ? payload[i] : undefined, true));
+    return name + "." + v.$tag + "(" + shown.join(", ") + ")";
+  }
+
+  const keys = Object.keys(v);
+  const fieldTypes = def && def.fields ? def.fields : {};
+  const shown = keys.map((k) => k + ": " + $fmt(v[k], fieldTypes[k], true));
+  return name + " { " + shown.join(", ") + " }";
+}
+
+// Uygulanmış generic tip: şablondaki tip parametreleri (T, U…) verilen
+// argümanlarla değiştirilerek alan tipleri bulunur.
+function $genericEsleme(def, argler) {
+  const esleme = Object.create(null);
+  const params = (def && def.params) || [];
+  for (let i = 0; i < params.length; i++) esleme[params[i]] = argler[i];
+  return esleme;
+}
+
+function $tipiCoz(tip, esleme) {
+  if (typeof tip === "string" && esleme[tip] !== undefined) return esleme[tip];
+  if (Array.isArray(tip)) {
+    if (tip[0] === "l") return ["l", $tipiCoz(tip[1], esleme)];
+    if (tip[0] === "o") return ["o", $tipiCoz(tip[1], esleme)];
+    if (tip[0] === "m") return ["m", $tipiCoz(tip[1], esleme), $tipiCoz(tip[2], esleme)];
+    if (tip[0] === "u") return ["u", tip[1], tip[2].map((a) => $tipiCoz(a, esleme))];
+  }
+  return tip;
+}
+
+function $fmtGenerik(v, ad, argler, quoted) {
+  const def = $types[ad];
+  if (!def) return $fmt(v, undefined, quoted);
+  const esleme = $genericEsleme(def, argler);
+
+  if (v.$tag !== undefined) {
+    const yuk = def.variants ? def.variants[v.$tag] : undefined;
+    if (!v.$values || v.$values.length === 0) return ad + "." + v.$tag;
+    const shown = v.$values.map((x, i) =>
+      $fmt(x, yuk ? $tipiCoz(yuk[i], esleme) : undefined, true));
+    return ad + "." + v.$tag + "(" + shown.join(", ") + ")";
+  }
+
+  const alanlar = def.fields || {};
+  const shown = Object.keys(v).map(
+    (k) => k + ": " + $fmt(v[k], $tipiCoz(alanlar[k], esleme), true));
+  return ad + " { " + shown.join(", ") + " }";
+}
+
+function $str(v) {
+  return $fmt(v, undefined, false);
+}
+
 // --- uzunluk ve dizinleme --------------------------------------------------
 function $len(v) {
   if (v === null || v === undefined) $panic("'none' üzerinde len çağrıldı");
@@ -1072,6 +766,13 @@ function $len(v) {
   if (Array.isArray(v)) return v.length;
   if (v instanceof Map) return v.size;
   $panic("len bu değer üzerinde tanımlı değil");
+}
+
+function $listGet(list, i) {
+  if (i < 0 || i >= list.length) {
+    $panic("liste sınırı aşıldı: dizin " + i + ", uzunluk " + list.length);
+  }
+  return list[i];
 }
 
 // Metinler kod noktası bazlı dizinlenir (emoji, birleşik karakterler doğru
@@ -1104,6 +805,19 @@ function $strGet(s, i) {
   return chars[i];
 }
 
+function $mapGet(m, k) {
+  return m.has(k) ? m.get(k) : null;
+}
+
+// --- liste metotları -------------------------------------------------------
+function $listPop(list) {
+  return list.length === 0 ? null : list.pop();
+}
+
+function $listLast(list) {
+  return list.length === 0 ? null : list[list.length - 1];
+}
+
 function $listIndexOf(list, x) {
   for (let i = 0; i < list.length; i++) if ($eq(list[i], x)) return i;
   return -1;
@@ -1118,9 +832,239 @@ function $strSlice(s, a, b) {
   return $karakterDizisi(s).slice(a, b).join("");
 }
 
+function $strSplit(s, sep) {
+  return sep === "" ? $karakterDizisi(s).slice() : s.split(sep);
+}
+
+function $strIndexOf(s, sub) {
+  return s.indexOf(sub);
+}
+
+function $strRepeat(s, n) {
+  if (n < 0) $panic("repeat negatif sayı alamaz");
+  return s.repeat(n);
+}
+
+// --- dönüşümler ------------------------------------------------------------
+function $parseIntOpt(s) {
+  const t = s.trim();
+  if (!/^[+-]?\d+$/.test(t)) return null;
+  const n = Number(t);
+  return Number.isSafeInteger(n) ? n : null;
+}
+
+function $parseFloatOpt(s) {
+  const t = s.trim();
+  if (t === "" || !/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(t)) return null;
+  const n = Number(t);
+  return Number.isNaN(n) ? null : n;
+}
+
+function $toInt(v) {
+  return Math.trunc(v);
+}
+
+function $toFloat(v) {
+  return v;
+}
+
+// --- sayfa (DOM) işlemleri -------------------------------------------------
+// Yalnızca tarayıcıda anlamlıdır. Node ile çalıştırıldığında `bul` none
+// döndürür ve diğerleri sessizce hiçbir şey yapmaz — program çökmez.
+function $belgeVarMi() {
+  return typeof document !== "undefined" && document !== null;
+}
+
+function $bul(secici) {
+  if (!$belgeVarMi()) return null;
+  return document.querySelector(secici);
+}
+
+function $bulHepsi(secici) {
+  if (!$belgeVarMi()) return [];
+  return Array.from(document.querySelectorAll(secici));
+}
+
+function $olustur(etiket) {
+  if (!$belgeVarMi()) $panic("olustur() yalnızca tarayıcıda kullanılabilir");
+  return document.createElement(etiket);
+}
+
+function $govde() {
+  if (!$belgeVarMi()) $panic("govde() yalnızca tarayıcıda kullanılabilir");
+  return document.body;
+}
+
+function $ogeOzellik(oge, ad) {
+  const deger = oge.getAttribute(ad);
+  return deger === null ? null : deger;
+}
+
+function $ogeDeger(oge) {
+  return oge.value === undefined ? "" : String(oge.value);
+}
+
+function $ogeTemizle(oge) {
+  while (oge.firstChild) oge.removeChild(oge.firstChild);
+}
+
+function $ogeStil(oge, ad, deger) {
+  oge.style.setProperty(ad, deger);
+}
+
+function $ogeYaziEkle(oge, metin) {
+  // İmleç konumuna metin yazar; geri alma yığınını korumak için
+  // setRangeText kullanılır.
+  const bas = oge.selectionStart || 0;
+  const son = oge.selectionEnd || 0;
+  if (typeof oge.setRangeText === "function") {
+    oge.setRangeText(metin, bas, son, "end");
+  } else {
+    oge.value = oge.value.slice(0, bas) + metin + oge.value.slice(son);
+  }
+}
+
+function $zamanla(ms, islev) {
+  if (typeof setTimeout === "undefined") $panic("zamanla() bu ortamda yok");
+  setTimeout(islev, ms);
+}
+
+// Ağ isteği. Nar'da `async` yoktur; sonuç geri çağırma ile verilir.
+function $istek(yontem, url, govde, islev) {
+  if (typeof fetch === "undefined") {
+    $panic("istek() bu ortamda yok");
+  }
+  const ayar = {method: yontem};
+  if (govde !== "" && yontem !== "GET" && yontem !== "HEAD") {
+    ayar.body = govde;
+    ayar.headers = {"Content-Type": "application/json"};
+  }
+  fetch(url, ayar)
+    .then((y) => y.text())
+    .then((metin) => islev(metin))
+    .catch((e) => islev(""));
+}
+
 // ------------------------------------------------------------------
 // Nar kaynağından üretildi — elle düzenlemeyin.
 // ------------------------------------------------------------------
+
+class Parantez {
+  constructor(isaret, seviye) {
+    this.isaret = isaret;
+    this.seviye = seviye;
+  }
+}
+Parantez.$narName = "Parantez";
+$defType("Parantez", { params: [], fields: {"isaret": "String", "seviye": "Int"} });
+
+class TaramaDurumu {
+  constructor(yorumDerinligi, devamBekleniyor, sonKarakter, oncekiKarakter, cokSatirliMetin) {
+    this.yorumDerinligi = yorumDerinligi;
+    this.devamBekleniyor = devamBekleniyor;
+    this.sonKarakter = sonKarakter;
+    this.oncekiKarakter = oncekiKarakter;
+    this.cokSatirliMetin = cokSatirliMetin;
+  }
+}
+TaramaDurumu.$narName = "TaramaDurumu";
+$defType("TaramaDurumu", { params: [], fields: {"yorumDerinligi": "Int", "devamBekleniyor": "Bool", "sonKarakter": "String", "oncekiKarakter": "String", "cokSatirliMetin": "Bool"} });
+
+class Json {
+  constructor(tag, values) {
+    this.$tag = tag;
+    this.$values = values;
+  }
+
+  static Metin(v0) {
+    return new Json("Metin", [v0]);
+  }
+
+  static Sayi(v0) {
+    return new Json("Sayi", [v0]);
+  }
+
+  static Mantik(v0) {
+    return new Json("Mantik", [v0]);
+  }
+
+  static get Bos() {
+    return new Json("Bos", []);
+  }
+
+  static Dizi(v0) {
+    return new Json("Dizi", [v0]);
+  }
+
+  static Nesne(v0) {
+    return new Json("Nesne", [v0]);
+  }
+}
+Json.$narName = "Json";
+$defType("Json", { params: [], variants: {"Metin": ["String"], "Sayi": ["Float"], "Mantik": ["Bool"], "Bos": [], "Dizi": [["l", "Json"]], "Nesne": [["m", "String", "Json"]]} });
+
+class Okuyucu {
+  constructor(metin, konum) {
+    this.metin = metin;
+    this.konum = konum;
+  }
+
+  bitti() {
+    return (this.konum >= $len(this.metin));
+  }
+
+  bak() {
+    return karakter(this.metin, this.konum);
+  }
+
+  ilerle() {
+    this.konum = (this.konum + 1);
+  }
+
+  bosluklariAtla() {
+    while (((!this.bitti()) && bosluktanMi(this.bak()))) {
+      this.ilerle();
+    }
+  }
+
+  tuket(beklenen) {
+    if ((this.bak() === beklenen)) {
+      this.ilerle();
+      return true;
+    }
+    return false;
+  }
+
+  kelimeMi(kelime) {
+    const son = Math.min((this.konum + $len(kelime)), $len(this.metin));
+    return ($strSlice(this.metin, this.konum, son) === kelime);
+  }
+}
+Okuyucu.$narName = "Okuyucu";
+$defType("Okuyucu", { params: [], fields: {"metin": "String", "konum": "Int"} });
+
+class Sorun {
+  constructor(satir, sutun, uzunluk, mesaj, ipucu, seviye) {
+    this.satir = satir;
+    this.sutun = sutun;
+    this.uzunluk = uzunluk;
+    this.mesaj = mesaj;
+    this.ipucu = ipucu;
+    this.seviye = seviye;
+  }
+}
+Sorun.$narName = "Sorun";
+$defType("Sorun", { params: [], fields: {"satir": "Int", "sutun": "Int", "uzunluk": "Int", "mesaj": "String", "ipucu": "String", "seviye": "String"} });
+
+class Oneri {
+  constructor(ad, metin, tur) {
+    this.ad = ad;
+    this.metin = metin;
+    this.tur = tur;
+  }
+}
+Oneri.$narName = "Oneri";
+$defType("Oneri", { params: [], fields: {"ad": "String", "metin": "String", "tur": "String"} });
 
 function harfMi(c) {
   if (($len(c) === 0)) {
@@ -1328,6 +1272,1673 @@ function renklendir(kaynak) {
   return sonuc;
 }
 
+function yarimMi(oncekiKarakter, sonKarakter) {
+  if (($len(sonKarakter) === 0)) {
+    return false;
+  }
+  if (((oncekiKarakter === "-") && (sonKarakter === ">"))) {
+    return true;
+  }
+  return YARIM_BITIS.includes(sonKarakter);
+}
+
+function sagdanKirp(s) {
+  let son = $len(s);
+  while (((son > 0) && bosluktanMi(karakter(s, (son - 1))))) {
+    son = (son - 1);
+  }
+  return $strSlice(s, 0, son);
+}
+
+function soldanKirp(s) {
+  let bas = 0;
+  const n = $len(s);
+  while (((bas < n) && bosluktanMi(karakter(s, bas)))) {
+    bas = (bas + 1);
+  }
+  return $strSlice(s, bas, n);
+}
+
+function girintiUret(seviye) {
+  if ((seviye <= 0)) {
+    return "";
+  }
+  return $strRepeat(GIRINTI, seviye);
+}
+
+function bastakiBosluk(satir) {
+  let n = 0;
+  const uzunluk = $len(satir);
+  while ((n < uzunluk)) {
+    const c = karakter(satir, n);
+    if (((c !== " ") && (c !== "\t"))) {
+      return n;
+    }
+    n = (n + 1);
+  }
+  return uzunluk;
+}
+
+function kaydir(satir, miktar) {
+  if ((miktar === 0)) {
+    return satir;
+  }
+  if ((miktar > 0)) {
+    return ($strRepeat(" ", miktar) + satir);
+  }
+  const atilacak = Math.min((0 - miktar), bastakiBosluk(satir));
+  return $strSlice(satir, atilacak, $len(satir));
+}
+
+function blokSeviyesi(yigin) {
+  let i = ($len(yigin) - 1);
+  while ((i >= 0)) {
+    if (($listGet(yigin, i).isaret === "{")) {
+      return $listGet(yigin, i).seviye;
+    }
+    i = (i - 1);
+  }
+  return 0;
+}
+
+function icSeviye(yigin, satirSeviyesi, isaret) {
+  if ((isaret !== "{")) {
+    return satirSeviyesi;
+  }
+  if (($len(yigin) === 0)) {
+    return 1;
+  }
+  return ($listGet(yigin, ($len(yigin) - 1)).seviye + 1);
+}
+
+function devamMi(yigin) {
+  if (($len(yigin) === 0)) {
+    return false;
+  }
+  return ($listGet(yigin, ($len(yigin) - 1)).isaret !== "{");
+}
+
+function satiriTara(satir, yigin, durum, satirSeviyesi) {
+  const n = $len(satir);
+  let i = 0;
+  durum.sonKarakter = "";
+  durum.oncekiKarakter = "";
+  while ((i < n)) {
+    const c = karakter(satir, i);
+    const d = karakter(satir, (i + 1));
+    if (durum.cokSatirliMetin) {
+      if ((((c === "\"") && (d === "\"")) && (karakter(satir, (i + 2)) === "\""))) {
+        durum.cokSatirliMetin = false;
+        durum.oncekiKarakter = durum.sonKarakter;
+        durum.sonKarakter = "\"";
+        i = (i + 3);
+        continue;
+      }
+      i = (i + 1);
+      continue;
+    }
+    if ((durum.yorumDerinligi > 0)) {
+      if (((c === "*") && (d === "/"))) {
+        durum.yorumDerinligi = (durum.yorumDerinligi - 1);
+        i = (i + 2);
+        continue;
+      }
+      if (((c === "/") && (d === "*"))) {
+        durum.yorumDerinligi = (durum.yorumDerinligi + 1);
+        i = (i + 2);
+        continue;
+      }
+      i = (i + 1);
+      continue;
+    }
+    if (((c === "/") && (d === "/"))) {
+      return;
+    }
+    if (((c === "/") && (d === "*"))) {
+      durum.yorumDerinligi = (durum.yorumDerinligi + 1);
+      i = (i + 2);
+      continue;
+    }
+    if ((c === "\"")) {
+      if (((d === "\"") && (karakter(satir, (i + 2)) === "\""))) {
+        durum.cokSatirliMetin = true;
+        durum.oncekiKarakter = durum.sonKarakter;
+        durum.sonKarakter = "\"";
+        i = (i + 3);
+        continue;
+      }
+      i = metinSonu(satir, i);
+      durum.oncekiKarakter = durum.sonKarakter;
+      durum.sonKarakter = "\"";
+      continue;
+    }
+    if ((((c === "{") || (c === "(")) || (c === "["))) {
+      yigin.push(new Parantez(c, icSeviye(yigin, satirSeviyesi, c)));
+    }
+    if ((((c === "}") || (c === ")")) || (c === "]"))) {
+      if (($len(yigin) > 0)) {
+        $listPop(yigin);
+      }
+    }
+    if ((!bosluktanMi(c))) {
+      durum.oncekiKarakter = durum.sonKarakter;
+      durum.sonKarakter = c;
+    }
+    i = (i + 1);
+  }
+}
+
+function kapanislaBasliyorMu(satir) {
+  const c = karakter(satir, 0);
+  return (((c === "}") || (c === ")")) || (c === "]"));
+}
+
+function bicimlendir(kaynak) {
+  const satirlar = $strSplit(kaynak, "\n");
+  let sonuc = [];
+  let yigin = [];
+  const durum = new TaramaDurumu(0, false, "", "", false);
+  let ardisikBos = 0;
+  let kayma = 0;
+  let satirSeviyesi = 0;
+  for (const ham of satirlar) {
+    if (durum.cokSatirliMetin) {
+      sonuc.push(ham);
+      satiriTara(ham, yigin, durum, satirSeviyesi);
+      durum.devamBekleniyor = false;
+      ardisikBos = 0;
+      continue;
+    }
+    const korunacak = ((durum.yorumDerinligi > 0) || devamMi(yigin));
+    const satir = sagdanKirp(soldanKirp(ham));
+    if ((($len(satir) === 0) && (!korunacak))) {
+      ardisikBos = (ardisikBos + 1);
+      if (((ardisikBos <= 1) && ($len(sonuc) > 0))) {
+        sonuc.push("");
+      }
+      satiriTara(satir, yigin, durum, satirSeviyesi);
+      continue;
+    }
+    ardisikBos = 0;
+    if (korunacak) {
+      const cikti = sagdanKirp(kaydir(ham, kayma));
+      sonuc.push(cikti);
+      satirSeviyesi = $idiv(bastakiBosluk(cikti), $len(GIRINTI));
+    } else {
+      let seviye = blokSeviyesi(yigin);
+      if (kapanislaBasliyorMu(satir)) {
+        seviye = (seviye - 1);
+      }
+      if (durum.devamBekleniyor) {
+        seviye = (seviye + 1);
+      }
+      if ((seviye < 0)) {
+        seviye = 0;
+      }
+      kayma = ((seviye * $len(GIRINTI)) - bastakiBosluk(ham));
+      sonuc.push((girintiUret(seviye) + satir));
+      satirSeviyesi = seviye;
+    }
+    satiriTara(satir, yigin, durum, satirSeviyesi);
+    durum.devamBekleniyor = yarimMi(durum.oncekiKarakter, durum.sonKarakter);
+  }
+  while ((($len(sonuc) > 0) && ($len(($listLast(sonuc) ?? "x")) === 0))) {
+    $listPop(sonuc);
+  }
+  return (sonuc.join("\n") + "\n");
+}
+
+function satirSayisi(kaynak) {
+  return $len($strSplit(kaynak, "\n"));
+}
+
+function satirSutun(kaynak, konum) {
+  let satir = 1;
+  let sutun = 1;
+  let i = 0;
+  const sinir = Math.min(konum, $len(kaynak));
+  while ((i < sinir)) {
+    if ((karakter(kaynak, i) === "\n")) {
+      satir = (satir + 1);
+      sutun = 1;
+    } else {
+      sutun = (sutun + 1);
+    }
+    i = (i + 1);
+  }
+  return [satir, sutun];
+}
+
+function sonrakiGirinti(satir) {
+  let bas = 0;
+  const n = $len(satir);
+  while (((bas < n) && ((karakter(satir, bas) === " ") || (karakter(satir, bas) === "\t")))) {
+    bas = (bas + 1);
+  }
+  let girinti = $strSlice(satir, 0, bas);
+  const kirpik = satir.trim();
+  if (((kirpik.endsWith("{") || kirpik.endsWith("[")) || kirpik.endsWith("("))) {
+    girinti = girinti + GIRINTI;
+  }
+  return girinti;
+}
+
+function jsonOku(metin) {
+  const o = new Okuyucu(metin, 0);
+  o.bosluklariAtla();
+  const $s1 = degerOku(o);
+  if ($s1 === null) return null;
+  const sonuc = $s1;
+  o.bosluklariAtla();
+  if ((!o.bitti())) {
+    return null;
+  }
+  return sonuc;
+}
+
+function degerOku(o) {
+  o.bosluklariAtla();
+  if (o.bitti()) {
+    return null;
+  }
+  const c = o.bak();
+  if ((c === "\"")) {
+    const $s2 = metinOku(o);
+    if ($s2 === null) return null;
+    return Json.Metin($s2);
+  }
+  if ((c === "{")) {
+    return nesneOku(o);
+  }
+  if ((c === "[")) {
+    return diziOku(o);
+  }
+  if (o.kelimeMi("true")) {
+    o.konum = (o.konum + 4);
+    return Json.Mantik(true);
+  }
+  if (o.kelimeMi("false")) {
+    o.konum = (o.konum + 5);
+    return Json.Mantik(false);
+  }
+  if (o.kelimeMi("null")) {
+    o.konum = (o.konum + 4);
+    return Json.Bos;
+  }
+  if ((rakamMi(c) || (c === "-"))) {
+    return sayiOku(o);
+  }
+  return null;
+}
+
+function metinOku(o) {
+  if ((!o.tuket("\""))) {
+    return null;
+  }
+  let sonuc = "";
+  while ((!o.bitti())) {
+    const c = o.bak();
+    if ((c === "\"")) {
+      o.ilerle();
+      return sonuc;
+    }
+    if ((c === "\\")) {
+      o.ilerle();
+      if (o.bitti()) {
+        return null;
+      }
+      const k = o.bak();
+      o.ilerle();
+      if ((k === "n")) {
+        sonuc = sonuc + "\n";
+      } else {
+        if ((k === "t")) {
+          sonuc = sonuc + "\t";
+        } else {
+          if ((k === "r")) {
+            sonuc = sonuc + "\r";
+          } else {
+            if ((k === "u")) {
+              o.konum = (o.konum + 4);
+              sonuc = sonuc + "?";
+            } else {
+              sonuc = sonuc + k;
+            }
+          }
+        }
+      }
+      continue;
+    }
+    sonuc = sonuc + c;
+    o.ilerle();
+  }
+  return null;
+}
+
+function sayiOku(o) {
+  const bas = o.konum;
+  if ((o.bak() === "-")) {
+    o.ilerle();
+  }
+  while (((!o.bitti()) && (((((rakamMi(o.bak()) || (o.bak() === ".")) || (o.bak() === "e")) || (o.bak() === "E")) || (o.bak() === "+")) || (o.bak() === "-")))) {
+    o.ilerle();
+  }
+  const ham = $strSlice(o.metin, bas, o.konum);
+  const $s3 = $parseFloatOpt(ham);
+  if ($s3 === null) return null;
+  return Json.Sayi($s3);
+}
+
+function diziOku(o) {
+  if ((!o.tuket("["))) {
+    return null;
+  }
+  let ogeler = [];
+  o.bosluklariAtla();
+  if (o.tuket("]")) {
+    return Json.Dizi(ogeler);
+  }
+  while (true) {
+    const $s4 = degerOku(o);
+    if ($s4 === null) return null;
+    ogeler.push($s4);
+    o.bosluklariAtla();
+    if (o.tuket(",")) {
+      continue;
+    }
+    if (o.tuket("]")) {
+      return Json.Dizi(ogeler);
+    }
+    return null;
+  }
+  return null;
+}
+
+function nesneOku(o) {
+  if ((!o.tuket("{"))) {
+    return null;
+  }
+  let kayitlar = new Map([]);
+  o.bosluklariAtla();
+  if (o.tuket("}")) {
+    return Json.Nesne(kayitlar);
+  }
+  while (true) {
+    o.bosluklariAtla();
+    const $s5 = metinOku(o);
+    if ($s5 === null) return null;
+    const anahtar = $s5;
+    o.bosluklariAtla();
+    if ((!o.tuket(":"))) {
+      return null;
+    }
+    const $s6 = degerOku(o);
+    if ($s6 === null) return null;
+    kayitlar.set(anahtar, $s6);
+    o.bosluklariAtla();
+    if (o.tuket(",")) {
+      continue;
+    }
+    if (o.tuket("}")) {
+      return Json.Nesne(kayitlar);
+    }
+    return null;
+  }
+  return null;
+}
+
+function jsonYaz(d) {
+  return (($m7) => {
+      if ($m7.$tag === "Metin") { const s = $m7.$values[0]; return metinKacir(s); }
+      if ($m7.$tag === "Sayi") { const n = $m7.$values[0]; return sayiYaz(n); }
+      if ($m7.$tag === "Mantik") { const b = $m7.$values[0]; return $fmt(b, "Bool", false); }
+      if ($m7.$tag === "Bos") { return "null"; }
+      if ($m7.$tag === "Dizi") { const l = $m7.$values[0]; return (("[" + l.map(((e) => jsonYaz(e))).join(",")) + "]"); }
+      if ($m7.$tag === "Nesne") { const m = $m7.$values[0]; return nesneYaz(m); }
+      $panic("eşleşen match dalı yok: " + $str($m7));
+    })(d);
+}
+
+function sayiYaz(n) {
+  const tam = $toInt(n);
+  if (($toFloat(tam) === n)) {
+    return $fmt(tam, "Int", false);
+  }
+  return $strFloat(n);
+}
+
+function nesneYaz(m) {
+  let parcalar = [];
+  for (const [anahtar, deger] of m) {
+    parcalar.push(((metinKacir(anahtar) + ":") + jsonYaz(deger)));
+  }
+  return (("{" + parcalar.join(",")) + "}");
+}
+
+function metinKacir(s) {
+  let sonuc = s.split("\\").join("\\\\");
+  sonuc = sonuc.split("\"").join("\\\"");
+  sonuc = sonuc.split("\n").join("\\n");
+  sonuc = sonuc.split("\t").join("\\t");
+  sonuc = sonuc.split("\r").join("\\r");
+  return (("\"" + sonuc) + "\"");
+}
+
+function alan(d, ad) {
+  if ($eq(d, null)) {
+    return null;
+  }
+  return (($m8) => {
+      if ($m8.$tag === "Nesne") { const m = $m8.$values[0]; return $mapGet(m, ad); }
+      return null;
+    })($unwrap(d, "272:17"));
+}
+
+function dizin(d, i) {
+  if ($eq(d, null)) {
+    return null;
+  }
+  return (($m9) => {
+      if ($m9.$tag === "Dizi") { const l = $m9.$values[0]; return ogeAl(l, i); }
+      return null;
+    })($unwrap(d, "282:17"));
+}
+
+function ogeAl(l, i) {
+  if (((i < 0) || (i >= $len(l)))) {
+    return null;
+  }
+  return $listGet(l, i);
+}
+
+function metinAl(d) {
+  if ($eq(d, null)) {
+    return null;
+  }
+  return (($m10) => {
+      if ($m10.$tag === "Metin") { const s = $m10.$values[0]; return s; }
+      return null;
+    })($unwrap(d, "299:17"));
+}
+
+function sayiAl(d) {
+  if ($eq(d, null)) {
+    return null;
+  }
+  return (($m11) => {
+      if ($m11.$tag === "Sayi") { const n = $m11.$values[0]; return n; }
+      return null;
+    })($unwrap(d, "309:17"));
+}
+
+function tamSayiAl(d) {
+  const n = sayiAl(d);
+  if ((n === null)) {
+    return null;
+  }
+  return $toInt($unwrap(n, "320:15"));
+}
+
+function mantikAl(d) {
+  if ($eq(d, null)) {
+    return null;
+  }
+  return (($m12) => {
+      if ($m12.$tag === "Mantik") { const b = $m12.$values[0]; return b; }
+      return null;
+    })($unwrap(d, "327:17"));
+}
+
+function diziAl(d) {
+  if ($eq(d, null)) {
+    return [];
+  }
+  return (($m13) => {
+      if ($m13.$tag === "Dizi") { const l = $m13.$values[0]; return l; }
+      return [];
+    })($unwrap(d, "337:17"));
+}
+
+function kodAlani() {
+  return $bul("#kod");
+}
+
+function boyaAlani() {
+  return $bul("#boya code");
+}
+
+function altcizgiAlani() {
+  return $bul("#altcizgi code");
+}
+
+function satirAlani() {
+  return $bul("#satirlar");
+}
+
+function denetimRozeti() {
+  return $bul("#denetim");
+}
+
+function durumYazisi() {
+  return $bul("#durum");
+}
+
+function durumNoktasi() {
+  return $bul("#nokta");
+}
+
+function imlecYazisi() {
+  return $bul("#imlec");
+}
+
+function dosyaAdiYazisi() {
+  return $bul("#dosya-adi");
+}
+
+function degistiIsareti() {
+  return $bul("#degisti");
+}
+
+function sureYazisi() {
+  return $bul("#sure");
+}
+
+function surumYazisi() {
+  return $bul("#surum");
+}
+
+function motorYazisi() {
+  return $bul("#motor");
+}
+
+function agacAlani() {
+  return $bul("#agac");
+}
+
+function kaynakMetni() {
+  {
+    const k = kodAlani();
+    if (k !== null) {
+      return $ogeDeger(k);
+    }
+  }
+  return "";
+}
+
+function ciz() {
+  const kaynak = kaynakMetni();
+  {
+    const boya = boyaAlani();
+    if (boya !== null) {
+      boya.innerHTML = (renklendir(kaynak) + "\n");
+    }
+  }
+  {
+    const alt = altcizgiAlani();
+    if (alt !== null) {
+      alt.innerHTML = (altcizgiHtml(kaynak) + "\n");
+    }
+  }
+  {
+    const satirlar = satirAlani();
+    if (satirlar !== null) {
+      satirlar.innerHTML = satirNumaralari(kaynak);
+    }
+  }
+  {
+    const isaret = degistiIsareti();
+    if (isaret !== null) {
+      if ((kaynak === kaydedilmis)) {
+        $ogeStil(isaret, "display", "none");
+      } else {
+        $ogeStil(isaret, "display", "inline");
+      }
+    }
+  }
+}
+
+function satirSeviyesi(satir) {
+  let seviye = "";
+  for (const s of sorunlar) {
+    if ((s.satir === satir)) {
+      if ((s.seviye === "hata")) {
+        return "hata";
+      }
+      seviye = s.seviye;
+    }
+  }
+  return seviye;
+}
+
+function hataSayisi() {
+  let n = 0;
+  for (const s of sorunlar) {
+    if ((s.seviye === "hata")) {
+      n = (n + 1);
+    }
+  }
+  return n;
+}
+
+function satirNumaralari(kaynak) {
+  const adet = satirSayisi(kaynak);
+  let parcalar = [];
+  const $son14 = adet;
+  for (let i = 1; i <= $son14; i++) {
+    const seviye = satirSeviyesi(i);
+    if ((seviye === "hata")) {
+      parcalar.push(`<b>${$fmt(i, "Int", false)}</b>`);
+    } else {
+      if ((seviye === "uyari")) {
+        parcalar.push(`<i>${$fmt(i, "Int", false)}</i>`);
+      } else {
+        parcalar.push($fmt(i, "Int", false));
+      }
+    }
+  }
+  return parcalar.join("\n");
+}
+
+function altcizgiHtml(kaynak) {
+  const satirlar = $strSplit(kaynak, "\n");
+  let cikti = [];
+  for (const [i, satir] of satirlar.entries()) {
+    const no = (i + 1);
+    let parca = "";
+    let konum = 0;
+    for (const s of sorunlar) {
+      if ((s.satir !== no)) {
+        continue;
+      }
+      const bas = (s.sutun - 1);
+      if (((bas < konum) || (bas > $len(satir)))) {
+        continue;
+      }
+      let uzunluk = s.uzunluk;
+      if ((uzunluk < 1)) {
+        uzunluk = 1;
+      }
+      if (((bas + uzunluk) > $len(satir))) {
+        uzunluk = Math.max(1, ($len(satir) - bas));
+      }
+      parca = parca + $strRepeat(" ", (bas - konum));
+      parca = parca + (((("<span class=\"dalgali " + s.seviye) + "\">") + $strRepeat(" ", uzunluk)) + "</span>");
+      konum = (bas + uzunluk);
+    }
+    cikti.push(parca);
+  }
+  return cikti.join("\n");
+}
+
+function esitle() {
+  {
+    const k = kodAlani();
+    if (k !== null) {
+      const ust = (k.scrollTop || 0);
+      const sol = (k.scrollLeft || 0);
+      {
+        const boya = $bul("#boya");
+        if (boya !== null) {
+          boya.scrollTop = ust;
+          $ogeStil(boya, "margin-left", `-${$fmt(sol, "Int", false)}px`);
+        }
+      }
+      {
+        const alt = $bul("#altcizgi");
+        if (alt !== null) {
+          alt.scrollTop = ust;
+          $ogeStil(alt, "margin-left", `-${$fmt(sol, "Int", false)}px`);
+        }
+      }
+      {
+        const satirlar = satirAlani();
+        if (satirlar !== null) {
+          satirlar.scrollTop = ust;
+        }
+      }
+    }
+  }
+}
+
+function imlecBildir() {
+  {
+    const k = kodAlani();
+    if (k !== null) {
+      {
+        const yazi = imlecYazisi();
+        if (yazi !== null) {
+          const yer = satirSutun($ogeDeger(k), (k.selectionStart || 0));
+          yazi.textContent = `satır ${$fmt($listGet(yer, 0), "Int", false)}, sütun ${$fmt($listGet(yer, 1), "Int", false)}`;
+        }
+      }
+    }
+  }
+}
+
+function satirGit(satir) {
+  if ((satir <= 0)) {
+    return;
+  }
+  {
+    const k = kodAlani();
+    if (k !== null) {
+      const metin = $ogeDeger(k);
+      const satirlar = $strSplit(metin, "\n");
+      let konum = 0;
+      let i = 0;
+      while (((i < (satir - 1)) && (i < $len(satirlar)))) {
+        konum = (konum + ($len($listGet(satirlar, i)) + 1));
+        i = (i + 1);
+      }
+      let uzunluk = 0;
+      if (((satir - 1) < $len(satirlar))) {
+        uzunluk = $len($listGet(satirlar, (satir - 1)));
+      }
+      k.focus();
+      k.setSelectionRange(konum, (konum + uzunluk));
+      k.scrollTop = Math.max(0, ((satir - 4) * 21));
+      esitle();
+      imlecBildir();
+    }
+  }
+}
+
+function durumYaz(mesaj, hataMi) {
+  {
+    const yazi = durumYazisi();
+    if (yazi !== null) {
+      yazi.textContent = mesaj;
+      if (hataMi) {
+        yazi.classList.add("tiklanir");
+      } else {
+        yazi.classList.remove("tiklanir");
+      }
+    }
+  }
+  {
+    const nokta = durumNoktasi();
+    if (nokta !== null) {
+      if (hataMi) {
+        nokta.classList.add("kotu");
+      } else {
+        nokta.classList.remove("kotu");
+      }
+    }
+  }
+}
+
+function rozetYaz(metin, sinif) {
+  {
+    const rozet = denetimRozeti();
+    if (rozet !== null) {
+      rozet.textContent = metin;
+      rozet.setAttribute("class", ("rozet " + sinif));
+    }
+  }
+}
+
+function sekmeSec(ad) {
+  for (const p of PANOLAR) {
+    {
+      const pano = $bul(("#" + p));
+      if (pano !== null) {
+        if ((p === ad)) {
+          $ogeStil(pano, "display", "block");
+        } else {
+          $ogeStil(pano, "display", "none");
+        }
+      }
+    }
+  }
+  for (const d of $bulHepsi(".sekme")) {
+    if ((($ogeOzellik(d, "data-pano") ?? "") === ad)) {
+      d.setAttribute("aria-selected", "true");
+    } else {
+      d.setAttribute("aria-selected", "false");
+    }
+  }
+}
+
+function panoYaz(ad, html) {
+  {
+    const pano = $bul(("#" + ad));
+    if (pano !== null) {
+      pano.innerHTML = html;
+    }
+  }
+}
+
+function ciktiYaz(html) {
+  panoYaz("pano-cikti", html);
+}
+
+function sorunlariGoster() {
+  {
+    const sayi = $bul("#sorun-sayisi");
+    if (sayi !== null) {
+      if (($len(sorunlar) === 0)) {
+        sayi.textContent = "";
+      } else {
+        sayi.textContent = $fmt($len(sorunlar), "Int", false);
+      }
+      if ((hataSayisi() === 0)) {
+        sayi.classList.add("uyari");
+      } else {
+        sayi.classList.remove("uyari");
+      }
+    }
+  }
+  if (($len(sorunlar) === 0)) {
+    panoYaz("pano-sorunlar", "<span class=\"bos\">Sorun yok.</span>");
+    return;
+  }
+  const satirlar = $strSplit(kaynakMetni(), "\n");
+  let html = "";
+  for (const [i, s] of sorunlar.entries()) {
+    let kaynakHtml = "";
+    if (((s.satir >= 1) && (s.satir <= $len(satirlar)))) {
+      const satir = $listGet(satirlar, (s.satir - 1));
+      const bas = Math.min(Math.max(0, (s.sutun - 1)), $len(satir));
+      const son = Math.min((bas + Math.max(1, s.uzunluk)), $len(satir));
+      kaynakHtml = (((((("<div class=\"kaynak\">" + kacir($strSlice(satir, 0, bas))) + "<mark>") + kacir($strSlice(satir, bas, son))) + "</mark>") + kacir($strSlice(satir, son, $len(satir)))) + "</div>");
+    }
+    let ipucuHtml = "";
+    if ((s.ipucu !== "")) {
+      ipucuHtml = (("<div class=\"ipucu\"><b>ipucu:</b> " + kacir(s.ipucu)) + "</div>");
+    }
+    html = html + ((((((((("<div class=\"sorun " + s.seviye) + `" data-satir="${$fmt(s.satir, "Int", false)}" data-sira="${$fmt(i, "Int", false)}">`) + `<span class="yer">${$fmt(s.satir, "Int", false)}:${$fmt(s.sutun, "Int", false)}</span>`) + "<div class=\"mesaj\">") + kacir(s.mesaj)) + "</div>") + ipucuHtml) + kaynakHtml) + "</div>");
+  }
+  panoYaz("pano-sorunlar", html);
+  for (const kart of $bulHepsi(".sorun")) {
+    const hedef = ($parseIntOpt(($ogeOzellik(kart, "data-satir") ?? "0")) ?? 0);
+    kart.addEventListener("click", (() => {
+      satirGit(hedef);
+    }));
+  }
+}
+
+function sorunOku(h, seviye) {
+  return new Sorun((tamSayiAl(alan(h, "satir")) ?? 0), (tamSayiAl(alan(h, "sutun")) ?? 1), (tamSayiAl(alan(h, "uzunluk")) ?? 1), (metinAl(alan(h, "mesaj")) ?? "bilinmeyen hata"), (metinAl(alan(h, "ipucu")) ?? ""), seviye);
+}
+
+function sorunlariAyikla(hata, uyarilar) {
+  sorunlar = [];
+  if ((!$eq(hata, null))) {
+    const hepsi = diziAl(alan(hata, "hepsi"));
+    if (($len(hepsi) === 0)) {
+      sorunlar.push(sorunOku(hata, "hata"));
+    }
+    for (const h of hepsi) {
+      sorunlar.push(sorunOku(h, "hata"));
+    }
+  }
+  for (const u of uyarilar) {
+    sorunlar.push(sorunOku(u, "uyari"));
+  }
+}
+
+function denetimPlanla() {
+  rozetYaz("denetleniyor…", "");
+  denetimSayaci = (denetimSayaci + 1);
+  const benimSiram = denetimSayaci;
+  $zamanla(450, (() => {
+    if ((benimSiram === denetimSayaci)) {
+      denetle();
+    }
+  }));
+}
+
+function denetle() {
+  const govde = jsonYaz(Json.Nesne(new Map([["kaynak", Json.Metin(kaynakMetni())]])));
+  $istek("POST", "/api/denetle", govde, ((cevap) => {
+    denetimSonucu(cevap);
+  }));
+}
+
+function denetimSonucu(cevap) {
+  const veri = jsonOku(cevap);
+  if ($eq(veri, null)) {
+    rozetYaz("sunucuya ulaşılamadı", "kotu");
+    return;
+  }
+  const uyarilar = diziAl(alan(veri, "uyarilar"));
+  if ((mantikAl(alan(veri, "tamam")) ?? false)) {
+    sorunlariAyikla(null, uyarilar);
+    if (($len(uyarilar) === 0)) {
+      rozetYaz("hata yok", "iyi");
+    } else {
+      rozetYaz(`${$fmt($len(uyarilar), "Int", false)} uyarı`, "uyari");
+    }
+    durumYaz("hazır", false);
+    sorunlariGoster();
+    ciz();
+    return;
+  }
+  sorunlariAyikla(alan(veri, "hata"), uyarilar);
+  const hatalar = hataSayisi();
+  if (($len(uyarilar) > 0)) {
+    rozetYaz(`${$fmt(hatalar, "Int", false)} hata, ${$fmt($len(uyarilar), "Int", false)} uyarı`, "kotu");
+  } else {
+    rozetYaz(`${$fmt(hatalar, "Int", false)} hata`, "kotu");
+  }
+  if (($len(sorunlar) > 0)) {
+    const ilk = $listGet(sorunlar, 0);
+    if ((ilk.satir > 0)) {
+      durumYaz(`satır ${$fmt(ilk.satir, "Int", false)}: ${ilk.mesaj}`, true);
+    } else {
+      durumYaz(ilk.mesaj, true);
+    }
+  }
+  sorunlariGoster();
+  ciz();
+}
+
+function calistir() {
+  if (calisiyor) {
+    return;
+  }
+  calisiyor = true;
+  {
+    const sure = sureYazisi();
+    if (sure !== null) {
+      sure.textContent = "";
+    }
+  }
+  sekmeSec("pano-cikti");
+  ciktiYaz("<span class=\"bos\">çalışıyor…</span>");
+  const govde = jsonYaz(Json.Nesne(new Map([["kaynak", Json.Metin(kaynakMetni())]])));
+  $istek("POST", "/api/calistir", govde, ((cevap) => {
+    calisiyor = false;
+    calismaSonucu(cevap);
+  }));
+}
+
+function calismaSonucu(cevap) {
+  const veri = jsonOku(cevap);
+  if ($eq(veri, null)) {
+    ciktiYaz("sunucuya ulaşılamadı");
+    return;
+  }
+  const durum = (metinAl(alan(veri, "durum")) ?? "");
+  if (((durum === "derleme-hatasi") || (durum === "ortam-hatasi"))) {
+    sorunlariAyikla(alan(veri, "hata"), diziAl(alan(veri, "uyarilar")));
+    sorunlariGoster();
+    ciz();
+    const gosterim = (metinAl(alan(alan(veri, "hata"), "gosterim")) ?? "hata");
+    ciktiYaz((("<div class=\"hata-blok\" id=\"hata-blok\">" + kacir(gosterim)) + "</div>"));
+    {
+      const blok = $bul("#hata-blok");
+      if (blok !== null) {
+        blok.addEventListener("click", (() => {
+          sekmeSec("pano-sorunlar");
+        }));
+      }
+    }
+    sekmeSec("pano-sorunlar");
+    return;
+  }
+  if ((durum === "zaman-asimi")) {
+    const m = (metinAl(alan(veri, "cikti")) ?? "");
+    ciktiYaz((("<div class=\"uyari-blok\">" + kacir(m)) + "</div>"));
+    return;
+  }
+  const cikti = (metinAl(alan(veri, "cikti")) ?? "");
+  const stderr = (metinAl(alan(veri, "stderr")) ?? "");
+  const cizdi = (mantikAl(alan(veri, "cizdi")) ?? false);
+  if ((($len(cikti) === 0) && ($len(stderr) === 0))) {
+    if (cizdi) {
+      ciktiYaz("<span class=\"bos\">program ekrana çizdi; Ekran sekmesine bak</span>");
+      sekmeSec("pano-ekran");
+    } else {
+      ciktiYaz("<span class=\"bos\">program çalıştı, hiçbir şey yazdırmadı</span>");
+    }
+    return;
+  }
+  let html = kacir(cikti);
+  if (($len(stderr) > 0)) {
+    html = html + (("<div class=\"hata-blok\">" + kacir(stderr.trim())) + "</div>");
+  }
+  ciktiYaz(html);
+  if ((cizdi && ($len(stderr) === 0))) {
+    sekmeSec("pano-ekran");
+  }
+}
+
+function javascriptGoster() {
+  sekmeSec("pano-js");
+  panoYaz("pano-js", "<span class=\"bos\">üretiliyor…</span>");
+  const govde = jsonYaz(Json.Nesne(new Map([["kaynak", Json.Metin(kaynakMetni())]])));
+  $istek("POST", "/api/uretilen", govde, ((cevap) => {
+    const veri = jsonOku(cevap);
+    {
+      const hata = alan(veri, "hata");
+      if (hata !== null) {
+        panoYaz("pano-js", (("<div class=\"hata-blok\">" + kacir((metinAl(alan(hata, "gosterim")) ?? "hata"))) + "</div>"));
+        return;
+      }
+    }
+    const kod = (metinAl(alan(veri, "kod")) ?? "");
+    const isaret = "// Nar kaynağından üretildi";
+    const yer = $strIndexOf(kod, isaret);
+    if ((yer >= 0)) {
+      panoYaz("pano-js", kacir($strSlice(kod, yer, $len(kod))));
+    } else {
+      panoYaz("pano-js", kacir(kod));
+    }
+  }));
+}
+
+function kodDuzenle() {
+  {
+    const k = kodAlani();
+    if (k !== null) {
+      const oncesi = $ogeDeger(k);
+      const sonrasi = bicimlendir(oncesi);
+      if ((sonrasi === oncesi)) {
+        durumYaz("kod zaten düzenli", false);
+        return;
+      }
+      const yer = satirSutun(oncesi, (k.selectionStart || 0));
+      k.value = sonrasi;
+      ciz();
+      esitle();
+      satirGit(Math.min($listGet(yer, 0), satirSayisi(sonrasi)));
+      durumYaz("kod düzenlendi", false);
+      denetimPlanla();
+    }
+  }
+}
+
+function dosyalariYukle() {
+  $istek("GET", "/api/dosyalar", "", ((cevap) => {
+    const veri = jsonOku(cevap);
+    if ($eq(veri, null)) {
+      durumYaz("dosya listesi alınamadı", true);
+      return;
+    }
+    {
+      const surum = surumYazisi();
+      if (surum !== null) {
+        surum.textContent = ("v" + (metinAl(alan(veri, "surum")) ?? "?"));
+      }
+    }
+    agaciDoldur(diziAl(alan(veri, "dosyalar")));
+    dosyaAc(acikYol);
+  }));
+}
+
+function agaciDoldur(dosyalar) {
+  dosyaYollari = [];
+  for (const d of dosyalar) {
+    dosyaYollari.push((metinAl(alan(d, "yol")) ?? ""));
+  }
+  {
+    const sayi = $bul("#dosya-sayisi");
+    if (sayi !== null) {
+      sayi.textContent = `${$fmt($len(dosyalar), "Int", false)} dosya`;
+    }
+  }
+  {
+    const agac = agacAlani();
+    if (agac !== null) {
+      $ogeTemizle(agac);
+      let gruplar = [];
+      for (const d of dosyalar) {
+        const grup = (metinAl(alan(d, "grup")) ?? "Dosyalar");
+        if ((!$listContains(gruplar, grup))) {
+          gruplar.push(grup);
+        }
+      }
+      for (const grup of gruplar) {
+        const kume = $olustur("details");
+        kume.setAttribute("open", "");
+        const baslik = $olustur("summary");
+        let adet = 0;
+        const liste = $olustur("ul");
+        for (const d of dosyalar) {
+          if (((metinAl(alan(d, "grup")) ?? "") !== grup)) {
+            continue;
+          }
+          adet = (adet + 1);
+          const yol = (metinAl(alan(d, "yol")) ?? "");
+          const oge = $olustur("li");
+          const dugme = $olustur("button");
+          dugme.setAttribute("type", "button");
+          dugme.classList.add("dosya");
+          dugme.setAttribute("data-yol", yol);
+          dugme.innerHTML = (((DOSYA_IKONU + "<span>") + kacir((metinAl(alan(d, "ad")) ?? ""))) + "</span>");
+          if ((yol === acikYol)) {
+            dugme.classList.add("secili");
+          }
+          dugme.addEventListener("click", (() => {
+            dosyaAc(yol);
+          }));
+          oge.appendChild(dugme);
+          liste.appendChild(oge);
+        }
+        baslik.innerHTML = (("<span class=\"ok\">›</span>" + kacir(grup)) + `<span class="adet">${$fmt(adet, "Int", false)}</span>`);
+        kume.appendChild(baslik);
+        kume.appendChild(liste);
+        agac.appendChild(kume);
+      }
+    }
+  }
+}
+
+function seciliyiIsaretle() {
+  for (const d of $bulHepsi(".dosya")) {
+    if ((($ogeOzellik(d, "data-yol") ?? "") === acikYol)) {
+      d.classList.add("secili");
+    } else {
+      d.classList.remove("secili");
+    }
+  }
+}
+
+function dosyaAc(yol) {
+  $istek("GET", ("/api/dosya?yol=" + yol), "", ((cevap) => {
+    const veri = jsonOku(cevap);
+    if (($eq(veri, null) || (!$eq(alan(veri, "hata"), null)))) {
+      durumYaz(("dosya açılamadı: " + yol), true);
+      return;
+    }
+    const kaynak = (metinAl(alan(veri, "kaynak")) ?? "");
+    acikYol = (metinAl(alan(veri, "yol")) ?? yol);
+    kaydedilmis = kaynak;
+    {
+      const k = kodAlani();
+      if (k !== null) {
+        k.value = kaynak;
+        k.scrollTop = 0;
+      }
+    }
+    {
+      const adYazisi = dosyaAdiYazisi();
+      if (adYazisi !== null) {
+        adYazisi.textContent = acikYol;
+      }
+    }
+    sorunlar = [];
+    sorunlariGoster();
+    seciliyiIsaretle();
+    ciz();
+    esitle();
+    denetimPlanla();
+  }));
+}
+
+function kaydet() {
+  const govde = jsonYaz(Json.Nesne(new Map([["yol", Json.Metin(acikYol)], ["kaynak", Json.Metin(kaynakMetni())]])));
+  $istek("POST", "/api/kaydet", govde, ((cevap) => {
+    const veri = jsonOku(cevap);
+    if ((mantikAl(alan(veri, "tamam")) ?? false)) {
+      kaydedilmis = kaynakMetni();
+      ciz();
+      durumYaz(("kaydedildi: " + acikYol), false);
+      denetimPlanla();
+    } else {
+      durumYaz((metinAl(alan(veri, "hata")) ?? "kaydedilemedi"), true);
+    }
+  }));
+}
+
+function yeniDosya() {
+  let n = 1;
+  let yol = `calismalar/yeni-${$fmt(n, "Int", false)}.nar`;
+  while ($listContains(dosyaYollari, yol)) {
+    n = (n + 1);
+    yol = `calismalar/yeni-${$fmt(n, "Int", false)}.nar`;
+  }
+  const sablon = "// Yeni Nar dosyası\n\nfn main() {\n  print(\"Merhaba\")\n}\n";
+  const govde = jsonYaz(Json.Nesne(new Map([["yol", Json.Metin(yol)], ["kaynak", Json.Metin(sablon)]])));
+  const hedef = yol;
+  $istek("POST", "/api/kaydet", govde, ((cevap) => {
+    const veri = jsonOku(cevap);
+    if ((mantikAl(alan(veri, "tamam")) ?? false)) {
+      acikYol = hedef;
+      dosyalariYukle();
+      durumYaz(("oluşturuldu: " + hedef), false);
+    } else {
+      durumYaz((metinAl(alan(veri, "hata")) ?? "oluşturulamadı"), true);
+    }
+  }));
+}
+
+function agaciAcKapa() {
+  const g = $govde();
+  if (g.classList.contains("agac-kapali")) {
+    g.classList.remove("agac-kapali");
+  } else {
+    g.classList.add("agac-kapali");
+  }
+}
+
+function oneriKutusu() {
+  return $bul("#oneri");
+}
+
+function sozlugYukle() {
+  $istek("GET", "/api/kelimeler", "", ((cevap) => {
+    const veri = jsonOku(cevap);
+    if ($eq(veri, null)) {
+      return;
+    }
+    sozluk = [];
+    for (const k of diziAl(alan(veri, "kelimeler"))) {
+      const ad = (metinAl(alan(k, "ad")) ?? "");
+      const tur = (metinAl(alan(k, "tur")) ?? "yerlesik");
+      const arg = (tamSayiAl(alan(k, "arg")) ?? 0);
+      let metin = ad;
+      if ((tur !== "anahtar")) {
+        if ((arg > 0)) {
+          metin = (ad + "(|)");
+        } else {
+          metin = (ad + "()");
+        }
+      }
+      sozluk.push(new Oneri(ad, metin, tur));
+    }
+  }));
+}
+
+function belgedekiAdlar(metin, haric) {
+  let adlar = [];
+  let i = 0;
+  const n = $len(metin);
+  while ((i < n)) {
+    if ((adKarakteriMi(karakter(metin, i)) && (!rakamMi(karakter(metin, i))))) {
+      const son = kelimeSonu(metin, i);
+      const kelime = $strSlice(metin, i, son);
+      if (((($len(kelime) >= 2) && (kelime !== haric)) && (!$listContains(adlar, kelime)))) {
+        adlar.push(kelime);
+      }
+      i = son;
+    } else {
+      i = (i + 1);
+    }
+  }
+  return adlar;
+}
+
+function suz(adaylar, parca, sinir) {
+  let basta = [];
+  let icinde = [];
+  const kucuk = $lowerTr(parca);
+  for (const o of adaylar) {
+    const ad = $lowerTr(o.ad);
+    if (((parca === "") || ad.startsWith(kucuk))) {
+      basta.push(o);
+    } else {
+      if (ad.includes(kucuk)) {
+        icinde.push(o);
+      }
+    }
+  }
+  let sonuc = [];
+  for (const o of basta) {
+    if (($len(sonuc) < sinir)) {
+      sonuc.push(o);
+    }
+  }
+  for (const o of icinde) {
+    if (($len(sonuc) < sinir)) {
+      sonuc.push(o);
+    }
+  }
+  return sonuc;
+}
+
+function oneriGuncelle() {
+  {
+    const k = kodAlani();
+    if (k !== null) {
+      const metin = $ogeDeger(k);
+      const konum = (k.selectionStart || 0);
+      if ((konum !== (k.selectionEnd || 0))) {
+        oneriKapat();
+        return;
+      }
+      let bas = konum;
+      while (((bas > 0) && adKarakteriMi(karakter(metin, (bas - 1))))) {
+        bas = (bas - 1);
+      }
+      const parca = $strSlice(metin, bas, konum);
+      const noktadanSonra = ((bas > 0) && (karakter(metin, (bas - 1)) === "."));
+      if (((parca === "") && (!noktadanSonra))) {
+        oneriKapat();
+        return;
+      }
+      let adaylar = [];
+      if (noktadanSonra) {
+        for (const o of sozluk) {
+          if ((o.tur === "metot")) {
+            adaylar.push(o);
+          }
+        }
+      } else {
+        for (const o of SABLONLAR) {
+          adaylar.push(o);
+        }
+        for (const ad of belgedekiAdlar(metin, parca)) {
+          adaylar.push(new Oneri(ad, ad, "belge"));
+        }
+        for (const o of sozluk) {
+          if ((o.tur !== "metot")) {
+            adaylar.push(o);
+          }
+        }
+      }
+      oneriler = suz(adaylar, parca, 8);
+      if ((($len(oneriler) === 0) || (($len(oneriler) === 1) && ($listGet(oneriler, 0).metin === parca)))) {
+        oneriKapat();
+        return;
+      }
+      oneriBas = bas;
+      oneriSon = konum;
+      oneriSecili = 0;
+      oneriCiz(parca);
+    }
+  }
+}
+
+function oneriCiz(parca) {
+  {
+    const kutu = oneriKutusu();
+    if (kutu !== null) {
+      let html = "";
+      for (const [i, o] of oneriler.entries()) {
+        let sinif = "oneri-satir";
+        if ((i === oneriSecili)) {
+          sinif = "oneri-satir secili";
+        }
+        html = html + (((((("<div class=\"" + sinif) + `" data-sira="${$fmt(i, "Int", false)}"><span class="ad">`) + vurgula(o.ad, parca)) + "</span><span class=\"tur\">") + o.tur) + "</span></div>");
+      }
+      html = html + "<div class=\"oneri-ipucu\"><kbd>Tab</kbd> uygula · <kbd>↑↓</kbd> gez · <kbd>Esc</kbd> kapat</div>";
+      kutu.innerHTML = html;
+      for (const satir of $bulHepsi(".oneri-satir")) {
+        const sira = ($parseIntOpt(($ogeOzellik(satir, "data-sira") ?? "0")) ?? 0);
+        satir.addEventListener("mousedown", ((o) => {
+          o.preventDefault();
+          oneriSecili = sira;
+          oneriUygula();
+        }));
+      }
+      {
+        const k = kodAlani();
+        if (k !== null) {
+          const yer = satirSutun($ogeDeger(k), oneriBas);
+          const ust = ((12 + ($listGet(yer, 0) * 21)) - (k.scrollTop || 0));
+          const sol = ((16 + $idiv((($listGet(yer, 1) - 1) * 81), 10)) - (k.scrollLeft || 0));
+          $ogeStil(kutu, "top", `${$fmt(ust, "Int", false)}px`);
+          $ogeStil(kutu, "left", `${$fmt(Math.max(0, sol), "Int", false)}px`);
+        }
+      }
+      kutu.classList.add("acik");
+      oneriAcik = true;
+    }
+  }
+}
+
+function vurgula(ad, parca) {
+  if ((parca === "")) {
+    return kacir(ad);
+  }
+  const yer = $strIndexOf($lowerTr(ad), $lowerTr(parca));
+  if ((yer < 0)) {
+    return kacir(ad);
+  }
+  return ((((kacir($strSlice(ad, 0, yer)) + "<b>") + kacir($strSlice(ad, yer, (yer + $len(parca))))) + "</b>") + kacir($strSlice(ad, (yer + $len(parca)), $len(ad))));
+}
+
+function oneriKapat() {
+  if ((!oneriAcik)) {
+    return;
+  }
+  oneriAcik = false;
+  {
+    const kutu = oneriKutusu();
+    if (kutu !== null) {
+      kutu.classList.remove("acik");
+    }
+  }
+}
+
+function oneriGez(adim) {
+  if (($len(oneriler) === 0)) {
+    return;
+  }
+  oneriSecili = $imod(((oneriSecili + adim) + $len(oneriler)), $len(oneriler));
+  {
+    const k = kodAlani();
+    if (k !== null) {
+      oneriCiz($strSlice($ogeDeger(k), oneriBas, oneriSon));
+    }
+  }
+}
+
+function satirGirintisi(metin, konum) {
+  let bas = konum;
+  while (((bas > 0) && (karakter(metin, (bas - 1)) !== "\n"))) {
+    bas = (bas - 1);
+  }
+  let son = bas;
+  while (((son < $len(metin)) && ((karakter(metin, son) === " ") || (karakter(metin, son) === "\t")))) {
+    son = (son + 1);
+  }
+  return $strSlice(metin, bas, son);
+}
+
+function oneriUygula() {
+  if (((!oneriAcik) || ($len(oneriler) === 0))) {
+    return;
+  }
+  const o = $listGet(oneriler, oneriSecili);
+  {
+    const k = kodAlani();
+    if (k !== null) {
+      const metin = $ogeDeger(k);
+      const girinti = satirGirintisi(metin, oneriBas);
+      let ekle = o.metin.split("\n").join(("\n" + girinti));
+      let imlec = $strIndexOf(ekle, "|");
+      if ((imlec >= 0)) {
+        ekle = ($strSlice(ekle, 0, imlec) + $strSlice(ekle, (imlec + 1), $len(ekle)));
+      } else {
+        imlec = $len(ekle);
+      }
+      k.value = (($strSlice(metin, 0, oneriBas) + ekle) + $strSlice(metin, oneriSon, $len(metin)));
+      const hedef = (oneriBas + imlec);
+      k.setSelectionRange(hedef, hedef);
+      oneriKapat();
+      ciz();
+      esitle();
+      imlecBildir();
+      denetimPlanla();
+    }
+  }
+}
+
+function tusaBasildi(o) {
+  const tus = (o.key || "");
+  if (oneriAcik) {
+    if (((tus === "Tab") || (tus === "Enter"))) {
+      o.preventDefault();
+      oneriUygula();
+      return;
+    }
+    if ((tus === "ArrowDown")) {
+      o.preventDefault();
+      oneriGez(1);
+      return;
+    }
+    if ((tus === "ArrowUp")) {
+      o.preventDefault();
+      oneriGez((-1));
+      return;
+    }
+    if ((tus === "Escape")) {
+      o.preventDefault();
+      oneriKapat();
+      return;
+    }
+  }
+  if ((((o.ctrlKey || o.metaKey) === true) && (tus === "Enter"))) {
+    o.preventDefault();
+    calistir();
+    return;
+  }
+  if (((((o.ctrlKey || o.metaKey) === true) && (!(o.shiftKey === true))) && ((tus === "s") || (tus === "S")))) {
+    o.preventDefault();
+    kaydet();
+    return;
+  }
+  if (((((o.ctrlKey || o.metaKey) === true) && (!(o.shiftKey === true))) && ((tus === "b") || (tus === "B")))) {
+    o.preventDefault();
+    agaciAcKapa();
+    return;
+  }
+  if (((((o.ctrlKey || o.metaKey) === true) && (o.shiftKey === true)) && ((tus === "d") || (tus === "D")))) {
+    o.preventDefault();
+    kodDuzenle();
+    return;
+  }
+  if ((tus === "Tab")) {
+    o.preventDefault();
+    {
+      const k = kodAlani();
+      if (k !== null) {
+        $ogeYaziEkle(k, "  ");
+        ciz();
+      }
+    }
+    return;
+  }
+  if ((tus === "Enter")) {
+    {
+      const k = kodAlani();
+      if (k !== null) {
+        const metin = $ogeDeger(k);
+        const konum = (k.selectionStart || 0);
+        const oncesi = $strSlice(metin, 0, konum);
+        const girinti = sonrakiGirinti(sonSatir(oncesi));
+        if (($len(girinti) > 0)) {
+          o.preventDefault();
+          $ogeYaziEkle(k, ("\n" + girinti));
+          ciz();
+          esitle();
+          imlecBildir();
+        }
+      }
+    }
+  }
+}
+
+function sonSatir(metin) {
+  const parcalar = $strSplit(metin, "\n");
+  if (($len(parcalar) === 0)) {
+    return "";
+  }
+  return $listGet(parcalar, ($len(parcalar) - 1));
+}
+
+function baslat() {
+  const kodOgesi = kodAlani();
+  if ((kodOgesi === null)) {
+    console.log("IDE: #kod alanı bulunamadı");
+    return;
+  }
+  const kod = $unwrap(kodOgesi, "1068:21");
+  kod.addEventListener("input", (() => {
+    ciz();
+    esitle();
+    oneriGuncelle();
+    denetimPlanla();
+  }));
+  kod.addEventListener("scroll", (() => {
+    esitle();
+    oneriKapat();
+  }));
+  kod.addEventListener("click", (() => {
+    imlecBildir();
+    oneriKapat();
+  }));
+  kod.addEventListener("blur", (() => {
+    oneriKapat();
+  }));
+  kod.addEventListener("keyup", (() => {
+    imlecBildir();
+  }));
+  kod.addEventListener("keydown", ((o) => {
+    tusaBasildi(o);
+  }));
+  dugmeyeBagla("#btn-calistir", (() => {
+    calistir();
+  }));
+  dugmeyeBagla("#btn-kaydet", (() => {
+    kaydet();
+  }));
+  dugmeyeBagla("#btn-bicim", (() => {
+    kodDuzenle();
+  }));
+  dugmeyeBagla("#btn-js", (() => {
+    javascriptGoster();
+  }));
+  dugmeyeBagla("#btn-denetle", (() => {
+    sekmeSec("pano-sorunlar");
+    denetle();
+  }));
+  dugmeyeBagla("#btn-yeni", (() => {
+    yeniDosya();
+  }));
+  dugmeyeBagla("#btn-agac", (() => {
+    agaciAcKapa();
+  }));
+  for (const d of $bulHepsi(".sekme")) {
+    const pano = ($ogeOzellik(d, "data-pano") ?? "pano-cikti");
+    d.addEventListener("click", (() => {
+      sekmeSec(pano);
+    }));
+  }
+  $govde().addEventListener("keydown", ((o) => {
+    if (((((o.ctrlKey || o.metaKey) === true) && (!(o.shiftKey === true))) && (((o.key || "") === "b") || ((o.key || "") === "B")))) {
+      o.preventDefault();
+      agaciAcKapa();
+    }
+  }));
+  {
+    const motor = motorYazisi();
+    if (motor !== null) {
+      motor.textContent = "araçlar: Nar ile yazıldı";
+    }
+  }
+  {
+    const durumOgesi = durumYazisi();
+    if (durumOgesi !== null) {
+      durumOgesi.addEventListener("click", (() => {
+        if (($len(sorunlar) > 0)) {
+          sekmeSec("pano-sorunlar");
+          satirGit($listGet(sorunlar, 0).satir);
+        }
+      }));
+    }
+  }
+  sekmeSec("pano-cikti");
+  sozlugYukle();
+  dosyalariYukle();
+}
+
+function degistiMi() {
+  return (kaynakMetni() !== kaydedilmis);
+}
+
+function dugmeyeBagla(secici, islev) {
+  {
+    const d = $bul(secici);
+    if (d !== null) {
+      d.addEventListener("click", islev);
+    }
+  }
+}
+
 const KUCUK = "abcçdefgğhıijklmnoöpqrsştuüvwxyz";
 const BUYUK = "ABCÇDEFGĞHIİJKLMNOÖPQRSŞTUÜVWXYZ";
 const RAKAM = "0123456789";
@@ -1335,6 +2946,23 @@ const BOSLUK = " \t\r\n";
 const ANAHTAR = ["let", "var", "fn", "return", "if", "else", "while", "for", "in", "match", "struct", "enum", "import", "true", "false", "none", "self", "break", "continue", "type"];
 const TIP_ADI = ["Int", "Float", "Bool", "String", "Void", "Element"];
 const YERLESIK = ["print", "str", "len", "int", "float", "abs", "min", "max", "sqrt", "pow", "floor", "ceil", "round", "random", "panic", "assert", "bul", "bulHepsi", "olustur", "govde", "zamanla", "istek"];
+const GIRINTI = "  ";
+const YARIM_BITIS = "=+*/&|";
+let acikYol = "deneme.nar";
+let kaydedilmis = "";
+let denetimSayaci = 0;
+let calisiyor = false;
+let dosyaYollari = [];
+let sorunlar = [];
+const PANOLAR = ["pano-cikti", "pano-sorunlar", "pano-js", "pano-ekran"];
+const DOSYA_IKONU = (("<svg class=\"ikon\" viewBox=\"0 0 24 24\" fill=\"none\" " + "stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\">") + "<path d=\"M6 3h8l4 4v14H6z\"/><path d=\"M14 3v4h4\"/></svg>");
+let sozluk = [];
+let oneriler = [];
+let oneriSecili = 0;
+let oneriAcik = false;
+let oneriBas = 0;
+let oneriSon = 0;
+const SABLONLAR = [new Oneri("fn …", "fn |() {\n  \n}", "sablon"), new Oneri("main", "fn main() {\n  |\n}", "sablon"), new Oneri("if …", "if | {\n  \n}", "sablon"), new Oneri("if let …", "if let | = {\n  \n}", "sablon"), new Oneri("else", "else {\n  |\n}", "sablon"), new Oneri("for …", "for | in {\n  \n}", "sablon"), new Oneri("while …", "while | {\n  \n}", "sablon"), new Oneri("match …", "match | {\n  \n}", "sablon"), new Oneri("struct …", "struct | {\n  \n}", "sablon"), new Oneri("enum …", "enum | {\n  \n}", "sablon"), new Oneri("let", "let | = ", "sablon"), new Oneri("var", "var | = ", "sablon"), new Oneri("print", "print(|)", "sablon"), new Oneri("import", "import \"|\"", "sablon")];
 
 // Dışa açılan adlar — tarayıcıda `Nar.<ad>` ile çağrılır.
 globalThis.Nar = Object.assign(globalThis.Nar || {}, {
@@ -1353,403 +2981,133 @@ globalThis.Nar = Object.assign(globalThis.Nar || {}, {
   kacir: kacir,
   sar: sar,
   renklendir: renklendir,
+  Parantez: Parantez,
+  TaramaDurumu: TaramaDurumu,
+  yarimMi: yarimMi,
+  sagdanKirp: sagdanKirp,
+  soldanKirp: soldanKirp,
+  girintiUret: girintiUret,
+  bastakiBosluk: bastakiBosluk,
+  kaydir: kaydir,
+  blokSeviyesi: blokSeviyesi,
+  icSeviye: icSeviye,
+  devamMi: devamMi,
+  satiriTara: satiriTara,
+  kapanislaBasliyorMu: kapanislaBasliyorMu,
+  bicimlendir: bicimlendir,
+  satirSayisi: satirSayisi,
+  satirSutun: satirSutun,
+  sonrakiGirinti: sonrakiGirinti,
+  Json: Json,
+  Okuyucu: Okuyucu,
+  jsonOku: jsonOku,
+  degerOku: degerOku,
+  metinOku: metinOku,
+  sayiOku: sayiOku,
+  diziOku: diziOku,
+  nesneOku: nesneOku,
+  jsonYaz: jsonYaz,
+  sayiYaz: sayiYaz,
+  nesneYaz: nesneYaz,
+  metinKacir: metinKacir,
+  alan: alan,
+  dizin: dizin,
+  ogeAl: ogeAl,
+  metinAl: metinAl,
+  sayiAl: sayiAl,
+  tamSayiAl: tamSayiAl,
+  mantikAl: mantikAl,
+  diziAl: diziAl,
+  Sorun: Sorun,
+  kodAlani: kodAlani,
+  boyaAlani: boyaAlani,
+  altcizgiAlani: altcizgiAlani,
+  satirAlani: satirAlani,
+  denetimRozeti: denetimRozeti,
+  durumYazisi: durumYazisi,
+  durumNoktasi: durumNoktasi,
+  imlecYazisi: imlecYazisi,
+  dosyaAdiYazisi: dosyaAdiYazisi,
+  degistiIsareti: degistiIsareti,
+  sureYazisi: sureYazisi,
+  surumYazisi: surumYazisi,
+  motorYazisi: motorYazisi,
+  agacAlani: agacAlani,
+  kaynakMetni: kaynakMetni,
+  ciz: ciz,
+  satirSeviyesi: satirSeviyesi,
+  hataSayisi: hataSayisi,
+  satirNumaralari: satirNumaralari,
+  altcizgiHtml: altcizgiHtml,
+  esitle: esitle,
+  imlecBildir: imlecBildir,
+  satirGit: satirGit,
+  durumYaz: durumYaz,
+  rozetYaz: rozetYaz,
+  sekmeSec: sekmeSec,
+  panoYaz: panoYaz,
+  ciktiYaz: ciktiYaz,
+  sorunlariGoster: sorunlariGoster,
+  sorunOku: sorunOku,
+  sorunlariAyikla: sorunlariAyikla,
+  denetimPlanla: denetimPlanla,
+  denetle: denetle,
+  denetimSonucu: denetimSonucu,
+  calistir: calistir,
+  calismaSonucu: calismaSonucu,
+  javascriptGoster: javascriptGoster,
+  kodDuzenle: kodDuzenle,
+  dosyalariYukle: dosyalariYukle,
+  agaciDoldur: agaciDoldur,
+  seciliyiIsaretle: seciliyiIsaretle,
+  dosyaAc: dosyaAc,
+  kaydet: kaydet,
+  yeniDosya: yeniDosya,
+  agaciAcKapa: agaciAcKapa,
+  Oneri: Oneri,
+  oneriKutusu: oneriKutusu,
+  sozlugYukle: sozlugYukle,
+  belgedekiAdlar: belgedekiAdlar,
+  suz: suz,
+  oneriGuncelle: oneriGuncelle,
+  oneriCiz: oneriCiz,
+  vurgula: vurgula,
+  oneriKapat: oneriKapat,
+  oneriGez: oneriGez,
+  satirGirintisi: satirGirintisi,
+  oneriUygula: oneriUygula,
+  tusaBasildi: tusaBasildi,
+  sonSatir: sonSatir,
+  baslat: baslat,
+  degistiMi: degistiMi,
+  dugmeyeBagla: dugmeyeBagla,
 });
 if (typeof module !== "undefined" && module.exports) {
   module.exports = globalThis.Nar;
 }
 </script>
-<script>var PYODIDE_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
-var ORNEKLER = ["// Nar'a hoş geldin. Değiştir ve Çalıştır'a bas (Ctrl+Enter).\n\nstruct Kisi {\n  ad: String\n  yas: Int\n}\n\nfn selamla(k: Kisi) -> String =\n  \"Merhaba ${k.ad}, ${k.yas} yaşındasın.\"\n\nfn main() {\n  let kisiler = [\n    Kisi { ad: \"Ayşe\", yas: 30 },\n    Kisi { ad: \"Mehmet\", yas: 17 },\n    Kisi { ad: \"Zeynep\", yas: 24 }\n  ]\n\n  for k in kisiler {\n    print(selamla(k))\n  }\n\n  let yetiskinler = kisiler.filter(|k| k.yas >= 18)\n  print(\"yetişkin sayısı:\", yetiskinler.len())\n}\n", "// Nar tipleri derleme anında denetler.\n// Aşağıdaki satırın yorumunu kaldır, hatayı Türkçe gör.\n\nfn main() {\n  let yas: Int = 30\n  // let ad: String = yas\n\n  print(\"yaş:\", yas)\n}\n", "enum Sekil {\n  Daire(Float)\n  Dikdortgen(Float, Float)\n  Kare(Float)\n}\n\nfn alan(s: Sekil) -> Float = match s {\n  Daire(r) -> 3.14159 * r * r\n  Dikdortgen(en, boy) -> en * boy\n  Kare(k) -> k * k\n}\n\nfn main() {\n  let sekiller = [Daire(2.0), Dikdortgen(3.0, 4.0), Kare(5.0)]\n  for s in sekiller {\n    print(alan(s))\n  }\n}\n", "// Bu örnek ekrana çizer: sağdaki \"Ekran\" sekmesine bak.\n\nfn main() {\n  let alan = bul(\"#uygulama\")\n  if alan == none {\n    print(\"Bu program bir sayfada çalışmalı.\")\n    return\n  }\n\n  var sayac = 0\n\n  let baslik = olustur(\"h2\")\n  baslik.metinYaz(\"Sayaç\")\n\n  let deger = olustur(\"p\")\n  deger.metinYaz(\"0\")\n\n  let dugme = olustur(\"button\")\n  dugme.metinYaz(\"Artır\")\n  dugme.dinle(\"click\", |o| {\n    sayac += 1\n    deger.metinYaz(\"${sayac}\")\n  })\n\n  alan!.ekle(baslik)\n  alan!.ekle(deger)\n  alan!.ekle(dugme)\n}\n"];
-var HAZIRLIK = "\nimport json\n\nfrom narc.backends import js as _js\nfrom narc.checker import Checker\nfrom narc.diagnostics import NarError\nfrom narc.parser import parse\n\n\ndef derle(kaynak):\n    try:\n        modul = parse(kaynak, \"deneme.nar\")\n        denetci = Checker(modul, kaynak)\n        denetci.check()\n        kod = _js.generate(modul, denetci)\n    except NarError as hata:\n        return json.dumps({\"tamam\": False, \"hata\": hata.render(kaynak)})\n    except RecursionError:\n        return json.dumps({\"tamam\": False,\n                           \"hata\": \"program \u00e7ok derin: derleyici y\u0131\u011f\u0131n\u0131 ta\u015ft\u0131\"})\n    return json.dumps({\"tamam\": True, \"kod\": kod})\n";
-var KOPRU = "\n(function () {\n  var yolla = function (t, s) { parent.postMessage({ t: t, s: String(s) }, '*'); };\n  var yaz = function () {\n    yolla('log', Array.prototype.map.call(arguments, function (x) {\n      return typeof x === 'string' ? x : JSON.stringify(x);\n    }).join(' '));\n  };\n  console.log = yaz;\n  console.info = yaz;\n  console.warn = yaz;\n  console.error = function () {\n    yolla('hata', Array.prototype.join.call(arguments, ' '));\n  };\n  window.onerror = function (m) { yolla('hata', m); return true; };\n  window.addEventListener('unhandledrejection', function (o) {\n    yolla('hata', o.reason);\n  });\n})();\n";
-var EKRAN_STILI = "\n:root { color-scheme: light dark; }\nbody {\n  margin: 0; padding: 16px;\n  font: 15px/1.6 'IBM Plex Sans', system-ui, sans-serif;\n  background: Canvas; color: CanvasText;\n}\n";
-</script>
 <script>
-(function () {
-  'use strict';
-
-  // --- tema ---------------------------------------------------------
-  // Seçim kökte bir öznitelik olarak durur; CSS onu hem sistem temasının
-  // hem de varsayılanın üstüne yazar. Seçim yoksa sistem izlenir.
-  var kok = document.documentElement;
-  var ANAHTAR = 'nar-tema';
   try {
-    var kayitli = localStorage.getItem(ANAHTAR);
-    if (kayitli === 'acik' || kayitli === 'koyu') kok.setAttribute('data-tema', kayitli);
-  } catch (e) { /* gizli sekmede depolama kapalı olabilir */ }
-
-  function koyuMu() {
-    var secim = kok.getAttribute('data-tema');
-    if (secim) return secim === 'koyu';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  }
-
-  var temaDugmesi = document.getElementById('tema');
-  if (temaDugmesi) {
-    var etiketle = function () {
-      var koyu = koyuMu();
-      temaDugmesi.setAttribute('aria-pressed', koyu ? 'true' : 'false');
-      temaDugmesi.title = koyu ? 'Açık temaya geç' : 'Koyu temaya geç';
-    };
-    etiketle();
-    temaDugmesi.addEventListener('click', function () {
-      var yeni = koyuMu() ? 'acik' : 'koyu';
-      kok.setAttribute('data-tema', yeni);
-      try { localStorage.setItem(ANAHTAR, yeni); } catch (e) {}
-      etiketle();
-    });
-  }
-
-  // --- kopyala ------------------------------------------------------
-  document.querySelectorAll('.kopyala').forEach(function (dugme) {
-    dugme.addEventListener('click', function () {
-      var kutu = dugme.closest('.kod-kutu');
-      var kod = kutu ? kutu.querySelector('pre.kod').textContent : '';
-      var bitir = function (basarili) {
-        dugme.classList.toggle('bitti', basarili);
-        dugme.querySelector('.yazi').textContent = basarili ? 'kopyalandı' : 'olmadı';
-        setTimeout(function () {
-          dugme.classList.remove('bitti');
-          dugme.querySelector('.yazi').textContent = 'kopyala';
-        }, 1400);
-      };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(kod).then(function () { bitir(true); },
-                                                function () { bitir(false); });
-      } else {
-        bitir(false);
-      }
-    });
+    var t = localStorage.getItem("nar-ide-tema");
+    if (t === "koyu" || t === "acik") document.documentElement.setAttribute("data-tema", t);
+    else if (matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.setAttribute("data-tema", "koyu");
+  } catch (e) {}
+  // Tema tercihi tarayıcı depolamasında durur; Nar tarafının depolama
+  // yerleşiği yok, bu küçük parça o yüzden burada.
+  document.getElementById("btn-tema").addEventListener("click", function () {
+    var kok = document.documentElement;
+    var yeni = kok.getAttribute("data-tema") === "koyu" ? "acik" : "koyu";
+    kok.setAttribute("data-tema", yeni);
+    try { localStorage.setItem("nar-ide-tema", yeni); } catch (e) {}
   });
-
-  // --- içindekiler dar ekranda katlanır ------------------------------
-  var katla = document.querySelector('.ic-katla');
-  if (katla) {
-    var dar = window.matchMedia('(max-width: 900px)');
-    var elle = false;
-    katla.addEventListener('toggle', function () { elle = true; });
-    var ayarla = function () { if (!elle) katla.open = !dar.matches; };
-    ayarla();
-    dar.addEventListener('change', function () { elle = false; ayarla(); });
-  }
-
-  // --- arama --------------------------------------------------------
-  // İçindekileri yerinde süzer: eşleşmeyen konular gizlenir, boşalan
-  // bölüm başlığı da gizlenir. Sayfanın kendisine dokunulmaz.
-  var ara = document.getElementById('ara');
-  var bos = document.querySelector('.ara-bos');
-  if (ara) {
-    var gruplar = Array.prototype.map.call(
-      document.querySelectorAll('.ic-grup'), function (g) {
-        var sayi = g.querySelector('.sayi');
-        return {
-          oge: g,
-          sayi: sayi,
-          // Süzme sırasında sayaç görüneni gösterir; toplamı göstermeye
-          // devam etseydi ekrandaki listeyle çelişirdi.
-          toplam: sayi ? sayi.textContent : '',
-          bagalar: Array.prototype.map.call(g.querySelectorAll('a'), function (a) {
-            return { oge: a.parentNode, metin: a.textContent.toLocaleLowerCase('tr') };
-          })
-        };
-      });
-
-    var suz = function () {
-      var q = ara.value.trim().toLocaleLowerCase('tr');
-      var bulunan = 0;
-      gruplar.forEach(function (g) {
-        var acik = 0;
-        g.bagalar.forEach(function (b) {
-          var uyar = !q || b.metin.indexOf(q) !== -1;
-          b.oge.hidden = !uyar;
-          if (uyar) acik += 1;
-        });
-        g.oge.hidden = acik === 0;
-        if (g.sayi) g.sayi.textContent = q ? String(acik) : g.toplam;
-        bulunan += acik;
-      });
-      if (bos) bos.hidden = bulunan !== 0;
-    };
-
-    ara.addEventListener('input', suz);
-    ara.addEventListener('keydown', function (o) {
-      if (o.key === 'Escape') { ara.value = ''; suz(); ara.blur(); }
+  if (globalThis.Nar && typeof Nar.baslat === "function") {
+    Nar.baslat();
+    window.addEventListener("beforeunload", function (e) {
+      if (Nar.degistiMi && Nar.degistiMi()) { e.preventDefault(); e.returnValue = ""; }
     });
-
-    document.addEventListener('keydown', function (o) {
-      var k = o.key === 'k' || o.key === 'K';
-      if (k && (o.metaKey || o.ctrlKey)) { o.preventDefault(); ara.focus(); ara.select(); }
-    });
+  } else {
+    document.getElementById("durum").textContent = "Nar araçları yüklenemedi — sunucu günlüğüne bakın";
   }
-
-  // --- etkin konu ---------------------------------------------------
-  // Görünen konuyu içindekilerde işaretler. Kaydırma olayı dinlemek
-  // yerine gözlemci: her karede hesap yapmaz.
-  var baglar = {};
-  document.querySelectorAll('.ic-grup a').forEach(function (a) {
-    var hedef = a.getAttribute('href');
-    if (hedef && hedef.charAt(0) === '#') baglar[hedef.slice(1)] = a;
-  });
-
-  var etkin = null;
-  var isaretle = function (kimlik) {
-    var a = baglar[kimlik];
-    if (!a || a === etkin) return;
-    if (etkin) etkin.classList.remove('etkin');
-    a.classList.add('etkin');
-    etkin = a;
-  };
-
-  if ('IntersectionObserver' in window) {
-    var gorunen = new Set();
-    var gozlemci = new IntersectionObserver(function (girdiler) {
-      girdiler.forEach(function (g) {
-        if (g.isIntersecting) gorunen.add(g.target.id);
-        else gorunen.delete(g.target.id);
-      });
-      // En yukarıdaki görünen konu etkin sayılır.
-      var ilk = null, enUst = Infinity;
-      gorunen.forEach(function (kimlik) {
-        var o = document.getElementById(kimlik);
-        if (!o) return;
-        var ust = o.getBoundingClientRect().top;
-        if (ust < enUst) { enUst = ust; ilk = kimlik; }
-      });
-      if (ilk) isaretle(ilk);
-    }, { rootMargin: '-56px 0px -60% 0px' });
-
-    document.querySelectorAll('.konu, #referans').forEach(function (o) {
-      gozlemci.observe(o);
-    });
-  }
-})();
-</script>
-<script>
-(function () {
-  'use strict';
-
-  var kaynak = document.getElementById('kaynak');
-  var boya = document.getElementById('boya');
-  var cikti = document.getElementById('cikti');
-  var ekran = document.getElementById('ekran');
-  var calistirDugmesi = document.getElementById('calistir');
-  var durum = document.getElementById('durum');
-  var durumYazi = document.getElementById('durum-yazi');
-
-  // --- boyama ------------------------------------------------------
-  // Renklendirici Nar ile yazılmıştır; IDE ve belgeler sitesiyle aynı
-  // kaynaktan gelir, o yüzden üçü arasında sessizce fark oluşamaz.
-  function boya_() {
-    var metin = kaynak.value;
-    // Son satır boşsa <pre> onu yutar; imleç son satıra inince boya
-    // kayar. Sona bir boşluk eklemek hizayı korur.
-    boya.innerHTML = globalThis.Nar.renklendir(metin + '\n');
-  }
-
-  kaynak.addEventListener('input', boya_);
-  kaynak.addEventListener('scroll', function () {
-    boya.parentNode.scrollTop = kaynak.scrollTop;
-  });
-
-  // Sekme tuşu odağı kaçırmasın: iki boşluk yazar.
-  kaynak.addEventListener('keydown', function (o) {
-    if (o.key === 'Tab') {
-      o.preventDefault();
-      var b = kaynak.selectionStart, s = kaynak.selectionEnd;
-      kaynak.value = kaynak.value.slice(0, b) + '  ' + kaynak.value.slice(s);
-      kaynak.selectionStart = kaynak.selectionEnd = b + 2;
-      boya_();
-    }
-    if ((o.ctrlKey || o.metaKey) && o.key === 'Enter') {
-      o.preventDefault();
-      calistir();
-    }
-  });
-
-  // --- çıktı -------------------------------------------------------
-  function yaz(metin, sinif) {
-    var s = document.createElement('span');
-    if (sinif) s.className = sinif;
-    s.textContent = metin + '\n';
-    cikti.appendChild(s);
-  }
-  function temizle() { cikti.textContent = ''; }
-
-  function durumYaz(metin, sinif) {
-    durumYazi.textContent = metin;
-    durum.className = 'durum' + (sinif ? ' ' + sinif : '');
-  }
-
-  // --- sekmeler ----------------------------------------------------
-  var sekmeler = Array.prototype.slice.call(document.querySelectorAll('.sekme'));
-  function sekmeSec(ad) {
-    sekmeler.forEach(function (s) {
-      var secili = s.dataset.pano === ad;
-      s.setAttribute('aria-selected', secili ? 'true' : 'false');
-      document.getElementById(s.dataset.pano).hidden = !secili;
-    });
-  }
-  sekmeler.forEach(function (s) {
-    s.addEventListener('click', function () { sekmeSec(s.dataset.pano); });
-  });
-
-  // --- derleyici ---------------------------------------------------
-  // Pyodide ancak ilk çalıştırmada indirilir: sayfayı okumaya gelen
-  // kimse 9 MB ödemesin.
-  var pyodide = null;
-  var yukleniyor = null;
-
-  function derleyiciyiHazirla() {
-    if (pyodide) return Promise.resolve(pyodide);
-    if (yukleniyor) return yukleniyor;
-
-    durumYaz('derleyici indiriliyor…', 'calisiyor');
-    yukleniyor = new Promise(function (coz, kir) {
-      var s = document.createElement('script');
-      s.src = PYODIDE_URL + 'pyodide.js';
-      s.onload = coz;
-      s.onerror = function () { kir(new Error('Pyodide yüklenemedi')); };
-      document.head.appendChild(s);
-    }).then(function () {
-      return loadPyodide({ indexURL: PYODIDE_URL });
-    }).then(function (py) {
-      durumYaz('derleyici açılıyor…', 'calisiyor');
-      return fetch('narc.zip').then(function (y) {
-        if (!y.ok) throw new Error('narc.zip alınamadı');
-        return y.arrayBuffer();
-      }).then(function (paket) {
-        py.unpackArchive(paket, 'zip');
-        py.runPython(HAZIRLIK);
-        pyodide = py;
-        durumYaz('derleyici hazır', 'hazir');
-        return py;
-      });
-    }).catch(function (h) {
-      yukleniyor = null;
-      durumYaz('derleyici yüklenemedi', '');
-      throw h;
-    });
-    return yukleniyor;
-  }
-
-  // --- çalıştırma --------------------------------------------------
-  var calisiyorMu = false;
-
-  function calistir() {
-    if (calisiyorMu) return;
-    calisiyorMu = true;
-    calistirDugmesi.disabled = true;
-    temizle();
-    yaz('derleniyor…', 'bilgi');
-
-    derleyiciyiHazirla().then(function (py) {
-      temizle();
-      durumYaz('derleniyor…', 'calisiyor');
-      var baslangic = performance.now();
-      var sonuc = JSON.parse(py.runPython(
-        'derle(' + JSON.stringify(kaynak.value) + ')'));
-      var sure = Math.round(performance.now() - baslangic);
-
-      if (!sonuc.tamam) {
-        yaz(sonuc.hata, 'hata');
-        durumYaz('derleme hatası', '');
-        sekmeSec('pano-cikti');
-        return;
-      }
-      durumYaz('derlendi · ' + sure + ' ms', 'hazir');
-      programiCalistir(sonuc.kod);
-    }).catch(function (h) {
-      temizle();
-      yaz('Derleyici çalıştırılamadı: ' + h.message, 'hata');
-    }).then(function () {
-      calisiyorMu = false;
-      calistirDugmesi.disabled = false;
-    });
-  }
-
-  // Kullanıcı kodu ayrı kökenli bir iframe'de çalışır: sayfaya, çerezlere
-  // ve depolamaya erişemez. Çıktı postMessage ile geri gelir.
-  var ciziliMi = false;
-
-  function programiCalistir(kod) {
-    ciziliMi = false;
-    var belge =
-      '<!doctype html><html lang="tr"><head><meta charset="utf-8">' +
-      '<style>' + EKRAN_STILI + '</style></head><body>' +
-      '<div id="uygulama"></div><script>' + KOPRU + '<\/script>' +
-      '<script>' + kod + '<\/script>' +
-      '<script>parent.postMessage({t:"bitti",cizdi:' +
-      'document.getElementById("uygulama").childNodes.length>0},"*");<\/script>' +
-      '</body></html>';
-    ekran.srcdoc = belge;
-  }
-
-  window.addEventListener('message', function (o) {
-    var v = o.data;
-    if (!v || typeof v !== 'object') return;
-    if (v.t === 'log') yaz(v.s);
-    else if (v.t === 'hata') { yaz(v.s, 'hata'); durumYaz('çalışma hatası', ''); }
-    else if (v.t === 'bitti') {
-      ciziliMi = v.cizdi;
-      if (ciziliMi) sekmeSec('pano-ekran');
-      else sekmeSec('pano-cikti');
-    }
-  });
-
-  // --- paylaşma ----------------------------------------------------
-  function sar(metin) {
-    var baytlar = new TextEncoder().encode(metin);
-    var ikilik = '';
-    baytlar.forEach(function (b) { ikilik += String.fromCharCode(b); });
-    return btoa(ikilik).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  }
-  function coz(metin) {
-    var d = metin.replace(/-/g, '+').replace(/_/g, '/');
-    var ikilik = atob(d);
-    var baytlar = new Uint8Array(ikilik.length);
-    for (var i = 0; i < ikilik.length; i++) baytlar[i] = ikilik.charCodeAt(i);
-    return new TextDecoder().decode(baytlar);
-  }
-
-  var paylasDugmesi = document.getElementById('paylas');
-  paylasDugmesi.addEventListener('click', function () {
-    var adres = location.origin + location.pathname + '#k=' + sar(kaynak.value);
-    history.replaceState(null, '', '#k=' + sar(kaynak.value));
-    var bitir = function (oldu) {
-      paylasDugmesi.classList.toggle('bitti', oldu);
-      paylasDugmesi.querySelector('.yazi').textContent =
-        oldu ? 'kopyalandı' : 'olmadı';
-      setTimeout(function () {
-        paylasDugmesi.classList.remove('bitti');
-        paylasDugmesi.querySelector('.yazi').textContent = 'Paylaş';
-      }, 1600);
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(adres).then(function () { bitir(true); },
-                                                function () { bitir(false); });
-    } else { bitir(false); }
-  });
-
-  // --- örnekler ----------------------------------------------------
-  var secici = document.getElementById('ornek');
-  secici.addEventListener('change', function () {
-    if (!secici.value) return;
-    kaynak.value = ORNEKLER[+secici.value];
-    boya_();
-    history.replaceState(null, '', location.pathname);
-  });
-
-  // --- açılış ------------------------------------------------------
-  var basla = ORNEKLER[0];
-  if (location.hash.indexOf('#k=') === 0) {
-    try { basla = coz(location.hash.slice(3)); } catch (e) { /* bozuk bağlantı */ }
-  }
-  kaynak.value = basla;
-  boya_();
-  durumYaz('derleyici ilk çalıştırmada inecek', '');
-
-  calistirDugmesi.addEventListener('click', calistir);
-})();
 </script>
 </body>
 </html>

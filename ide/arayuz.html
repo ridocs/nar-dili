@@ -226,6 +226,8 @@ body.agac-kapali .kenar-cubugu { display: none; }
 .pano { flex: 1 1 auto; min-height: 0; position: relative; }
 .pano > * { position: absolute; inset: 0; overflow: auto; }
 .pano > [hidden] { display: none; }
+/* Program sayfayla konuşuyorsa çizdiği şey burada görünür. */
+#ekran { width: 100%; height: 100%; border: 0; background: var(--yuzey); }
 
 .cikti-govde {
   padding: 12px 16px; margin: 0; background: var(--panel);
@@ -336,6 +338,7 @@ body.agac-kapali .kenar-cubugu { display: none; }
         <button class="sekme" role="tab" data-pano="pano-cikti" aria-selected="true">Çıktı</button>
         <button class="sekme" role="tab" data-pano="pano-sorunlar" aria-selected="false">Sorunlar<span class="sayi" id="sorun-sayisi"></span></button>
         <button class="sekme" role="tab" data-pano="pano-js" aria-selected="false">JavaScript</button>
+        <button class="sekme" role="tab" data-pano="pano-ekran" aria-selected="false">Ekran</button>
       </div>
       <div class="ara"></div>
       <span class="rozet" id="sure"></span>
@@ -344,6 +347,7 @@ body.agac-kapali .kenar-cubugu { display: none; }
       <pre class="cikti-govde" id="pano-cikti"><span class="bos">Çalıştır'a bas (Ctrl+Enter) — programın çıktısı burada görünür.</span></pre>
       <div class="sorunlar" id="pano-sorunlar" hidden><span class="bos">Sorun yok.</span></div>
       <pre class="cikti-govde" id="pano-js" hidden><span class="bos">JavaScript düğmesine bas; üretilen kod burada görünür.</span></pre>
+      <div id="pano-ekran" hidden><iframe id="ekran" title="Programın çizdiği ekran" sandbox="allow-scripts"></iframe></div>
     </div>
   </section>
 </div>
