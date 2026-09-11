@@ -649,10 +649,312 @@ fn agaciAcKapa() {
   }
 }
 
+// --- kod önerileri --------------------------------------------------------
+//
+// Yazarken imlecin solundaki parçaya göre öneri listelenir; Tab ya da Enter
+// seçileni uygular, ok tuşları gezer, Esc kapatır. Kaynaklar sırayla:
+// şablonlar, belgede geçen adlar, anahtar kelimeler, yerleşikler. Noktadan
+// sonra yalnız metotlar önerilir.
+//
+// Sözlük sunucudan bir kez alınır: anahtar kelimeler ve yerleşikler
+// derleyicinin kendi listesinden, metotlar üreteç tablolarından gelir.
+// Ayrı bir liste tutulsaydı dille ayrışırdı.
+
+struct Oneri {
+  ad: String            // listede görünen
+  metin: String         // eklenecek metin; `|` imlecin gideceği yer
+  tur: String           // sablon | belge | anahtar | yerlesik | metot
+}
+
+var sozluk: [Oneri] = []
+var oneriler: [Oneri] = []
+var oneriSecili = 0
+var oneriAcik = false
+var oneriBas = 0          // değiştirilecek parçanın başı
+var oneriSon = 0          // ve sonu (imleç)
+
+let SABLONLAR: [Oneri] = [
+  Oneri { ad: "fn …", metin: "fn |() {\n  \n}", tur: "sablon" },
+  Oneri { ad: "main", metin: "fn main() {\n  |\n}", tur: "sablon" },
+  Oneri { ad: "if …", metin: "if | {\n  \n}", tur: "sablon" },
+  Oneri { ad: "if let …", metin: "if let | = {\n  \n}", tur: "sablon" },
+  Oneri { ad: "else", metin: "else {\n  |\n}", tur: "sablon" },
+  Oneri { ad: "for …", metin: "for | in {\n  \n}", tur: "sablon" },
+  Oneri { ad: "while …", metin: "while | {\n  \n}", tur: "sablon" },
+  Oneri { ad: "match …", metin: "match | {\n  \n}", tur: "sablon" },
+  Oneri { ad: "struct …", metin: "struct | {\n  \n}", tur: "sablon" },
+  Oneri { ad: "enum …", metin: "enum | {\n  \n}", tur: "sablon" },
+  Oneri { ad: "let", metin: "let | = ", tur: "sablon" },
+  Oneri { ad: "var", metin: "var | = ", tur: "sablon" },
+  Oneri { ad: "print", metin: "print(|)", tur: "sablon" },
+  Oneri { ad: "import", metin: "import \"|\"", tur: "sablon" }
+]
+
+fn oneriKutusu() -> Element? = bul("#oneri")
+
+fn sozlugYukle() {
+  istek("GET", "/api/kelimeler", "", |cevap: String| {
+    let veri = jsonOku(cevap)
+    if veri == none {
+      return
+    }
+    sozluk = []
+    for k in diziAl(alan(veri, "kelimeler")) {
+      let ad = metinAl(alan(k, "ad")) ?? ""
+      let tur = metinAl(alan(k, "tur")) ?? "yerlesik"
+      let arg = tamSayiAl(alan(k, "arg")) ?? 0
+      var metin = ad
+      if tur != "anahtar" {
+        if arg > 0 {
+          metin = ad + "(|)"
+        } else {
+          metin = ad + "()"
+        }
+      }
+      sozluk.push(Oneri { ad: ad, metin: metin, tur: tur })
+    }
+  })
+}
+
+// Belgede geçen adlar: iki karakterden uzun tanımlayıcılar, tekrarsız.
+fn belgedekiAdlar(metin: String, haric: String) -> [String] {
+  var adlar: [String] = []
+  var i = 0
+  let n = metin.len()
+  while i < n {
+    if adKarakteriMi(karakter(metin, i)) && !rakamMi(karakter(metin, i)) {
+      let son = kelimeSonu(metin, i)
+      let kelime = metin.slice(i, son)
+      if kelime.len() >= 2 && kelime != haric && !adlar.contains(kelime) {
+        adlar.push(kelime)
+      }
+      i = son
+    } else {
+      i += 1
+    }
+  }
+  return adlar
+}
+
+// Eşleşenleri sıralar: baştan eşleşenler önce, sonra içerenler.
+fn suz(adaylar: [Oneri], parca: String, sinir: Int) -> [Oneri] {
+  var basta: [Oneri] = []
+  var icinde: [Oneri] = []
+  let kucuk = parca.lowerTr()
+  for o in adaylar {
+    let ad = o.ad.lowerTr()
+    if parca == "" || ad.startsWith(kucuk) {
+      basta.push(o)
+    } else if ad.contains(kucuk) {
+      icinde.push(o)
+    }
+  }
+  var sonuc: [Oneri] = []
+  for o in basta {
+    if sonuc.len() < sinir {
+      sonuc.push(o)
+    }
+  }
+  for o in icinde {
+    if sonuc.len() < sinir {
+      sonuc.push(o)
+    }
+  }
+  return sonuc
+}
+
+fn oneriGuncelle() {
+  if let k = kodAlani() {
+    let metin = k.deger()
+    let konum = k.secimBasi()
+    if konum != k.secimSonu() {
+      oneriKapat()
+      return
+    }
+
+    // İmlecin solundaki tanımlayıcı parçası.
+    var bas = konum
+    while bas > 0 && adKarakteriMi(karakter(metin, bas - 1)) {
+      bas -= 1
+    }
+    let parca = metin.slice(bas, konum)
+    let noktadanSonra = bas > 0 && karakter(metin, bas - 1) == "."
+
+    if parca == "" && !noktadanSonra {
+      oneriKapat()
+      return
+    }
+
+    var adaylar: [Oneri] = []
+    if noktadanSonra {
+      for o in sozluk {
+        if o.tur == "metot" {
+          adaylar.push(o)
+        }
+      }
+    } else {
+      for o in SABLONLAR {
+        adaylar.push(o)
+      }
+      for ad in belgedekiAdlar(metin, parca) {
+        adaylar.push(Oneri { ad: ad, metin: ad, tur: "belge" })
+      }
+      for o in sozluk {
+        if o.tur != "metot" {
+          adaylar.push(o)
+        }
+      }
+    }
+
+    oneriler = suz(adaylar, parca, 8)
+    // Tek öneri zaten yazılanın aynısıysa gösterecek bir şey yok.
+    if oneriler.len() == 0 || (oneriler.len() == 1 && oneriler[0].metin == parca) {
+      oneriKapat()
+      return
+    }
+    oneriBas = bas
+    oneriSon = konum
+    oneriSecili = 0
+    oneriCiz(parca)
+  }
+}
+
+fn oneriCiz(parca: String) {
+  if let kutu = oneriKutusu() {
+    var html = ""
+    for (i, o) in oneriler {
+      var sinif = "oneri-satir"
+      if i == oneriSecili {
+        sinif = "oneri-satir secili"
+      }
+      html += "<div class=\"" + sinif + "\" data-sira=\"${i}\"><span class=\"ad\">" +
+        vurgula(o.ad, parca) + "</span><span class=\"tur\">" + o.tur + "</span></div>"
+    }
+    html += "<div class=\"oneri-ipucu\"><kbd>Tab</kbd> uygula · <kbd>↑↓</kbd> gez · <kbd>Esc</kbd> kapat</div>"
+    kutu.htmlYaz(html)
+
+    for satir in bulHepsi(".oneri-satir") {
+      let sira = int(satir.ozellik("data-sira") ?? "0") ?? 0
+      satir.dinle("mousedown", |o: Olay| {
+        o.engelle()          // odak düzenleyicide kalsın
+        oneriSecili = sira
+        oneriUygula()
+      })
+    }
+
+    // Kutu imlecin altına gelir. Karakter genişliği JetBrains Mono 13.5px
+    // için yaklaşık 8.1px; tam ölçüm gerekmiyor, kutu yalnızca yakın olsun.
+    if let k = kodAlani() {
+      let yer = satirSutun(k.deger(), oneriBas)
+      let ust = 12 + yer[0] * 21 - k.kaydirmaUst()
+      let sol = 16 + ((yer[1] - 1) * 81) / 10 - k.kaydirmaSol()
+      kutu.stil("top", "${ust}px")
+      kutu.stil("left", "${max(0, sol)}px")
+    }
+    kutu.sinifEkle("acik")
+    oneriAcik = true
+  }
+}
+
+// Eşleşen ön eki kalın gösterir.
+fn vurgula(ad: String, parca: String) -> String {
+  if parca == "" {
+    return kacir(ad)
+  }
+  let yer = ad.lowerTr().indexOf(parca.lowerTr())
+  if yer < 0 {
+    return kacir(ad)
+  }
+  return kacir(ad.slice(0, yer)) + "<b>" + kacir(ad.slice(yer, yer + parca.len())) +
+    "</b>" + kacir(ad.slice(yer + parca.len(), ad.len()))
+}
+
+fn oneriKapat() {
+  if !oneriAcik {
+    return
+  }
+  oneriAcik = false
+  if let kutu = oneriKutusu() {
+    kutu.sinifSil("acik")
+  }
+}
+
+fn oneriGez(adim: Int) {
+  if oneriler.len() == 0 {
+    return
+  }
+  oneriSecili = (oneriSecili + adim + oneriler.len()) % oneriler.len()
+  if let k = kodAlani() {
+    oneriCiz(k.deger().slice(oneriBas, oneriSon))
+  }
+}
+
+// Satırın baştaki boşluğu; şablonun satırları aynı hizada açılsın.
+fn satirGirintisi(metin: String, konum: Int) -> String {
+  var bas = konum
+  while bas > 0 && karakter(metin, bas - 1) != "\n" {
+    bas -= 1
+  }
+  var son = bas
+  while son < metin.len() && (karakter(metin, son) == " " || karakter(metin, son) == "\t") {
+    son += 1
+  }
+  return metin.slice(bas, son)
+}
+
+fn oneriUygula() {
+  if !oneriAcik || oneriler.len() == 0 {
+    return
+  }
+  let o = oneriler[oneriSecili]
+  if let k = kodAlani() {
+    let metin = k.deger()
+    let girinti = satirGirintisi(metin, oneriBas)
+    var ekle = o.metin.replace("\n", "\n" + girinti)
+    var imlec = ekle.indexOf("|")
+    if imlec >= 0 {
+      ekle = ekle.slice(0, imlec) + ekle.slice(imlec + 1, ekle.len())
+    } else {
+      imlec = ekle.len()
+    }
+    k.degerYaz(metin.slice(0, oneriBas) + ekle + metin.slice(oneriSon, metin.len()))
+    let hedef = oneriBas + imlec
+    k.secimYap(hedef, hedef)
+    oneriKapat()
+    ciz()
+    esitle()
+    imlecBildir()
+    denetimPlanla()
+  }
+}
+
 // --- klavye ---------------------------------------------------------------
 
 fn tusaBasildi(o: Olay) {
   let tus = o.tus()
+
+  if oneriAcik {
+    if tus == "Tab" || tus == "Enter" {
+      o.engelle()
+      oneriUygula()
+      return
+    }
+    if tus == "ArrowDown" {
+      o.engelle()
+      oneriGez(1)
+      return
+    }
+    if tus == "ArrowUp" {
+      o.engelle()
+      oneriGez(-1)
+      return
+    }
+    if tus == "Escape" {
+      o.engelle()
+      oneriKapat()
+      return
+    }
+  }
 
   if o.ctrl() && tus == "Enter" {
     o.engelle()
@@ -721,10 +1023,18 @@ fn baslat() {
   kod.dinle("input", || {
     ciz()
     esitle()
+    oneriGuncelle()
     denetimPlanla()
   })
-  kod.dinle("scroll", || { esitle() })
-  kod.dinle("click", || { imlecBildir() })
+  kod.dinle("scroll", || {
+    esitle()
+    oneriKapat()
+  })
+  kod.dinle("click", || {
+    imlecBildir()
+    oneriKapat()
+  })
+  kod.dinle("blur", || { oneriKapat() })
   kod.dinle("keyup", || { imlecBildir() })
   kod.dinle("keydown", |o: Olay| { tusaBasildi(o) })
 
@@ -765,6 +1075,7 @@ fn baslat() {
   }
 
   sekmeSec("pano-cikti")
+  sozlugYukle()
   dosyalariYukle()
 }
 

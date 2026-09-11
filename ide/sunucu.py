@@ -26,7 +26,8 @@ sys.path.insert(0, str(KOK))
 
 from narc import __version__  # noqa: E402
 from narc.backends import js as js_backend  # noqa: E402
-from narc.checker import Checker  # noqa: E402
+from narc.checker import BUILTIN_NAMES, Checker  # noqa: E402
+from narc.lexer import KEYWORDS  # noqa: E402
 from narc.diagnostics import NarError  # noqa: E402
 from narc.parser import parse  # noqa: E402
 
@@ -166,6 +167,38 @@ AGAC_GRUPLARI = [
 ]
 
 
+def kelime_sozlugu() -> list[dict]:
+    """Kod önerisi sözlüğü: anahtar kelimeler, yerleşikler, metotlar.
+
+    Metot arity'si üreteç tablolarındaki `{n}` yer tutucularından
+    çıkarılır; ayrı bir liste tutulsaydı tabloyla ayrışırdı.
+    """
+    import re
+    kelimeler: list[dict] = []
+    for ad in sorted(KEYWORDS):
+        kelimeler.append({"ad": ad, "tur": "anahtar", "arg": 0})
+    for ad in sorted(BUILTIN_NAMES):
+        kelimeler.append({"ad": ad, "tur": "yerlesik", "arg": 1})
+
+    tablolar = {
+        "metin": js_backend.STRING_METHODS,
+        "liste": js_backend.LIST_METHODS,
+        "eşleme": js_backend.MAP_METHODS,
+        "öğe": js_backend.ELEMENT_METHODS,
+        "olay": js_backend.OLAY_METHODS,
+    }
+    gorulen: set[str] = set()
+    for sahip, tablo in tablolar.items():
+        for ad, sablon in tablo.items():
+            if ad in gorulen:
+                continue
+            gorulen.add(ad)
+            arg = len(set(re.findall(r"\{(\d+)\}", sablon))) - 1
+            kelimeler.append({"ad": ad, "tur": "metot", "arg": max(0, arg),
+                              "sahip": sahip})
+    return kelimeler
+
+
 def dosya_listesi() -> list[dict]:
     """Düzenleyicide açılabilecek dosyalar, ağaçtaki grup sırasıyla."""
     dosyalar: list[dict] = []
@@ -240,6 +273,10 @@ class Islem(BaseHTTPRequestHandler):
 
         if yol == "/api/dosyalar":
             self._json({"dosyalar": dosya_listesi(), "surum": __version__})
+            return
+
+        if yol == "/api/kelimeler":
+            self._json({"kelimeler": kelime_sozlugu()})
             return
 
         if yol == "/api/dosya":

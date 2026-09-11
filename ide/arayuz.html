@@ -170,6 +170,22 @@ body.agac-kapali .kenar-cubugu { display: none; }
   border-radius: 2px;
 }
 .alan textarea { resize: none; color: transparent; background: transparent; caret-color: var(--vurgu); outline: none; }
+/* Kod önerisi kutusu: imlecin altında, Tab ile uygulanır. */
+.oneri {
+  position: absolute; z-index: 5; min-width: 220px; max-width: 360px;
+  background: var(--yuzey); border: 1px solid var(--kenar); border-radius: 8px;
+  box-shadow: 0 8px 24px -12px rgba(0,0,0,.45); padding: 4px; display: none;
+  font-size: 13px;
+}
+.oneri.acik { display: block; }
+.oneri-satir { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 5px; cursor: pointer; }
+.oneri-satir.secili, .oneri-satir:hover { background: var(--vurgu-zemin); }
+.oneri-satir .ad { font-family: var(--tek); color: var(--metin); }
+.oneri-satir .ad b { color: var(--vurgu); font-weight: 600; }
+.oneri-satir .tur { margin-left: auto; font-family: var(--tek); font-size: 10px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--metin-soluk); }
+.oneri-ipucu { padding: 3px 8px 2px; font-size: 11px; color: var(--metin-soluk); border-top: 1px solid var(--kenar); margin-top: 3px; }
+.oneri-ipucu kbd { font-family: var(--tek); border: 1px solid var(--kenar); border-radius: 4px; padding: 0 4px; }
 .alan textarea::selection { background: color-mix(in srgb, var(--vurgu) 24%, transparent); }
 .n-kw { color: var(--n-kw); } .n-tip { color: var(--n-tip); } .n-metin { color: var(--n-metin); }
 .n-sayi { color: var(--n-sayi); } .n-yorum { color: var(--n-yorum); font-style: italic; }
@@ -287,6 +303,7 @@ body.agac-kapali .kenar-cubugu { display: none; }
         <pre class="boya" id="boya" aria-hidden="true"><code></code></pre>
         <pre class="altcizgi" id="altcizgi" aria-hidden="true"><code></code></pre>
         <textarea id="kod" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" aria-label="Nar kaynak kodu"></textarea>
+        <div class="oneri" id="oneri" role="listbox" aria-label="Kod önerileri"></div>
       </div>
     </div>
   </section>
