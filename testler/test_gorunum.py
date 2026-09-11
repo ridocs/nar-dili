@@ -196,6 +196,46 @@ console.log("###" + JSON.stringify($kayit));
         # örnek dosyasının kendisi hâlâ arayüz kütüphanesini kullanıyor olmalı
         self.assertIn("arayuz.nar", kaynak)
 
+    def test_yenilemeden_sonra_odak_ayni_alanda_kalir(self):
+        """Yazarken ağaç yeniden çizilir; imleç yerinde kalmalı.
+
+        Bu davranış olmadan alan her tuştan sonra odağı kaybeder ve
+        kullanıcı yalnızca ilk harfi girebilir.
+        """
+        src = '''import "@ARAYUZ@"
+
+var uygulama: Uygulama<String>? = none
+
+fn ciz(ad: String) -> Gorunum = Sutun([
+  Giris("adın?", ad, |y| {
+    if uygulama != none {
+      uygulama!.degistir(y)
+    }
+  }),
+  Metin("merhaba ${ad}")
+])
+
+fn main() {
+  uygulama = uygulamaBaslat("#uygulama", "", ciz)
+}
+'''
+        kayit = sahnede_calistir(src, """
+// Harf harf yazmak gerçek kullanımı taklit eder: her tuş bir yenileme
+// tetikler, yani odak dört kez kaybolup dört kez geri gelmelidir.
+for (const harf of ["A", "Ay", "Ayş", "Ayşe"]) {
+  const alan = $dom.giris($dom.govde);
+  $dom.yaz(alan, harf);
+}
+$yaz($dom.satirlar($dom.govde));
+$yaz($dom.odak());
+""")
+        self.assertEqual(kayit[0], ["<giris:Ayşe|adın?>", "merhaba Ayşe"])
+        # Odak hâlâ giriş alanında ve imleç metnin sonunda.
+        self.assertIsNotNone(kayit[1], "yenilemeden sonra odak kayboldu")
+        self.assertEqual(kayit[1]["deger"], "Ayşe")
+        self.assertEqual(kayit[1]["basi"], 4)
+        self.assertEqual(kayit[1]["sonu"], 4)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -245,7 +245,22 @@ enum MetinSonucu {
 fn metinOku(d: Durum) -> MetinSonucu {
   let satir = d.satir
   let sutun = d.sutun
-  var ham = d.ilerle()          // açılış tırnağı
+
+  // `"""` çok satırlı metni açar: satır sonları içeriğin parçasıdır.
+  let cokSatirli = d.bakIleri(1) == "\"" && d.bakIleri(2) == "\""
+  var ham = ""
+  if cokSatirli {
+    ham = d.ilerle() + d.ilerle() + d.ilerle()
+    // Açılıştan hemen sonraki satır sonu okunurluk içindir, metne girmez.
+    if d.bak() == "\r" {
+      ham += d.ilerle()
+    }
+    if d.bak() == "\n" {
+      ham += d.ilerle()
+    }
+  } else {
+    ham = d.ilerle()            // açılış tırnağı
+  }
 
   while true {
     if d.bitti() {
@@ -258,7 +273,7 @@ fn metinOku(d: Durum) -> MetinSonucu {
 
     let c = d.bak()
 
-    if c == "\n" {
+    if c == "\n" && !cokSatirli {
       return MetinSonucu.Hata(LexHatasi {
         mesaj: "metin literali satır sonunda kapatılmamış",
         satir: satir,
@@ -288,6 +303,21 @@ fn metinOku(d: Durum) -> MetinSonucu {
       // gommeAtla kapatan `}` üzerinden geçmiştir; onu metne ayrıca ekleriz.
       ham += d.kaynak.slice(icBas, d.i - 1)
       ham += "}"
+      continue
+    }
+
+    if c == "\"" && cokSatirli {
+      // Çok satırlı metinde yalnızca üç tırnak kapatır.
+      if d.bakIleri(1) == "\"" && d.bakIleri(2) == "\"" {
+        ham += d.ilerle() + d.ilerle() + d.ilerle()
+        return MetinSonucu.Tamam(Token {
+          tur: "string",
+          metin: ham,
+          satir: satir,
+          sutun: sutun
+        })
+      }
+      ham += d.ilerle()
       continue
     }
 

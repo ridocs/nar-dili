@@ -1328,12 +1328,25 @@ enum GommeSonucu {
 }
 
 // Kaçış dizilerini çözer, `${...}` gömmelerini ayırır.
-// `ham` tırnaklarıyla birlikte gelir.
+// `ham` tırnaklarıyla birlikte gelir: `"..."` ya da `\"\"\"...\"\"\"`.
 fn hamParcalar(ham: String) -> [HamParca] {
   var parcalar: [HamParca] = []
   var tampon = ""
   var i = 1                       // açılış tırnağını atla
-  let son = ham.len() - 1         // kapanış tırnağı
+  var son = ham.len() - 1         // kapanış tırnağı
+
+  // Çok satırlı literalde tırnaklar üç karakterdir.
+  if ham.len() >= 6 && karakter(ham, 1) == "\"" && karakter(ham, 2) == "\"" {
+    i = 3
+    son = ham.len() - 3
+    // Açılıştan hemen sonraki satır sonu okunurluk içindir, metne girmez.
+    if karakter(ham, i) == "\r" {
+      i += 1
+    }
+    if karakter(ham, i) == "\n" {
+      i += 1
+    }
+  }
 
   while i < son {
     let c = ham.charAt(i)

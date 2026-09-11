@@ -1,0 +1,211 @@
+// Arayüz kütüphanesinin bütün bileşenleri bir arada.
+//
+// Hem örnek hem göz denetimi: bir bileşen bozulduğunda burada görünür.
+//
+//     nar build ornekler/arayuz_galerisi.nar --target web -o cikti/galeri.html
+//     nar build ornekler/arayuz_galerisi.nar --target ghb
+
+import "../araclar/arayuz.nar"
+
+struct Durum {
+  var sekme: Int
+  var ad: String
+  var not: String
+  var yas: Int
+  var abone: Bool
+  var sehir: String
+  var ilerleme: Int
+}
+
+var uygulama: Uygulama<Durum>? = none
+
+fn guncelle(yeni: Durum) {
+  if uygulama != none {
+    uygulama!.degistir(yeni)
+  }
+}
+
+fn d() -> Durum = uygulama!.durum
+
+// --- sekmeler -------------------------------------------------------------
+
+fn yaziBolumu() -> Gorunum = Sutun([
+  Kart("Yazı", [
+    Baslik("Başlık"),
+    AltBaslik("Alt başlık"),
+    Metin("Düz metin satırı."),
+    Paragraf("Paragraf uzun metin içindir; okunabilir kalsın diye " +
+      "genişliği yaklaşık 62 karakterle sınırlanır. Bu satırın nerede " +
+      "kırıldığına bakarak ölçüyü görebilirsin."),
+    Etiket("küçük etiket"),
+    Satir([
+      Rozet("bilgi", TON_BILGI),
+      Rozet("başarı", TON_BASARI),
+      Rozet("uyarı", TON_UYARI),
+      Rozet("hata", TON_HATA)
+    ]),
+    Bag("Bir bağlantı", "https://github.com/ridocs/nar-dili")
+  ]),
+  Kart("Uyarılar", [
+    Uyari(TON_BILGI, "Bilgi: kaydedilmemiş değişiklikler var."),
+    Uyari(TON_BASARI, "Başarı: dosya kaydedildi."),
+    Uyari(TON_UYARI, "Uyarı: disk alanı azalıyor."),
+    Uyari(TON_HATA, "Hata: sunucuya ulaşılamadı.")
+  ])
+])
+
+fn girdiBolumu() -> Gorunum = Kart("Girdi", [
+  Etiket("ad"),
+  Giris("adını yaz...", d().ad, |v| {
+    let g = d()
+    g.ad = v
+    guncelle(g)
+  }),
+
+  Etiket("not"),
+  CokSatir("birkaç satır...", d().not, |v| {
+    let g = d()
+    g.not = v
+    guncelle(g)
+  }),
+
+  Etiket("yaş"),
+  SayiGirisi("0", d().yas, |v| {
+    let g = d()
+    g.yas = v
+    guncelle(g)
+  }),
+
+  Etiket("şehir"),
+  Secim(["İstanbul", "Ankara", "İzmir", "Trabzon"], d().sehir, |v| {
+    let g = d()
+    g.sehir = v
+    guncelle(g)
+  }),
+
+  Onay("Haber bültenine abone ol", d().abone, |v| {
+    let g = d()
+    g.abone = v
+    guncelle(g)
+  }),
+
+  Cizgi,
+  Metin("Girilen: ${d().ad} · ${d().yas} · ${d().sehir} · " +
+    (if d().abone { "abone" } else { "abone değil" })),
+  Metin("Not: " + (if d().not == "" { "(boş)" } else { d().not }))
+])
+
+fn veriBolumu() -> Gorunum = Sutun([
+  Kart("Tablo", [
+    Tablo(
+      ["Dil", "Yıl", "Satır"],
+      [
+        ["Nar", "2026", "7400"],
+        ["Python", "1991", "—"],
+        ["Go", "2009", "—"]
+      ]
+    )
+  ]),
+  Kart("Liste", [
+    Liste([
+      "Tek kaynaktan dört hedef",
+      "Kendi sanal makinesi",
+      "Türkçe hata mesajları"
+    ])
+  ]),
+  Kart("İlerleme", [
+    Metin("%${d().ilerleme}"),
+    Ilerleme(d().ilerleme),
+    Satir([
+      IkincilDugme("−10", || {
+        let g = d()
+        g.ilerleme -= 10
+        guncelle(g)
+      }),
+      Dugme("+10", || {
+        let g = d()
+        g.ilerleme += 10
+        guncelle(g)
+      })
+    ])
+  ])
+])
+
+fn dugmeBolumu() -> Gorunum = Sutun([
+  Kart("Düğmeler", [
+    Satir([
+      Dugme("Birincil", || { }),
+      IkincilDugme("İkincil", || { }),
+      TehlikeDugmesi("Sil", || { })
+    ]),
+    Paragraf("Düğmeler klavyeyle de gezilebilir: Tab ile odaklan, " +
+      "odak halkası görünür.")
+  ]),
+  Kart("Tema", [
+    Paragraf("Varsayılan olarak işletim sisteminin temasını izler."),
+    Satir([
+      IkincilDugme("Açık", || { temaSec("acik") }),
+      IkincilDugme("Koyu", || { temaSec("koyu") }),
+      IkincilDugme("Sistemi izle", || { temaSec("") })
+    ])
+  ]),
+  Kart("Yerleşim", [
+    Etiket("esnek — dar ekranda alt satıra iner"),
+    Esnek([
+      Kutu([Metin("bir")]),
+      Kutu([Metin("iki")]),
+      Kutu([Metin("üç")])
+    ]),
+    Bosluk(4),
+    Etiket("ortalanmış"),
+    Ortala(Rozet("ortada", TON_BILGI))
+  ])
+])
+
+// --- görünüm --------------------------------------------------------------
+
+fn ciz(g: Durum) -> Gorunum {
+  var icerik = Bos
+  if g.sekme == 0 {
+    icerik = yaziBolumu()
+  }
+  if g.sekme == 1 {
+    icerik = girdiBolumu()
+  }
+  if g.sekme == 2 {
+    icerik = veriBolumu()
+  }
+  if g.sekme == 3 {
+    icerik = dugmeBolumu()
+  }
+
+  return Sutun([
+    Baslik("Nar arayüz galerisi"),
+    Paragraf("Kütüphanedeki bütün bileşenler. Hepsi Nar ile yazıldı."),
+    Sekmeler(["Yazı", "Girdi", "Veri", "Düğme"], g.sekme, |i| {
+      let y = d()
+      y.sekme = i
+      guncelle(y)
+    }),
+    Bosluk(4),
+    icerik
+  ])
+}
+
+fn main() {
+  if bul("#uygulama") == none {
+    print("Bu program tarayıcıda çalıştırılmalı.")
+    print("Derle:  nar build ornekler/arayuz_galerisi.nar --target web")
+    return
+  }
+
+  uygulama = uygulamaBaslat("#uygulama", Durum {
+    sekme: 0,
+    ad: "",
+    not: "",
+    yas: 30,
+    abone: false,
+    sehir: "İstanbul",
+    ilerleme: 40
+  }, ciz)
+}

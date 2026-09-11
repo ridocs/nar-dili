@@ -113,6 +113,10 @@ ELEMENT_METHODS = {
     "kaydirmaUst": "({0}.scrollTop || 0)",
     "kaydirmaUstYaz": "{0}.scrollTop = {1}",
     "kaydirmaSol": "({0}.scrollLeft || 0)",
+    # Onay kutusu: `checked` bir özellik (property), nitelik (attribute)
+    # değil; setAttribute ile yazmak çalışmaz.
+    "isaretli": "({0}.checked === true)",
+    "isaretliYaz": "{0}.checked = {1}",
 }
 
 ISTEK_METHODS = {
@@ -156,6 +160,7 @@ SISTEM_ISLEVLERI = {
     "simdi": "$simdi",
     "zamanMetni": "$zamanMetni",
     "koddan": "$koddanKarakter",
+    "odaklanan": "$odaklanan",
     "sunucu": "$sunucu",
     "yanit": "$yanit",
     "icerikTipi": "$icerikTipi",

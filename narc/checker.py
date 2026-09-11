@@ -27,7 +27,7 @@ BUILTIN_NAMES = {
     "print", "str", "len", "int", "float", "abs", "min", "max", "sqrt",
     "pow", "floor", "ceil", "round", "random", "panic", "assert",
     # Sayfa (DOM) işlemleri — yalnızca tarayıcı hedefinde anlamlıdır.
-    "bul", "bulHepsi", "olustur", "govde", "zamanla", "istek",
+    "bul", "bulHepsi", "olustur", "govde", "zamanla", "istek", "odaklanan",
     # Dosya ve program işlemleri — yalnızca Node hedefinde anlamlıdır.
     "dosyaOku", "dosyaYaz", "dosyaEkle", "dosyaVarMi", "dosyaSil",
     "klasorListele", "klasorMu", "klasorOlustur",
@@ -44,6 +44,7 @@ BUILTIN_NAMES = {
 # Sayfa işlemlerinin imzaları. Bunlar `Element` tipiyle çalışır.
 def _sayfa_imzalari() -> dict[str, FnT]:
     return {
+        "odaklanan": FnT((), OptT(ELEMENT)),
         "bul": FnT((STRING,), OptT(ELEMENT)),
         "bulHepsi": FnT((STRING,), ListT(ELEMENT)),
         "olustur": FnT((STRING,), ELEMENT),
@@ -2155,6 +2156,8 @@ def builtin_method(base: Type, name: str) -> FnT | None:
             "cikar": FnT((), VOID),
             "temizle": FnT((), VOID),
             "odaklan": FnT((), VOID),
+            "isaretli": FnT((), BOOL),
+            "isaretliYaz": FnT((BOOL,), VOID),
             "bul": FnT((STRING,), OptT(ELEMENT)),
             "bulHepsi": FnT((STRING,), ListT(ELEMENT)),
         }.get(name)
@@ -2188,7 +2191,8 @@ _BUILTIN_MEMBER_NAMES = {
                 "sinifEkle", "sinifSil", "sinifVarMi", "ozellik", "ozellikYaz",
                 "stil", "dinle", "ekle", "cikar", "temizle", "odaklan",
                 "bul", "bulHepsi", "secimBasi", "secimSonu", "secimYap",
-                "yaziEkle", "kaydirmaUst", "kaydirmaUstYaz", "kaydirmaSol"],
+                "yaziEkle", "kaydirmaUst", "kaydirmaUstYaz", "kaydirmaSol",
+                "isaretli", "isaretliYaz"],
     "Olay": ["tus", "ctrl", "shift", "alt", "engelle", "durdur", "kaynak"],
     "Istek": ["yontem", "yol", "sorgu", "baslik", "govde", "ip"],
     "Yanit": ["baslikYaz", "durumYaz"],

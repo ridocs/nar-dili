@@ -3,148 +3,647 @@
 // Sayfayı elle kurmak yerine "ne görünmesi gerektiğini" tarif edersin;
 // kütüphane onu çizer. Durum değişince görünüm kendiliğinden yenilenir.
 //
-//     fn ciz(sayi: Int) -> Gorunum = Sutun([
-//       Baslik("Sayaç"),
-//       Metin(str(sayi)),
-//       Dugme("Artır", || { uygulama.degistir(uygulama.durum + 1) })
+//     fn ciz(sayi: Int) -> Gorunum = Kart("Sayaç", [
+//       Metin("değer: ${sayi}"),
+//       Satir([
+//         Dugme("artır", || { artir() }),
+//         IkincilDugme("sıfırla", || { sifirla() })
+//       ])
 //     ])
 //
+// STİL
+//
+// Öğelere tek tek stil yazmak yerine sayfaya bir kez CSS eklenir ve
+// öğelere sınıf verilir. Bunun üç somut nedeni var: satır içi stille
+// `:hover` ve `:focus-visible` yazılamaz, medya sorgusu kurulamaz
+// (koyu tema, dar ekran), ve her öğeye stil yazmak uzun listelerde
+// gereksiz iş demektir.
+//
+// Renkler CSS değişkenleriyle tanımlıdır; koyu temada yalnızca
+// değişkenler değişir, bileşenler aynı kalır.
+//
 // Yalnızca tarayıcı hedefinde anlamlıdır (nar build --target web ya da
-// --target masaustu).
+// --target masaustu / --target ghb).
 //
 // Bir kütüphanedir: `main` içermez.
 
+// --- görünüm ağacı --------------------------------------------------------
+
 // Bir görünüm parçası. Kendi içinde yine görünümler taşıyabilir.
 enum Gorunum {
-  Metin(String)
+  // yazı
   Baslik(String)
+  AltBaslik(String)
+  Metin(String)
+  Paragraf(String)
+  Etiket(String)                              // küçük, soluk, aralıklı
+  Rozet(String, String)                       // metin, ton
+  Bag(String, String)                         // metin, adres
+
+  // düğmeler
   Dugme(String, () -> Void)
-  Giris(String, String, (String) -> Void)   // yer tutucu, değer, değişince
+  IkincilDugme(String, () -> Void)
+  TehlikeDugmesi(String, () -> Void)
+
+  // girdi
+  Giris(String, String, (String) -> Void)     // yer tutucu, değer, değişince
+  CokSatir(String, String, (String) -> Void)
+  SayiGirisi(String, Int, (Int) -> Void)
+  Onay(String, Bool, (Bool) -> Void)          // etiket, işaretli, değişince
+  Secim([String], String, (String) -> Void)   // seçenekler, seçili, değişince
+
+  // yerleşim
   Sutun([Gorunum])
   Satir([Gorunum])
+  Esnek([Gorunum])                            // sarmalı satır
   Kutu([Gorunum])
+  Kart(String, [Gorunum])                     // başlıklı kart
+  Ortala(Gorunum)
+
+  // gösterim
+  Uyari(String, String)                       // ton, mesaj
+  Liste([String])
+  Tablo([String], [[String]])                 // başlıklar, satırlar
+  Ilerleme(Int)                               // 0–100
+  Resim(String, String)                       // adres, açıklama
+  Sekmeler([String], Int, (Int) -> Void)      // başlıklar, seçili, değişince
+
+  // ayırıcılar
   Bosluk(Int)
   Cizgi
+  Bos                                         // hiçbir şey çizmez
 }
 
-// --- stil ------------------------------------------------------------------
-// Tek bir sade görünüm; amaç süsleme değil, okunabilir bir varsayılan.
+// Rozet ve uyarı tonları. Anlamı renkle birlikte **kelimeyle de** taşımak
+// gerekir: yalnızca renge dayanan bir arayüz, renk körü kullanıcılar için
+// okunmaz olur.
+let TON_BILGI = "bilgi"
+let TON_BASARI = "basari"
+let TON_UYARI = "uyari"
+let TON_HATA = "hata"
 
-let RENK_METIN = "#1c1917"
-let RENK_SOLUK = "#5f5751"
-let RENK_VURGU = "#a32a2f"
-let RENK_KENAR = "#e7e1dd"
-let RENK_YUZEY = "#ffffff"
-let RENK_ZEMIN = "#faf8f6"
-let YAZI = "14px/1.6 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif"
+// --- tema -----------------------------------------------------------------
+//
+// Tek bir yerden değiştirilebilsin diye stil bir metin olarak duruyor.
+// Kendi temanı istiyorsan `stiliKur(kendiCssin)` çağırabilirsin.
 
-fn stilVer(e: Element, kurallar: [[String]]) {
-  for k in kurallar {
-    if k.len() == 2 {
-      e.stil(k[0], k[1])
-    }
+let STIL = """
+:root {
+  --nar-zemin: #FBFAF9;
+  --nar-yuzey: #FFFFFF;
+  --nar-yuzey-2: #F5F2EF;
+  --nar-metin: #1A1815;
+  --nar-soluk: #6B6560;
+  --nar-kenar: #E6E1DC;
+  --nar-vurgu: #A3342E;
+  --nar-vurgu-koyu: #872722;
+  --nar-vurgu-zemin: #FCF2F1;
+  --nar-basari: #2F7A4F;
+  --nar-basari-zemin: #EFF7F2;
+  --nar-uyari: #8A5A00;
+  --nar-uyari-zemin: #FDF6E8;
+  --nar-hata: #B3261E;
+  --nar-hata-zemin: #FDF1F0;
+  --nar-dugme-yazi: #FFFFFF;
+  --nar-yuvarlak: 8px;
+  --nar-govde: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+               'Helvetica Neue', Arial, sans-serif;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-nar-tema='acik']) {
+    --nar-zemin: #171614;
+    --nar-yuzey: #1F1E1B;
+    --nar-yuzey-2: #272521;
+    --nar-metin: #EDEAE5;
+    --nar-soluk: #A29B93;
+    --nar-kenar: #343029;
+    --nar-vurgu: #E8756C;
+    --nar-vurgu-koyu: #F0908A;
+    --nar-vurgu-zemin: #2A1E1C;
+    --nar-basari: #6FC395;
+    --nar-basari-zemin: #1B2620;
+    --nar-uyari: #D7A64A;
+    --nar-uyari-zemin: #2A2418;
+    --nar-hata: #F08079;
+    --nar-hata-zemin: #2B1C1B;
+    /* Zemin açıldığı için yazı koyulaşır: beyaz yazı burada 2.9:1
+       kalıyordu, bu koyu ton 6.0:1 veriyor. */
+    --nar-dugme-yazi: #2B1210;
+    color-scheme: dark;
   }
 }
 
-// --- çizim -----------------------------------------------------------------
+:root[data-nar-tema='koyu'] {
+  --nar-zemin: #171614;
+  --nar-yuzey: #1F1E1B;
+  --nar-yuzey-2: #272521;
+  --nar-metin: #EDEAE5;
+  --nar-soluk: #A29B93;
+  --nar-kenar: #343029;
+  --nar-vurgu: #E8756C;
+  --nar-vurgu-koyu: #F0908A;
+  --nar-vurgu-zemin: #2A1E1C;
+  --nar-basari: #6FC395;
+  --nar-basari-zemin: #1B2620;
+  --nar-uyari: #D7A64A;
+  --nar-uyari-zemin: #2A2418;
+  --nar-hata: #F08079;
+  --nar-hata-zemin: #2B1C1B;
+  --nar-dugme-yazi: #2B1210;
+  color-scheme: dark;
+}
+
+.nar-kok {
+  background: var(--nar-zemin);
+  color: var(--nar-metin);
+  font: 15px/1.6 var(--nar-govde);
+  padding: 20px;
+  max-width: 720px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+}
+.nar-kok *, .nar-kok *::before, .nar-kok *::after { box-sizing: border-box; }
+
+.nar-baslik { font-size: 22px; font-weight: 650; letter-spacing: -0.01em;
+  margin: 0; text-wrap: balance; }
+.nar-altbaslik { font-size: 17px; font-weight: 600; margin: 0; }
+.nar-metin { margin: 0; }
+.nar-paragraf { margin: 0; max-width: 62ch; }
+.nar-etiket { font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--nar-soluk); margin: 0; }
+
+.nar-rozet { display: inline-block; font-size: 12px; font-weight: 600;
+  padding: 2px 9px; border-radius: 999px; }
+.nar-rozet-bilgi { background: var(--nar-vurgu-zemin); color: var(--nar-vurgu); }
+.nar-rozet-basari { background: var(--nar-basari-zemin); color: var(--nar-basari); }
+.nar-rozet-uyari { background: var(--nar-uyari-zemin); color: var(--nar-uyari); }
+.nar-rozet-hata { background: var(--nar-hata-zemin); color: var(--nar-hata); }
+
+.nar-bag { color: var(--nar-vurgu); text-underline-offset: 2px; }
+.nar-bag:hover { color: var(--nar-vurgu-koyu); }
+
+.nar-dugme, .nar-dugme-ikincil, .nar-dugme-tehlike {
+  font: inherit; font-weight: 550; padding: 9px 16px; min-height: 40px;
+  border-radius: var(--nar-yuvarlak); border: 1px solid transparent;
+  cursor: pointer; align-self: flex-start;
+  transition: background-color .12s, border-color .12s, transform .04s;
+}
+.nar-dugme { background: var(--nar-vurgu); color: var(--nar-dugme-yazi); }
+.nar-dugme:hover { background: var(--nar-vurgu-koyu); }
+.nar-dugme-ikincil { background: var(--nar-yuzey); color: var(--nar-metin);
+  border-color: var(--nar-kenar); }
+.nar-dugme-ikincil:hover { background: var(--nar-yuzey-2); }
+.nar-dugme-tehlike { background: var(--nar-hata-zemin); color: var(--nar-hata);
+  border-color: var(--nar-hata-zemin); }
+.nar-dugme-tehlike:hover { border-color: var(--nar-hata); }
+.nar-dugme:active, .nar-dugme-ikincil:active, .nar-dugme-tehlike:active {
+  transform: translateY(1px); }
+
+.nar-giris, .nar-coksatir, .nar-secim {
+  font: inherit; padding: 9px 11px; min-height: 40px;
+  background: var(--nar-yuzey); color: var(--nar-metin);
+  border: 1px solid var(--nar-kenar); border-radius: var(--nar-yuvarlak);
+  width: 100%; max-width: 340px;
+}
+.nar-coksatir { min-height: 84px; resize: vertical; font-family: inherit; }
+.nar-giris::placeholder, .nar-coksatir::placeholder { color: var(--nar-soluk); }
+.nar-giris:focus, .nar-coksatir:focus, .nar-secim:focus {
+  outline: none; border-color: var(--nar-vurgu);
+  box-shadow: 0 0 0 3px var(--nar-vurgu-zemin); }
+
+/* Klavyeyle gezinen herkes nerede olduğunu görmeli. */
+.nar-kok :focus-visible { outline: 2px solid var(--nar-vurgu);
+  outline-offset: 2px; }
+
+.nar-onay { display: inline-flex; align-items: center; gap: 9px;
+  cursor: pointer; user-select: none; }
+.nar-onay input { width: 18px; height: 18px; accent-color: var(--nar-vurgu);
+  cursor: pointer; margin: 0; }
+
+.nar-sutun { display: flex; flex-direction: column; gap: 12px;
+  align-items: flex-start; }
+.nar-satir { display: flex; flex-direction: row; gap: 12px;
+  align-items: center; flex-wrap: wrap; }
+.nar-esnek { display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; }
+.nar-kutu, .nar-kart { display: flex; flex-direction: column; gap: 12px;
+  background: var(--nar-yuzey); border: 1px solid var(--nar-kenar);
+  border-radius: 12px; padding: 18px; width: 100%; }
+.nar-kart-baslik { font-size: 16px; font-weight: 650; margin: 0;
+  padding-bottom: 10px; border-bottom: 1px solid var(--nar-kenar); }
+.nar-ortala { display: flex; justify-content: center; width: 100%; }
+
+.nar-uyari { display: flex; gap: 10px; padding: 12px 14px;
+  border-radius: var(--nar-yuvarlak); font-size: 14px; width: 100%; }
+.nar-uyari-bilgi { background: var(--nar-vurgu-zemin); color: var(--nar-vurgu); }
+.nar-uyari-basari { background: var(--nar-basari-zemin); color: var(--nar-basari); }
+.nar-uyari-uyari { background: var(--nar-uyari-zemin); color: var(--nar-uyari); }
+.nar-uyari-hata { background: var(--nar-hata-zemin); color: var(--nar-hata); }
+
+.nar-liste { margin: 0; padding-left: 22px; display: flex;
+  flex-direction: column; gap: 5px; }
+
+.nar-tablo-sarmal { width: 100%; overflow-x: auto; }
+.nar-tablo { width: 100%; border-collapse: collapse; font-size: 14px;
+  font-variant-numeric: tabular-nums; }
+.nar-tablo th { text-align: left; font-weight: 600; color: var(--nar-soluk);
+  font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 8px 12px 8px 0; border-bottom: 1px solid var(--nar-kenar); }
+.nar-tablo td { padding: 9px 12px 9px 0;
+  border-bottom: 1px solid var(--nar-kenar); }
+.nar-tablo tr:last-child td { border-bottom: none; }
+
+.nar-ilerleme { width: 100%; max-width: 340px; height: 8px;
+  background: var(--nar-yuzey-2); border-radius: 999px; overflow: hidden; }
+.nar-ilerleme-dolu { height: 100%; background: var(--nar-vurgu);
+  border-radius: 999px; transition: width .2s; }
+
+.nar-sekmeler { display: flex; gap: 4px;
+  border-bottom: 1px solid var(--nar-kenar); width: 100%; overflow-x: auto; }
+.nar-sekme { font: inherit; font-weight: 550; padding: 9px 14px;
+  background: none; border: none; border-bottom: 2px solid transparent;
+  color: var(--nar-soluk); cursor: pointer; white-space: nowrap; }
+.nar-sekme:hover { color: var(--nar-metin); }
+.nar-sekme-secili { color: var(--nar-vurgu);
+  border-bottom-color: var(--nar-vurgu); }
+
+.nar-cizgi { height: 1px; background: var(--nar-kenar); width: 100%;
+  border: none; margin: 2px 0; }
+.nar-resim { max-width: 100%; height: auto;
+  border-radius: var(--nar-yuvarlak); }
+
+@media (max-width: 480px) {
+  .nar-kok { padding: 16px; }
+  .nar-giris, .nar-coksatir, .nar-secim, .nar-ilerleme { max-width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nar-kok * { transition: none !important; }
+}
+"""
+
+// --- stil kurulumu --------------------------------------------------------
+
+// Stilin sayfaya bir kez eklenmesi yeter; her yenilemede tekrar eklemek
+// aynı kuralları çoğaltır.
+var STIL_KURULDU = false
+
+fn stiliKur(css: String) {
+  if STIL_KURULDU {
+    return
+  }
+  STIL_KURULDU = true
+  let e = olustur("style")
+  e.ozellikYaz("id", "nar-stil")
+  e.metinYaz(css)
+  // <head> varsa oraya: gövdedeki bir <style> sayfanın metnine karışır.
+  let bas = bul("head")
+  if bas != none {
+    bas!.ekle(e)
+  } else {
+    govde().ekle(e)
+  }
+}
+
+// Temayı elle seçmek için: "acik", "koyu" ya da "" (sistemi izle).
+fn temaSec(tema: String) {
+  let kok = bul("html")
+  if kok != none {
+    kok!.ozellikYaz("data-nar-tema", tema)
+  }
+}
+
+// --- odak koruma ----------------------------------------------------------
+//
+// Her çizimde odaklanabilir öğelere sırayla numara verilir. Numara ağaçtaki
+// yerine göre belirlendiği için, ağaç aynı kaldığı sürece aynı alana denk
+// gelir ve yeniden çizimden sonra odak geri bulunabilir.
+
+var ODAK_SAYACI = 0
+
+fn odakSayaciniSifirla() {
+  ODAK_SAYACI = 0
+}
+
+fn odaklanabilirIsaretle(e: Element) -> Element {
+  e.ozellikYaz("data-nar-odak", "${ODAK_SAYACI}")
+  ODAK_SAYACI += 1
+  return e
+}
+
+// Odaktaki öğenin numarası ve imleç konumu. Odak yoksa numara -1.
+struct OdakDurumu {
+  numara: Int
+  basi: Int
+  sonu: Int
+}
+
+fn odagiOku() -> OdakDurumu {
+  let e = odaklanan()
+  if e == none {
+    return OdakDurumu { numara: -1, basi: 0, sonu: 0 }
+  }
+  let numara = e!.ozellik("data-nar-odak")
+  if numara == none {
+    return OdakDurumu { numara: -1, basi: 0, sonu: 0 }
+  }
+  return OdakDurumu {
+    numara: int(numara!) ?? -1,
+    basi: e!.secimBasi(),
+    sonu: e!.secimSonu()
+  }
+}
+
+fn odagiGeriVer(d: OdakDurumu) {
+  if d.numara < 0 {
+    return
+  }
+  let e = bul("[data-nar-odak='${d.numara}']")
+  if e == none {
+    return
+  }
+  e!.odaklan()
+  // İmleç konumu yalnızca metin alanlarında anlamlı; ötekiler yok sayar.
+  e!.secimYap(d.basi, d.sonu)
+}
+
+// --- çizim ----------------------------------------------------------------
 
 fn ogeYap(g: Gorunum) -> Element = match g {
-  Gorunum.Metin(yazi) -> metinOgesi(yazi)
-  Gorunum.Baslik(yazi) -> baslikOgesi(yazi)
-  Gorunum.Dugme(etiket, islev) -> dugmeOgesi(etiket, islev)
-  Gorunum.Giris(yerTutucu, deger, degisince) -> girisOgesi(yerTutucu, deger, degisince)
-  Gorunum.Sutun(cocuklar) -> kapsayiciOgesi(cocuklar, "column")
-  Gorunum.Satir(cocuklar) -> kapsayiciOgesi(cocuklar, "row")
-  Gorunum.Kutu(cocuklar) -> kutuOgesi(cocuklar)
-  Gorunum.Bosluk(yukseklik) -> boslukOgesi(yukseklik)
-  Gorunum.Cizgi -> cizgiOgesi()
+  Baslik(yazi) -> yaziOgesi("h2", "nar-baslik", yazi)
+  AltBaslik(yazi) -> yaziOgesi("h3", "nar-altbaslik", yazi)
+  Metin(yazi) -> yaziOgesi("div", "nar-metin", yazi)
+  Paragraf(yazi) -> yaziOgesi("p", "nar-paragraf", yazi)
+  Etiket(yazi) -> yaziOgesi("div", "nar-etiket", yazi)
+  Rozet(yazi, ton) -> yaziOgesi("span", "nar-rozet nar-rozet-" + ton, yazi)
+  Bag(yazi, adres) -> bagOgesi(yazi, adres)
+
+  Dugme(etiket, islev) -> dugmeOgesi("nar-dugme", etiket, islev)
+  IkincilDugme(etiket, islev) -> dugmeOgesi("nar-dugme-ikincil", etiket, islev)
+  TehlikeDugmesi(etiket, islev) -> dugmeOgesi("nar-dugme-tehlike", etiket, islev)
+
+  Giris(yerTutucu, deger, degisince) -> girisOgesi(yerTutucu, deger, degisince)
+  CokSatir(yerTutucu, deger, degisince) ->
+    cokSatirOgesi(yerTutucu, deger, degisince)
+  SayiGirisi(yerTutucu, deger, degisince) ->
+    sayiOgesi(yerTutucu, deger, degisince)
+  Onay(etiket, isaretli, degisince) -> onayOgesi(etiket, isaretli, degisince)
+  Secim(secenekler, secili, degisince) ->
+    secimOgesi(secenekler, secili, degisince)
+
+  Sutun(cocuklar) -> kapsayici("nar-sutun", cocuklar)
+  Satir(cocuklar) -> kapsayici("nar-satir", cocuklar)
+  Esnek(cocuklar) -> kapsayici("nar-esnek", cocuklar)
+  Kutu(cocuklar) -> kapsayici("nar-kutu", cocuklar)
+  Kart(baslik, cocuklar) -> kartOgesi(baslik, cocuklar)
+  Ortala(ic) -> kapsayici("nar-ortala", [ic])
+
+  Uyari(ton, mesaj) -> yaziOgesi("div", "nar-uyari nar-uyari-" + ton, mesaj)
+  Liste(ogeler) -> listeOgesi(ogeler)
+  Tablo(basliklar, satirlar) -> tabloOgesi(basliklar, satirlar)
+  Ilerleme(yuzde) -> ilerlemeOgesi(yuzde)
+  Resim(adres, aciklama) -> resimOgesi(adres, aciklama)
+  Sekmeler(basliklar, secili, degisince) ->
+    sekmeOgesi(basliklar, secili, degisince)
+
+  Bosluk(yukseklik) -> boslukOgesi(yukseklik)
+  Cizgi -> sinifliOge("div", "nar-cizgi")
+  Bos -> olustur("span")
 }
 
-fn metinOgesi(yazi: String) -> Element {
-  let e = olustur("div")
-  e.metinYaz(yazi)
-  stilVer(e, [["font", YAZI], ["color", RENK_METIN]])
+// --- yapı taşları ---------------------------------------------------------
+
+fn sinifliOge(etiket: String, sinif: String) -> Element {
+  let e = olustur(etiket)
+  // Sınıf adı boşluk içerebiliyor ("nar-rozet nar-rozet-bilgi");
+  // `classList.add` boşluklu ada izin vermez, bu yüzden tek tek eklenir.
+  for s in sinif.split(" ") {
+    if s != "" {
+      e.sinifEkle(s)
+    }
+  }
   return e
 }
 
-fn baslikOgesi(yazi: String) -> Element {
-  let e = olustur("h2")
+fn yaziOgesi(etiket: String, sinif: String, yazi: String) -> Element {
+  let e = sinifliOge(etiket, sinif)
   e.metinYaz(yazi)
-  stilVer(e, [
-    ["font", "600 20px system-ui, sans-serif"],
-    ["color", RENK_METIN],
-    ["margin", "0 0 4px"]
-  ])
   return e
 }
 
-fn dugmeOgesi(etiket: String, islev: () -> Void) -> Element {
-  let e = olustur("button")
+fn bagOgesi(yazi: String, adres: String) -> Element {
+  let e = sinifliOge("a", "nar-bag")
+  e.ozellikYaz("href", adres)
+  e.metinYaz(yazi)
+  // Dış bağlantılar yeni sekmede açılır; `noopener` açılan sayfanın
+  // bizimkine erişmesini engeller.
+  if adres.startsWith("http") {
+    e.ozellikYaz("target", "_blank")
+    e.ozellikYaz("rel", "noopener noreferrer")
+  }
+  return e
+}
+
+fn dugmeOgesi(sinif: String, etiket: String, islev: () -> Void) -> Element {
+  let e = odaklanabilirIsaretle(sinifliOge("button", sinif))
+  // Form içindeki düğmelerin varsayılanı `submit`; sayfayı yeniler.
+  e.ozellikYaz("type", "button")
   e.metinYaz(etiket)
-  stilVer(e, [
-    ["font", YAZI],
-    ["color", RENK_METIN],
-    ["background", RENK_YUZEY],
-    ["border", "1px solid " + RENK_KENAR],
-    ["border-radius", "6px"],
-    ["padding", "7px 14px"],
-    ["cursor", "pointer"],
-    // Sütun içinde enine yayılmasın; düğme yazısı kadar yer kaplasın.
-    ["align-self", "flex-start"]
-  ])
   e.dinle("click", islev)
   return e
 }
 
-fn girisOgesi(yerTutucu: String, deger: String, degisince: (String) -> Void) -> Element {
-  let e = olustur("input")
+fn girisOgesi(yerTutucu: String, deger: String,
+              degisince: (String) -> Void) -> Element {
+  let e = odaklanabilirIsaretle(sinifliOge("input", "nar-giris"))
+  e.ozellikYaz("type", "text")
   e.ozellikYaz("placeholder", yerTutucu)
+  e.ozellikYaz("aria-label", yerTutucu)
   e.degerYaz(deger)
-  stilVer(e, [
-    ["font", YAZI],
-    ["color", RENK_METIN],
-    ["background", RENK_YUZEY],
-    ["border", "1px solid " + RENK_KENAR],
-    ["border-radius", "6px"],
-    ["padding", "7px 10px"],
-    ["min-width", "220px"],
-    ["align-self", "flex-start"]
-  ])
   e.dinle("input", || {
     degisince(e.deger())
   })
   return e
 }
 
-fn kapsayiciOgesi(cocuklar: [Gorunum], yon: String) -> Element {
-  let e = olustur("div")
-  stilVer(e, [
-    ["display", "flex"],
-    ["flex-direction", yon],
-    ["gap", "10px"],
-    ["align-items", if yon == "row" { "center" } else { "flex-start" }],
-    // Dar ekranda (telefon) satır sığmazsa alt alta insin, taşmasın.
-    ["flex-wrap", if yon == "row" { "wrap" } else { "nowrap" }]
-  ])
+fn cokSatirOgesi(yerTutucu: String, deger: String,
+                 degisince: (String) -> Void) -> Element {
+  let e = odaklanabilirIsaretle(sinifliOge("textarea", "nar-coksatir"))
+  e.ozellikYaz("placeholder", yerTutucu)
+  e.ozellikYaz("aria-label", yerTutucu)
+  e.degerYaz(deger)
+  e.dinle("input", || {
+    degisince(e.deger())
+  })
+  return e
+}
+
+fn sayiOgesi(yerTutucu: String, deger: Int,
+             degisince: (Int) -> Void) -> Element {
+  let e = odaklanabilirIsaretle(sinifliOge("input", "nar-giris"))
+  e.ozellikYaz("type", "number")
+  e.ozellikYaz("placeholder", yerTutucu)
+  e.ozellikYaz("aria-label", yerTutucu)
+  e.degerYaz("${deger}")
+  e.dinle("input", || {
+    degisince(int(e.deger()) ?? 0)
+  })
+  return e
+}
+
+fn onayOgesi(etiket: String, isaretli: Bool,
+             degisince: (Bool) -> Void) -> Element {
+  // `<label>` içine konduğu için etikete tıklamak da kutuyu değiştirir.
+  let sarmal = sinifliOge("label", "nar-onay")
+  let kutu = odaklanabilirIsaretle(olustur("input"))
+  kutu.ozellikYaz("type", "checkbox")
+  kutu.isaretliYaz(isaretli)
+  kutu.dinle("change", || {
+    degisince(kutu.isaretli())
+  })
+  sarmal.ekle(kutu)
+
+  let yazi = olustur("span")
+  yazi.metinYaz(etiket)
+  sarmal.ekle(yazi)
+  return sarmal
+}
+
+fn secimOgesi(secenekler: [String], secili: String,
+              degisince: (String) -> Void) -> Element {
+  let e = odaklanabilirIsaretle(sinifliOge("select", "nar-secim"))
+  for s in secenekler {
+    let o = olustur("option")
+    o.ozellikYaz("value", s)
+    o.metinYaz(s)
+    e.ekle(o)
+  }
+  e.degerYaz(secili)
+  e.dinle("change", || {
+    degisince(e.deger())
+  })
+  return e
+}
+
+fn kapsayici(sinif: String, cocuklar: [Gorunum]) -> Element {
+  let e = sinifliOge("div", sinif)
   for c in cocuklar {
     e.ekle(ogeYap(c))
   }
   return e
 }
 
-fn kutuOgesi(cocuklar: [Gorunum]) -> Element {
-  let e = olustur("div")
-  stilVer(e, [
-    ["display", "flex"],
-    ["flex-direction", "column"],
-    ["gap", "10px"],
-    ["background", RENK_YUZEY],
-    ["border", "1px solid " + RENK_KENAR],
-    ["border-radius", "10px"],
-    ["padding", "16px"]
-  ])
+fn kartOgesi(baslik: String, cocuklar: [Gorunum]) -> Element {
+  let e = sinifliOge("div", "nar-kart")
+  if baslik != "" {
+    let b = sinifliOge("h3", "nar-kart-baslik")
+    b.metinYaz(baslik)
+    e.ekle(b)
+  }
   for c in cocuklar {
     e.ekle(ogeYap(c))
+  }
+  return e
+}
+
+fn listeOgesi(ogeler: [String]) -> Element {
+  let e = sinifliOge("ul", "nar-liste")
+  for o in ogeler {
+    let li = olustur("li")
+    li.metinYaz(o)
+    e.ekle(li)
+  }
+  return e
+}
+
+fn tabloOgesi(basliklar: [String], satirlar: [[String]]) -> Element {
+  // Dar ekranda tablo taşmasın diye kendi kaydırma kabı içinde durur.
+  let sarmal = sinifliOge("div", "nar-tablo-sarmal")
+  let t = sinifliOge("table", "nar-tablo")
+
+  if basliklar.len() > 0 {
+    let ust = olustur("thead")
+    let satir = olustur("tr")
+    for b in basliklar {
+      let h = olustur("th")
+      h.metinYaz(b)
+      satir.ekle(h)
+    }
+    ust.ekle(satir)
+    t.ekle(ust)
+  }
+
+  let icGovde = olustur("tbody")
+  for s in satirlar {
+    let satir = olustur("tr")
+    for h in s {
+      let d = olustur("td")
+      d.metinYaz(h)
+      satir.ekle(d)
+    }
+    icGovde.ekle(satir)
+  }
+  t.ekle(icGovde)
+
+  sarmal.ekle(t)
+  return sarmal
+}
+
+fn ilerlemeOgesi(yuzde: Int) -> Element {
+  var deger = yuzde
+  if deger < 0 {
+    deger = 0
+  }
+  if deger > 100 {
+    deger = 100
+  }
+
+  let dis = sinifliOge("div", "nar-ilerleme")
+  // Ekran okuyucu için: görsel çubuk tek başına bilgi taşımaz.
+  dis.ozellikYaz("role", "progressbar")
+  dis.ozellikYaz("aria-valuenow", "${deger}")
+  dis.ozellikYaz("aria-valuemin", "0")
+  dis.ozellikYaz("aria-valuemax", "100")
+
+  let ic = sinifliOge("div", "nar-ilerleme-dolu")
+  ic.stil("width", "${deger}%")
+  dis.ekle(ic)
+  return dis
+}
+
+fn resimOgesi(adres: String, aciklama: String) -> Element {
+  let e = sinifliOge("img", "nar-resim")
+  e.ozellikYaz("src", adres)
+  e.ozellikYaz("alt", aciklama)
+  return e
+}
+
+fn sekmeOgesi(basliklar: [String], secili: Int,
+              degisince: (Int) -> Void) -> Element {
+  let e = sinifliOge("div", "nar-sekmeler")
+  e.ozellikYaz("role", "tablist")
+  var i = 0
+  for b in basliklar {
+    // Sıra numarası kapanışta yakalanır; döngü değişkenini doğrudan
+    // kullanmak her düğmeye son değeri verirdi.
+    let sira = i
+    let d = odaklanabilirIsaretle(sinifliOge("button", "nar-sekme"))
+    d.ozellikYaz("type", "button")
+    d.ozellikYaz("role", "tab")
+    if sira == secili {
+      d.sinifEkle("nar-sekme-secili")
+      d.ozellikYaz("aria-selected", "true")
+    } else {
+      d.ozellikYaz("aria-selected", "false")
+    }
+    d.metinYaz(b)
+    d.dinle("click", || {
+      degisince(sira)
+    })
+    e.ekle(d)
+    i += 1
   }
   return e
 }
@@ -155,17 +654,7 @@ fn boslukOgesi(yukseklik: Int) -> Element {
   return e
 }
 
-fn cizgiOgesi() -> Element {
-  let e = olustur("div")
-  stilVer(e, [
-    ["height", "1px"],
-    ["background", RENK_KENAR],
-    ["margin", "4px 0"]
-  ])
-  return e
-}
-
-// --- uygulama --------------------------------------------------------------
+// --- uygulama -------------------------------------------------------------
 
 // Durumu tutar ve değiştiğinde görünümü yeniden çizer.
 //
@@ -178,6 +667,7 @@ struct Uygulama<D> {
   // Uygulamayı verilen öğenin içine çizer.
   fn baslat(secici: String) {
     self.kokSecici = secici
+    stiliKur(STIL)
     self.yenile()
   }
 
@@ -194,24 +684,22 @@ struct Uygulama<D> {
       return
     }
     let alan = kok!
+    // Ağaç baştan çizildiği için odaktaki öğe yok olur; nerede olduğunu
+    // önce kaydedip sonra geri veriyoruz.
+    let odak = odagiOku()
+
+    odakSayaciniSifirla()
     alan.temizle()
-    // Kütüphane tek bir açık görünüme bağlıdır. Sayfa şablonu koyu
-    // olabileceği için kök alan kendi zeminini boyar; yoksa beyaz kart
-    // siyah zeminde asılı kalır.
-    stilVer(alan, [
-      ["font", YAZI],
-      ["color", RENK_METIN],
-      ["background", RENK_ZEMIN],
-      ["padding", "20px"],
-      ["border-radius", "12px"],
-      ["max-width", "680px"]
-    ])
+    alan.sinifEkle("nar-kok")
     alan.ekle(ogeYap(self.gorunum(self.durum)))
+
+    odagiGeriVer(odak)
   }
 }
 
 // Kolay kurulum: durumu ve çizim işlevini verip başlatır.
-fn uygulamaBaslat<D>(secici: String, baslangic: D, gorunum: (D) -> Gorunum) -> Uygulama<D> {
+fn uygulamaBaslat<D>(secici: String, baslangic: D,
+                     gorunum: (D) -> Gorunum) -> Uygulama<D> {
   let u = Uygulama<D> {
     durum: baslangic,
     gorunum: gorunum,

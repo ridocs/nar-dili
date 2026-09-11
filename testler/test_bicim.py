@@ -170,6 +170,62 @@ class BicimlendiriciTesti(unittest.TestCase):
         module = parse(sonuc, "t.nar")
         Checker(module, sonuc).check()  # hata fırlatmamalı
 
+    def test_cok_satirli_metnin_ici_korunur(self):
+        """Üç tırnaklı metnin içindeki boşluk biçim değil, içeriktir.
+
+        Biçimlendirici bu satırları kod sanıp yeniden girintiliyordu; yani
+        kodun anlamını değil, verisini değiştiriyordu.
+        """
+        girdi = (
+            'let CSS = """\n'
+            ':root {\n'
+            '  --a: 1;\n'
+            '  --b: bir, iki,\n'
+            '       uc, dort;\n'
+            '}\n'
+            '\n'
+            '.kutu { color: red; }\n'
+            '"""\n'
+        )
+        self.assertEqual(bicimlendir(girdi), girdi)
+
+    def test_cagri_icindeki_lambda_govdesi(self):
+        """Bir çağrının ortasında açılan blok, çağrının hizasından devam eder.
+
+        Gövde sıfırdan girintileniyor, kapanıştan sonra da sonraki liste
+        öğeleri sola kayıyordu.
+        """
+        girdi = (
+            'fn ciz() -> Gorunum = Kart("Girdi", [\n'
+            '  Giris("ad", "", |v| {\n'
+            '    yaz(v)\n'
+            '  }),\n'
+            '  Metin("bitti")\n'
+            '])\n'
+        )
+        self.assertEqual(bicimlendir(girdi), girdi)
+
+    def test_cok_satirli_imza_govdeyi_kaydirmaz(self):
+        """İkinci satır açılış parantezine hizalanır; gövde yine 2 boşlukta."""
+        girdi = (
+            'fn uzun(bir: String, iki: String,\n'
+            '        uc: Int) {\n'
+            '  print(bir)\n'
+            '}\n'
+        )
+        self.assertEqual(bicimlendir(girdi), girdi)
+
+    def test_ok_ile_biten_satir_devam_eder(self):
+        """`->` satır sonunda kalırsa gövde bir kademe içeridedir."""
+        girdi = (
+            'fn ogeYap(g: Gorunum) -> Element = match g {\n'
+            '  Kisa(a) -> kisaOge(a)\n'
+            '  Uzun(a, b, c) ->\n'
+            '    uzunOge(a, b, c)\n'
+            '}\n'
+        )
+        self.assertEqual(bicimlendir(girdi), girdi)
+
     def test_proje_dosyalari_duzenli(self):
         """Kendi Nar dosyalarımız biçimlendiriciyle uyumlu olmalı."""
         dosyalar = sorted((KOK / "araclar").glob("*.nar")) + \

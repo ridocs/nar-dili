@@ -208,7 +208,22 @@ class Lexer:
         demeti olarak. Parser gömülü ifadeleri yeniden çözümler.
         """
         line, col = self.line, self.col
-        self._advance()  # açılış tırnağı
+
+        # `"""` çok satırlı metni açar: satır sonları içeriğin parçasıdır.
+        cok_satirli = self._peek(1) == '"' and self._peek(2) == '"'
+        if cok_satirli:
+            self._advance()
+            self._advance()
+            self._advance()
+            # Açılıştan hemen sonraki satır sonu okunurluk içindir, metne
+            # girmez: `"""\nilk satır` baştaki boş satırı taşımamalı.
+            if self._peek() == "\r":
+                self._advance()
+            if self._peek() == "\n":
+                self._advance()
+        else:
+            self._advance()  # açılış tırnağı
+
         parts: list[object] = []
         buf = ""
 
@@ -218,11 +233,24 @@ class Lexer:
             ch = self._peek()
 
             if ch == '"':
-                self._advance()
-                break
+                if not cok_satirli:
+                    self._advance()
+                    break
+                if self._peek(1) == '"' and self._peek(2) == '"':
+                    self._advance()
+                    self._advance()
+                    self._advance()
+                    break
+                # Çok satırlı metinde tek tırnak sıradan bir karakterdir.
+                buf += self._advance()
+                continue
 
             if ch == "\n":
-                raise self._error("metin literali satır sonunda kapatılmamış", line, col)
+                if not cok_satirli:
+                    raise self._error(
+                        "metin literali satır sonunda kapatılmamış", line, col)
+                buf += self._advance()
+                continue
 
             if ch == "\\":
                 self._advance()

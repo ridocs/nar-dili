@@ -679,6 +679,15 @@ function $govde() {
   return document.body;
 }
 
+// O an odakta olan öğe. Arayüz yeniden çizilirken odağın nereye
+// döneceğini bilmek için gerekli.
+function $odaklanan() {
+  if (!$belgeVarMi()) return null;
+  const e = document.activeElement;
+  if (!e || e === document.body) return null;
+  return e;
+}
+
 function $ogeBul(oge, secici) {
   return oge.querySelector(secici);
 }

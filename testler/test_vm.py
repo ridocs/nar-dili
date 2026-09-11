@@ -349,10 +349,23 @@ class IkiHedefAyniTesti(unittest.TestCase):
         # sunucu sonsuza kadar çalışır, süre ölçümü iki hedefte farklıdır.
         from narc.driver import compile_file
 
-        disarida = {"sayac_web.nar", "yapilacaklar_uygulamasi.nar",
-                    "not_sunucusu.nar", "metin_araclari.nar", "dosya_araci.nar"}
+        # Elle dışarıda bırakılanlar: ilki sayfa yerleşiklerini çatı
+        # kullanmadan doğrudan çağırıyor, ötekiler zamana ve dış dünyaya
+        # bağlı. Bunları kaynağa bakarak ayırmanın kısa bir yolu yok.
+        disarida = {"sayac_web.nar", "metin_araclari.nar", "dosya_araci.nar"}
+
+        def sayfa_ya_da_sunucu(yol: Path) -> bool:
+            """Tarayıcı/sunucu çatısını içe aktaran örnek VM'de çalışmaz.
+
+            Listeyi elle tutmak her yeni örnekte eskiyordu; içe aktarmaya
+            bakmak kendiliğinden güncel kalır.
+            """
+            kaynak = yol.read_text(encoding="utf-8-sig")
+            return any(f'{ad}"' in kaynak
+                       for ad in ("arayuz.nar", "web.nar"))
+
         dosyalar = [p for p in sorted((KOK / "ornekler").glob("*.nar"))
-                    if p.name not in disarida]
+                    if p.name not in disarida and not sayfa_ya_da_sunucu(p)]
         self.assertGreater(len(dosyalar), 1)
 
         for yol in dosyalar:
