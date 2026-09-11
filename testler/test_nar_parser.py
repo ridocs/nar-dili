@@ -41,8 +41,10 @@ def nar_parser_js(tmp: Path) -> Path:
     return betik
 
 
-def nar_ile_cozumle(betik: Path, kaynaklar: list[str]) -> list[str]:
+def nar_ile_cozumle(betik: Path, kaynaklar: list[str],
+                    konumlu: bool = False) -> list[str]:
     """Kaynakları Nar çözümleyicisinden geçirir (tek Node çağrısı)."""
+    yazici = "sifadeUretKonumlu" if konumlu else "sifadeUret"
     surucu = (
         f"require({str(betik).replace(chr(92), '/')!r});\n"
         "let veri = '';\n"
@@ -51,7 +53,7 @@ def nar_ile_cozumle(betik: Path, kaynaklar: list[str]) -> list[str]:
         "process.stdin.on('end', () => {\n"
         "  const girdi = JSON.parse(veri);\n"
         "  process.stdout.write(JSON.stringify(girdi.map(\n"
-        "    (k) => Nar.sifadeUret(k))));\n"
+        f"    (k) => Nar.{yazici}(k))));\n"
         "});\n"
     )
     sonuc = subprocess.run(
@@ -156,6 +158,25 @@ class NarParserTesti(unittest.TestCase):
         self.assertGreater(len(dosyalar), 15, "yeterince dosya bulunamadı")
         kaynaklar = [d.read_text(encoding="utf-8-sig") for d in dosyalar]
         self.karsilastir(kaynaklar, [d.name for d in dosyalar])
+
+    def test_konumlar_da_ayni(self):
+        """Ağaç yapısı kadar satır/sütun hesabı da örtüşmeli.
+
+        Konum, hata mesajlarının nereyi gösterdiğini belirler; iki
+        çözümleyicinin aynı ağacı kurup farklı yerleri işaret etmesi
+        self-hosting için yeterli olmazdı.
+        """
+        dosyalar = proje_dosyalari()
+        kaynaklar = [d.read_text(encoding="utf-8-sig") for d in dosyalar]
+        alinanlar = nar_ile_cozumle(self.betik, kaynaklar, konumlu=True)
+        for yol, kaynak, alinan in zip(dosyalar, kaynaklar, alinanlar):
+            with self.subTest(dosya=yol.name):
+                beklenen = sifade.yaz_konumlu(parse(kaynak, "t.nar"))
+                self.assertEqual(
+                    alinan, beklenen,
+                    f"{yol.name}: konumlar ayrışıyor\n"
+                    f"{self._ilk_fark(alinan, beklenen)}",
+                )
 
     def test_hatalari_da_yakaliyor(self):
         """Python'un reddettiği kaynağı Nar da reddetmeli.

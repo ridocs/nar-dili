@@ -40,6 +40,17 @@ def kacir(s: str) -> str:
     return "".join(out)
 
 
+# Konumun yazılıp yazılmayacağı. Nar tarafındaki `KONUM_YAZ` ile aynı rol.
+_KONUM_YAZ = False
+
+
+def konumla(metin: str, span) -> str:
+    """Konumlu modda düğümün sonuna `@satır:sütun` ekler."""
+    if not _KONUM_YAZ or span is None:
+        return metin
+    return f"{metin}@{span.line}:{span.col}"
+
+
 def dugum(ad: str, *parcalar: str) -> str:
     if not parcalar:
         return f"({ad})"
@@ -84,13 +95,17 @@ def tip(t) -> str:
 
 
 def parametre(p: A.Param) -> str:
-    return dugum("parametre", kacir(p.name), tip(p.type_expr))
+    return konumla(dugum("parametre", kacir(p.name), tip(p.type_expr)), p.span)
 
 
 # ----------------------------------------------------------------- ifadeler
 def ifade(e) -> str:
     if e is None:
         return "-"
+    return konumla(_ifade(e), getattr(e, "span", None))
+
+
+def _ifade(e) -> str:
 
     if isinstance(e, A.IntLit):
         return dugum("int", sayi_metni(e.value))
@@ -178,6 +193,10 @@ def govde(b) -> str:
 
 # ----------------------------------------------------------------- desenler
 def desen(p) -> str:
+    return konumla(_desen(p), getattr(p, "span", None))
+
+
+def _desen(p) -> str:
     if isinstance(p, A.WildcardPat):
         return dugum("joker")
     if isinstance(p, A.BindPat):
@@ -192,15 +211,19 @@ def desen(p) -> str:
 
 
 def kol(a: A.MatchArm) -> str:
-    return dugum("kol", desen(a.pattern), govde(a.body))
+    return konumla(dugum("kol", desen(a.pattern), govde(a.body)), a.span)
 
 
 # ----------------------------------------------------------------- deyimler
 def blok(b: A.Block) -> str:
-    return dugum("blok", liste(deyim(s) for s in b.stmts))
+    return konumla(dugum("blok", liste(deyim(s) for s in b.stmts)), b.span)
 
 
 def deyim(s) -> str:
+    return konumla(_deyim(s), getattr(s, "span", None))
+
+
+def _deyim(s) -> str:
     if isinstance(s, A.LetStmt):
         return dugum("let", kacir(s.name), tip(s.type_expr), ifade(s.value),
                      "true" if s.mutable else "false")
@@ -244,6 +267,10 @@ def tip_sinirlari(bounds: dict) -> str:
 
 
 def fn(d: A.FnDecl) -> str:
+    return konumla(_fn(d), d.span)
+
+
+def _fn(d: A.FnDecl) -> str:
     return dugum(
         "fn",
         kacir(d.name),
@@ -256,20 +283,26 @@ def fn(d: A.FnDecl) -> str:
 
 
 def oge(o) -> str:
+    return konumla(_oge(o), getattr(o, "span", None))
+
+
+def _oge(o) -> str:
     if isinstance(o, A.Import):
         return dugum("import", kacir(o.path))
     if isinstance(o, A.TypeAlias):
         return dugum("typealias", kacir(o.name), tip(o.target))
     if isinstance(o, A.FnDecl):
-        return fn(o)
+        # Konumu dıştaki `oge` ekler; burada ikinci kez sarmalanmamalı.
+        return _fn(o)
     if isinstance(o, A.StructDecl):
         return dugum(
             "struct",
             kacir(o.name),
             liste(kacir(t) for t in o.type_params),
             liste(kacir(i) for i in o.interfaces),
-            liste(dugum("alandecl", kacir(f.name), tip(f.type_expr),
-                        "true" if f.mutable else "false") for f in o.fields),
+            liste(konumla(dugum("alandecl", kacir(f.name), tip(f.type_expr),
+                                "true" if f.mutable else "false"), f.span)
+                  for f in o.fields),
             liste(fn(m) for m in o.methods),
         )
     if isinstance(o, A.EnumDecl):
@@ -278,14 +311,15 @@ def oge(o) -> str:
             kacir(o.name),
             liste(kacir(t) for t in o.type_params),
             liste(kacir(i) for i in o.interfaces),
-            liste(dugum("varyantdecl", kacir(v.name),
-                        liste(tip(t) for t in v.payload)) for v in o.variants),
+            liste(konumla(dugum("varyantdecl", kacir(v.name),
+                                liste(tip(t) for t in v.payload)), v.span)
+                  for v in o.variants),
             liste(fn(m) for m in o.methods),
         )
     if isinstance(o, A.InterfaceDecl):
         return dugum("interface", kacir(o.name), liste(fn(m) for m in o.methods))
     if isinstance(o, A.LetStmt):
-        return deyim(o)
+        return _deyim(o)
     raise AssertionError(f"bilinmeyen üst düzey öğe: {type(o).__name__}")
 
 
@@ -294,5 +328,17 @@ def modul(m: A.Module) -> str:
 
 
 def yaz(m: A.Module) -> str:
-    """Modülün S-ifadesi. Karşılaştırmada kullanılacak tek metin."""
+    """Konumsuz S-ifadesi: ağacın *yapısını* karşılaştırır."""
+    global _KONUM_YAZ
+    _KONUM_YAZ = False
     return modul(m)
+
+
+def yaz_konumlu(m: A.Module) -> str:
+    """Konumlu S-ifadesi: satır/sütun hesabını da karşılaştırır."""
+    global _KONUM_YAZ
+    _KONUM_YAZ = True
+    try:
+        return modul(m)
+    finally:
+        _KONUM_YAZ = False

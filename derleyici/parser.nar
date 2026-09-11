@@ -67,7 +67,7 @@ let ATAMA_ISLECLERI = ["=", "+=", "-=", "*=", "/=", "%="]
 // Boş yer tutucular: hata sonrası döndürülür, kimse okumaz.
 let BOS_TIP = TAd("", [])
 
-fn bosBlok() -> Blok = Blok { deyimler: [] }
+fn bosBlok(k: Konum) -> Blok = Blok { konum: k, deyimler: [] }
 
 // ==========================================================================
 
@@ -97,6 +97,22 @@ struct Cozumleyici {
   }
 
   fn tur() -> String = self.simdiki().tur
+
+  // --- konum --------------------------------------------------------------
+
+  fn konum() -> Konum {
+    let t = self.simdiki()
+    return Konum { satir: t.satir, sutun: t.sutun }
+  }
+
+  fn tokenKonumu(t: Token) -> Konum = Konum { satir: t.satir, sutun: t.sutun }
+
+  // İfadeyi konumuyla sarar.
+  fn ifadeD(k: Konum, e: Ifade) -> IfadeD = IfadeD { konum: k, ic: e }
+
+  fn deyimD(k: Konum, d: Deyim) -> DeyimD = DeyimD { konum: k, ic: d }
+
+  fn desenD(k: Konum, d: Desen) -> DesenD = DesenD { konum: k, ic: d }
 
   fn suradaMi(t: String) -> Bool = self.tur() == t
 
@@ -191,16 +207,22 @@ struct Cozumleyici {
   // --- modül --------------------------------------------------------------
 
   fn modulCozumle() -> Modul {
-    var ogeler: [Oge] = []
+    let bas = self.konum()
+    var ogeler: [OgeD] = []
     self.satirSonlariniAtla()
     while self.iyiMi() && !self.suradaMi("eof") {
       ogeler.push(self.ogeCozumle())
       self.satirSonlariniAtla()
     }
-    return Modul { ogeler: ogeler }
+    return Modul { konum: bas, ogeler: ogeler }
   }
 
-  fn ogeCozumle() -> Oge {
+  fn ogeCozumle() -> OgeD {
+    let k = self.konum()
+    return OgeD { konum: k, ic: self.ogeGovdesiCozumle() }
+  }
+
+  fn ogeGovdesiCozumle() -> Oge {
     let t = self.tur()
     if t == "import" {
       return self.importCozumle()
@@ -240,7 +262,7 @@ struct Cozumleyici {
     var yol = ""
     match parcalar[0] {
       HDuz(s) -> yol = s
-      HGomme(_) -> self.hataVer("import yolu düz bir metin olmalı")
+      HGomme(_, _) -> self.hataVer("import yolu düz bir metin olmalı")
     }
     self.deyimSonu()
     return OImport(yol)
@@ -367,6 +389,7 @@ struct Cozumleyici {
   // --- bildirimler --------------------------------------------------------
 
   fn islevCozumle() -> IslevBildirimi {
+    let bas = self.konum()
     self.bekle("fn", "'fn'")
     let ad = self.beklenenAd("fonksiyon adı")
     let tp = self.tipParametreleriCozumle()
@@ -380,16 +403,20 @@ struct Cozumleyici {
     }
 
     // Kısa gövde:  fn kare(x: Int) -> Int = x * x
-    var govde = bosBlok()
+    var govde = bosBlok(bas)
     if self.al("=") {
       self.satirSonlariniAtla()
       let deger = self.ifadeCozumle()
-      govde = Blok { deyimler: [SDonus(deger)] }
+      govde = Blok {
+        konum: bas,
+        deyimler: [DeyimD { konum: deger.konum, ic: SDonus(deger) }]
+      }
     } else {
       govde = self.blokCozumle()
     }
 
     return IslevBildirimi {
+      konum: bas,
       ad: ad,
       tipParametreleri: tp.adlar,
       tipSinirlari: tp.sinirlar,
@@ -404,10 +431,11 @@ struct Cozumleyici {
     self.satirSonlariniAtla()
     var devam = true
     while self.iyiMi() && devam && !self.suradaMi(")") {
+      let k = self.konum()
       let ad = self.beklenenAd("parametre adı")
       self.bekle(":", "parametre tipinden önce ':'")
       let tip = self.tipCozumle()
-      params.push(Parametre { ad: ad, tip: tip })
+      params.push(Parametre { konum: k, ad: ad, tip: tip })
       self.satirSonlariniAtla()
       devam = self.al(",")
       self.satirSonlariniAtla()
@@ -434,10 +462,13 @@ struct Cozumleyici {
         if !degisebilir {
           self.al("let")
         }
+        let alanKonumu = self.konum()
         let alanAdi = self.beklenenAd("alan adı")
         self.bekle(":", "alan tipinden önce ':'")
         let tip = self.tipCozumle()
-        alanlar.push(AlanBildirimi { ad: alanAdi, tip: tip, degisebilir: degisebilir })
+        alanlar.push(AlanBildirimi {
+          konum: alanKonumu, ad: alanAdi, tip: tip, degisebilir: degisebilir
+        })
       }
       self.satirSonlariniAtla()
     }
@@ -459,6 +490,7 @@ struct Cozumleyici {
       if self.suradaMi("fn") {
         metotlar.push(self.islevCozumle())
       } else {
+        let vKonum = self.konum()
         let vAd = self.beklenenAd("varyant adı")
         var yuk: [TipIfadesi] = []
         if self.al("(") {
@@ -468,7 +500,7 @@ struct Cozumleyici {
           }
           self.bekle(")", "')'")
         }
-        varyantlar.push(VaryantBildirimi { ad: vAd, yuk: yuk })
+        varyantlar.push(VaryantBildirimi { konum: vKonum, ad: vAd, yuk: yuk })
       }
       self.satirSonlariniAtla()
     }
@@ -496,6 +528,7 @@ struct Cozumleyici {
 
   // Arayüzdeki metot yalnızca imzadır; gövdesi yoktur.
   fn arayuzMetoduCozumle(sahip: String) -> IslevBildirimi {
+    let bas = self.konum()
     self.bekle("fn", "arayüz içinde 'fn'")
     let ad = self.beklenenAd("metot adı")
     self.bekle("(", "'('")
@@ -509,35 +542,38 @@ struct Cozumleyici {
       self.hataVer("'${sahip}.${ad}' arayüzde gövde alamaz")
     }
     return IslevBildirimi {
+      konum: bas,
       ad: ad,
       tipParametreleri: [],
       tipSinirlari: [],
       parametreler: params,
       donusTipi: donus,
-      govde: bosBlok()
+      govde: bosBlok(bas)
     }
   }
 
   // --- deyimler -----------------------------------------------------------
 
   fn blokCozumle() -> Blok {
+    let bas = self.konum()
     self.bekle("{", "'{'")
     self.satirSonlariniAtla()
-    var deyimler: [Deyim] = []
+    var deyimler: [DeyimD] = []
     while self.iyiMi() && !self.suradaMi("}") {
       if self.suradaMi("eof") {
         self.hataVer("kapatılmamış blok: '}' bekleniyor")
-        return Blok { deyimler: deyimler }
+        return Blok { konum: bas, deyimler: deyimler }
       }
       deyimler.push(self.deyimCozumle())
       self.satirSonlariniAtla()
     }
     self.bekle("}", "'}'")
-    return Blok { deyimler: deyimler }
+    return Blok { konum: bas, deyimler: deyimler }
   }
 
-  fn deyimCozumle() -> Deyim {
+  fn deyimCozumle() -> DeyimD {
     let t = self.tur()
+    let k = self.konum()
 
     if t == "let" || t == "var" {
       let d = self.letCozumle()
@@ -547,12 +583,12 @@ struct Cozumleyici {
 
     if t == "return" {
       self.ilerle()
-      var deger: Ifade? = none
+      var deger: IfadeD? = none
       if !self.satirSonuMu() {
         deger = self.ifadeCozumle()
       }
       self.deyimSonu()
-      return SDonus(deger)
+      return self.deyimD(k, SDonus(deger))
     }
 
     if t == "if" {
@@ -571,26 +607,28 @@ struct Cozumleyici {
     if t == "break" {
       self.ilerle()
       self.deyimSonu()
-      return SBreak
+      return self.deyimD(k, SBreak)
     }
     if t == "continue" {
       self.ilerle()
       self.deyimSonu()
-      return SContinue
+      return self.deyimD(k, SContinue)
     }
 
     let e = self.ifadeCozumle()
     if ATAMA_ISLECLERI.contains(self.tur()) {
+      let opKonumu = self.konum()
       let op = self.ilerle().metin
       let deger = self.ifadeCozumle()
-      if !atanabilirMi(e) {
+      if !atanabilirMi(e.ic) {
         self.hataVer("bu ifadeye atama yapılamaz")
       }
       self.deyimSonu()
-      return SAtama(op, e, deger)
+      return self.deyimD(opKonumu, SAtama(op, e, deger))
     }
     self.deyimSonu()
-    return SIfade(e)
+    // İfade deyiminin konumu ifadenin kendi konumudur.
+    return self.deyimD(e.konum, SIfade(e))
   }
 
   fn satirSonuMu() -> Bool {
@@ -598,7 +636,8 @@ struct Cozumleyici {
     return t == "newline" || t == "}" || t == ";" || t == "eof"
   }
 
-  fn letCozumle() -> Deyim {
+  fn letCozumle() -> DeyimD {
+    let k = self.konum()
     let anahtar = self.ilerle()          // let | var
     let degisebilir = anahtar.tur == "var"
     let ad = self.beklenenAd("değişken adı")
@@ -607,7 +646,7 @@ struct Cozumleyici {
     if self.al(":") {
       tip = self.tipCozumle()
     }
-    var deger: Ifade? = none
+    var deger: IfadeD? = none
     if self.al("=") {
       deger = self.ifadeCozumle()
     }
@@ -618,11 +657,11 @@ struct Cozumleyici {
     if deger == none && !degisebilir {
       self.hataVer("değişmez '${ad}' bildiriminde başlangıç değeri zorunlu")
     }
-    return SLet(ad, tip, deger, degisebilir)
+    return self.deyimD(k, SLet(ad, tip, deger, degisebilir))
   }
 
   // Koşul ifadesi: `{` blok başlangıcı sayıldığı için literal kapalıdır.
-  fn kosulCozumle() -> Ifade {
+  fn kosulCozumle() -> IfadeD {
     let onceki = self.structLitYok
     self.structLitYok = true
     let e = self.ifadeCozumle()
@@ -630,7 +669,8 @@ struct Cozumleyici {
     return e
   }
 
-  fn egerCozumle() -> Deyim {
+  fn egerCozumle() -> DeyimD {
+    let k = self.konum()
     self.bekle("if", "'if'")
     let kosul = self.kosulCozumle()
     let ise = self.blokCozumle()
@@ -641,21 +681,23 @@ struct Cozumleyici {
     if self.suradaMi("else") {
       self.ilerle()
       if self.suradaMi("if") {
-        return SEger(kosul, ise, YEger(self.egerCozumle()))
+        return self.deyimD(k, SEger(kosul, ise, YEger(self.egerCozumle())))
       }
-      return SEger(kosul, ise, YBlok(self.blokCozumle()))
+      return self.deyimD(k, SEger(kosul, ise, YBlok(self.blokCozumle())))
     }
     self.i = kayit
-    return SEger(kosul, ise, YYok)
+    return self.deyimD(k, SEger(kosul, ise, YYok))
   }
 
-  fn whileCozumle() -> Deyim {
+  fn whileCozumle() -> DeyimD {
+    let k = self.konum()
     self.bekle("while", "'while'")
     let kosul = self.kosulCozumle()
-    return SWhile(kosul, self.blokCozumle())
+    return self.deyimD(k, SWhile(kosul, self.blokCozumle()))
   }
 
-  fn forCozumle() -> Deyim {
+  fn forCozumle() -> DeyimD {
+    let k = self.konum()
     self.bekle("for", "'for'")
     var adlar: [String] = []
     if self.al("(") {
@@ -669,10 +711,11 @@ struct Cozumleyici {
     }
     self.bekle("in", "'in'")
     let kaynak = self.kosulCozumle()
-    return SFor(adlar, kaynak, self.blokCozumle())
+    return self.deyimD(k, SFor(adlar, kaynak, self.blokCozumle()))
   }
 
-  fn matchDeyimiCozumle() -> Deyim {
+  fn matchDeyimiCozumle() -> DeyimD {
+    let k = self.konum()
     self.bekle("match", "'match'")
     let konu = self.kosulCozumle()
     self.bekle("{", "'{'")
@@ -682,75 +725,77 @@ struct Cozumleyici {
     while self.iyiMi() && !self.suradaMi("}") {
       if self.suradaMi("eof") {
         self.hataVer("kapatılmamış match: '}' bekleniyor")
-        return SMatch(konu, kollar)
+        return self.deyimD(k, SMatch(konu, kollar))
       }
       let desen = self.desenCozumle()
+      let okKonumu = self.konum()
       self.bekle("->", "desenden sonra '->'")
-      var govde = GIfade(IBos)
+      var govde = GIfade(self.ifadeD(okKonumu, IBos))
       if self.suradaMi("{") {
         govde = GBlok(self.blokCozumle())
       } else {
         govde = GDeyim(self.deyimCozumle())
       }
-      kollar.push(Kol { desen: desen, govde: govde })
+      kollar.push(Kol { konum: okKonumu, desen: desen, govde: govde })
       self.satirSonlariniAtla()
     }
     self.bekle("}", "'}'")
     if self.iyiMi() && kollar.len() == 0 {
       self.hataVer("match en az bir dal içermeli")
     }
-    return SMatch(konu, kollar)
+    return self.deyimD(k, SMatch(konu, kollar))
   }
 
   // --- desenler -----------------------------------------------------------
 
-  fn desenCozumle() -> Desen {
+  fn desenCozumle() -> DesenD {
     let t = self.simdiki()
+    let k = self.tokenKonumu(t)
 
     // `_` lexer'da tanımlayıcı olarak gelir (ident başlangıcı sayılır),
     // ama desende her zaman jokerdir: bir değere bağlanmaz.
     if t.tur == "ident" && t.metin == "_" {
       self.ilerle()
-      return DJoker
+      return self.desenD(k, DJoker)
     }
 
     if t.tur == "int" || t.tur == "float" || t.tur == "string" ||
       t.tur == "true" || t.tur == "false" || t.tur == "none" {
-      return DDeger(self.temelIfadeCozumle())
+      return self.desenD(k, DDeger(self.temelIfadeCozumle()))
     }
 
     if t.tur == "-" && (self.bakIleri(1).tur == "int" || self.bakIleri(1).tur == "float") {
-      return DDeger(self.tekliCozumle())
+      return self.desenD(k, DDeger(self.tekliCozumle()))
     }
 
     // `.Varyant` — enum adı bağlamdan çıkarılır
     if t.tur == "." {
       self.ilerle()
       let varyant = self.beklenenAd("varyant adı")
-      return DVaryant(none, varyant, self.altDesenlerCozumle())
+      return self.desenD(k, DVaryant(none, varyant, self.altDesenlerCozumle()))
     }
 
     if t.tur == "ident" {
       self.ilerle()
       if self.al(".") {
         let varyant = self.beklenenAd("varyant adı")
-        return DVaryant(t.metin, varyant, self.altDesenlerCozumle())
+        return self.desenD(k, DVaryant(t.metin, varyant, self.altDesenlerCozumle()))
       }
       if self.suradaMi("(") {
-        return DVaryant(none, t.metin, self.altDesenlerCozumle())
+        return self.desenD(k, DVaryant(none, t.metin, self.altDesenlerCozumle()))
       }
-      return DBaglama(t.metin)
+      return self.desenD(k, DBaglama(t.metin))
     }
 
     self.hataVer("desen bekleniyordu, ${self.anlat()} bulundu")
-    return DJoker
+    return self.desenD(k, DJoker)
   }
 
-  fn altDesenlerCozumle() -> [Desen] {
+  fn altDesenlerCozumle() -> [DesenD] {
     if !self.al("(") {
       return []
     }
-    var altlar: [Desen] = []
+    var altlar: [DesenD] = []
     if !self.suradaMi(")") {
       altlar.push(self.desenCozumle())
       while self.iyiMi() && self.al(",") {
@@ -763,9 +808,9 @@ struct Cozumleyici {
 
   // --- ifadeler -----------------------------------------------------------
 
-  fn ifadeCozumle() -> Ifade = self.ifadeCozumleP(0)
+  fn ifadeCozumle() -> IfadeD = self.ifadeCozumleP(0)
 
-  fn ifadeCozumleP(enAzOncelik: Int) -> Ifade {
+  fn ifadeCozumleP(enAzOncelik: Int) -> IfadeD {
     var sol = self.tekliCozumle()
 
     while self.iyiMi() {
@@ -774,46 +819,50 @@ struct Cozumleyici {
       if p == 0 || p < enAzOncelik {
         return sol
       }
+      // İkili düğümün konumu işlecin konumudur (Python tarafı da böyle).
+      let opKonumu = self.konum()
       self.ilerle()
       self.satirSonlariniAtla()    // işleçten sonra satır bölünebilir
 
       let sag = self.ifadeCozumleP(p + 1)
       if tur == ".." || tur == "..=" {
-        sol = IAralik(sol, sag, tur == "..=")
+        sol = self.ifadeD(opKonumu, IAralik(sol, sag, tur == "..="))
       } else {
-        sol = IIkili(tur, sol, sag)
+        sol = self.ifadeD(opKonumu, IIkili(tur, sol, sag))
       }
     }
     return sol
   }
 
-  fn tekliCozumle() -> Ifade {
+  fn tekliCozumle() -> IfadeD {
     if self.suradaMi2("-", "!") {
+      let k = self.konum()
       let op = self.ilerle().tur
-      return ITekli(op, self.tekliCozumle())
+      return self.ifadeD(k, ITekli(op, self.tekliCozumle()))
     }
     return self.sonEkCozumle()
   }
 
-  fn sonEkCozumle() -> Ifade {
+  fn sonEkCozumle() -> IfadeD {
     var e = self.temelIfadeCozumle()
 
     while self.iyiMi() {
       let tur = self.tur()
+      let k = self.konum()
 
       if tur == "." {
         self.ilerle()
-        e = IAlan(e, self.beklenenAd("alan ya da metot adı"), false)
+        e = self.ifadeD(k, IAlan(e, self.beklenenAd("alan ya da metot adı"), false))
         continue
       }
       if tur == "?." {
         self.ilerle()
-        e = IAlan(e, self.beklenenAd("alan ya da metot adı"), true)
+        e = self.ifadeD(k, IAlan(e, self.beklenenAd("alan ya da metot adı"), true))
         continue
       }
       if tur == "(" {
         self.ilerle()
-        e = ICagri(e, self.argumanlarCozumle())
+        e = self.ifadeD(k, ICagri(e, self.argumanlarCozumle()))
         continue
       }
       if tur == "[" {
@@ -822,21 +871,21 @@ struct Cozumleyici {
         let dizin = self.ifadeCozumle()
         self.satirSonlariniAtla()
         self.bekle("]", "']'")
-        e = IDizin(e, dizin)
+        e = self.ifadeD(k, IDizin(e, dizin))
         continue
       }
       if tur == "!" {
         self.ilerle()
-        e = IAc(e)
+        e = self.ifadeD(k, IAc(e))
         continue
       }
-      if tur == "{" && self.structLitVarMi(e) {
-        e = self.structLitCozumle(e, [])
+      if tur == "{" && self.structLitVarMi(e.ic) {
+        e = self.structLitCozumle(e.ic, [])
         continue
       }
-      if tur == "<" && self.genericStructLitVarMi(e) {
+      if tur == "<" && self.genericStructLitVarMi(e.ic) {
         let targs = self.tipArgumanlariCozumle()
-        e = self.structLitCozumle(e, targs)
+        e = self.structLitCozumle(e.ic, targs)
         continue
       }
       return e
@@ -889,8 +938,9 @@ struct Cozumleyici {
     return uygun
   }
 
-  fn structLitCozumle(tipIfadesi: Ifade, targs: [TipIfadesi]) -> Ifade {
+  fn structLitCozumle(tipIfadesi: Ifade, targs: [TipIfadesi]) -> IfadeD {
     self.satirSonlariniAtla()
+    let k = self.konum()
     self.bekle("{", "'{'")
     self.satirSonlariniAtla()
 
@@ -911,11 +961,11 @@ struct Cozumleyici {
 
     self.satirSonlariniAtla()
     self.bekle("}", "'}'")
-    return IStruct(adiniAl(tipIfadesi), targs, alanlar)
+    return self.ifadeD(k, IStruct(adiniAl(tipIfadesi), targs, alanlar))
   }
 
-  fn argumanlarCozumle() -> [Ifade] {
-    var args: [Ifade] = []
+  fn argumanlarCozumle() -> [IfadeD] {
+    var args: [IfadeD] = []
     let onceki = self.structLitYok
     self.structLitYok = false
 
@@ -934,36 +984,37 @@ struct Cozumleyici {
     return args
   }
 
-  fn temelIfadeCozumle() -> Ifade {
+  fn temelIfadeCozumle() -> IfadeD {
     let t = self.simdiki()
+    let k = self.tokenKonumu(t)
 
     if t.tur == "int" {
       self.ilerle()
-      return ITam(t.metin)
+      return self.ifadeD(k, ITam(t.metin))
     }
     if t.tur == "float" {
       self.ilerle()
-      return IOndalik(t.metin)
+      return self.ifadeD(k, IOndalik(t.metin))
     }
     if t.tur == "true" || t.tur == "false" {
       self.ilerle()
-      return IMantik(t.tur == "true")
+      return self.ifadeD(k, IMantik(t.tur == "true"))
     }
     if t.tur == "none" {
       self.ilerle()
-      return IBos
+      return self.ifadeD(k, IBos)
     }
     if t.tur == "string" {
       self.ilerle()
-      return self.metinCozumle(t.metin)
+      return self.ifadeD(k, self.metinCozumle(t.metin, k))
     }
     if t.tur == "self" {
       self.ilerle()
-      return IBen
+      return self.ifadeD(k, IBen)
     }
     if t.tur == "ident" {
       self.ilerle()
-      return IAd(t.metin)
+      return self.ifadeD(k, IAd(t.metin))
     }
 
     if t.tur == "(" {
@@ -975,6 +1026,7 @@ struct Cozumleyici {
       self.satirSonlariniAtla()
       self.structLitYok = onceki
       self.bekle(")", "')'")
+      // Parantez yeni bir düğüm kurmaz; içerideki ifadenin konumu korunur.
       return ic
     }
 
@@ -997,16 +1049,18 @@ struct Cozumleyici {
     }
     if t.tur == "fn" {
       let d = self.islevCozumle()
-      return ILambda(d.parametreler, d.donusTipi, GBlok(d.govde ?? bosBlok()))
+      return self.ifadeD(k, ILambda(
+        d.parametreler, d.donusTipi, GBlok(d.govde ?? bosBlok(k))))
     }
 
     self.hataVer("ifade bekleniyordu, ${self.anlat()} bulundu")
-    return IBos
+    return self.ifadeD(k, IBos)
   }
 
-  fn listeLitCozumle() -> Ifade {
+  fn listeLitCozumle() -> IfadeD {
+    let k = self.konum()
     self.bekle("[", "'['")
-    var ogeler: [Ifade] = []
+    var ogeler: [IfadeD] = []
     let onceki = self.structLitYok
     self.structLitYok = false
 
@@ -1022,10 +1076,11 @@ struct Cozumleyici {
 
     self.structLitYok = onceki
     self.bekle("]", "']'")
-    return IListe(ogeler)
+    return self.ifadeD(k, IListe(ogeler))
   }
 
-  fn eslemeLitCozumle() -> Ifade {
+  fn eslemeLitCozumle() -> IfadeD {
+    let k = self.konum()
     self.bekle("{", "'{'")
     var ciftler: [IfadeCifti] = []
     let onceki = self.structLitYok
@@ -1046,25 +1101,26 @@ struct Cozumleyici {
 
     self.structLitYok = onceki
     self.bekle("}", "'}'")
-    return IEsleme(ciftler)
+    return self.ifadeD(k, IEsleme(ciftler))
   }
 
   // `{ ifade }` ya da `{ deyimler...  son_ifade }` — dal gövdesi.
-  fn parantezliIfadeCozumle() -> Ifade = blokIfadesi(self.dalGovdesiCozumle())
+  fn parantezliIfadeCozumle() -> IfadeD = blokIfadesi(self.dalGovdesiCozumle())
 
   // Dal gövdesini blok olarak okur.
   fn dalGovdesiCozumle() -> Blok {
+    let bas = self.konum()
     self.bekle("{", "'{'")
     self.satirSonlariniAtla()
     let onceki = self.structLitYok
     self.structLitYok = false
 
-    var deyimler: [Deyim] = []
+    var deyimler: [DeyimD] = []
     while self.iyiMi() && !self.suradaMi("}") {
       if self.suradaMi("eof") {
         self.hataVer("kapatılmamış dal: '}' bekleniyor")
         self.structLitYok = onceki
-        return Blok { deyimler: deyimler }
+        return Blok { konum: bas, deyimler: deyimler }
       }
       deyimler.push(self.deyimCozumle())
       self.satirSonlariniAtla()
@@ -1072,7 +1128,7 @@ struct Cozumleyici {
 
     self.structLitYok = onceki
     self.bekle("}", "'}'")
-    return Blok { deyimler: deyimler }
+    return Blok { konum: bas, deyimler: deyimler }
   }
 
   // match *ifadesi* kolunun gövdesi.
@@ -1080,7 +1136,7 @@ struct Cozumleyici {
   // `{` iki anlama gelebilir: blok gövdesi ya da eşleme literali
   // (`Bir -> {"a": 1}`). Önce blok denenir; deyim olarak okunamıyorsa
   // geri sarılıp ifade olarak okunur.
-  fn kolDegeriCozumle() -> Ifade {
+  fn kolDegeriCozumle() -> IfadeD {
     let kayit = self.i
     let hataKaydi = self.hata
     let bayrak = self.structLitYok
@@ -1102,7 +1158,8 @@ struct Cozumleyici {
     return e
   }
 
-  fn egerIfadesiCozumle() -> Ifade {
+  fn egerIfadesiCozumle() -> IfadeD {
+    let k = self.konum()
     self.bekle("if", "'if'")
     let kosul = self.kosulCozumle()
     let ise = self.parantezliIfadeCozumle()
@@ -1110,16 +1167,17 @@ struct Cozumleyici {
     self.satirSonlariniAtla()
     if !self.suradaMi("else") {
       self.hataVer("değer üreten 'if' için 'else' zorunlu")
-      return IBos
+      return self.ifadeD(k, IBos)
     }
     self.ilerle()
     if self.suradaMi("if") {
-      return IEger(kosul, ise, self.egerIfadesiCozumle())
+      return self.ifadeD(k, IEger(kosul, ise, self.egerIfadesiCozumle()))
     }
-    return IEger(kosul, ise, self.parantezliIfadeCozumle())
+    return self.ifadeD(k, IEger(kosul, ise, self.parantezliIfadeCozumle()))
   }
 
-  fn matchIfadesiCozumle() -> Ifade {
+  fn matchIfadesiCozumle() -> IfadeD {
+    let k = self.konum()
     self.bekle("match", "'match'")
     let konu = self.kosulCozumle()
     self.bekle("{", "'{'")
@@ -1129,33 +1187,38 @@ struct Cozumleyici {
     while self.iyiMi() && !self.suradaMi("}") {
       if self.suradaMi("eof") {
         self.hataVer("kapatılmamış match: '}' bekleniyor")
-        return IMatch(konu, kollar)
+        return self.ifadeD(k, IMatch(konu, kollar))
       }
       let desen = self.desenCozumle()
+      let okKonumu = self.konum()
       self.bekle("->", "desenden sonra '->'")
-      kollar.push(Kol { desen: desen, govde: GIfade(self.kolDegeriCozumle()) })
+      kollar.push(Kol {
+        konum: okKonumu, desen: desen, govde: GIfade(self.kolDegeriCozumle())
+      })
       self.satirSonlariniAtla()
     }
     self.bekle("}", "'}'")
     if self.iyiMi() && kollar.len() == 0 {
       self.hataVer("match en az bir dal içermeli")
     }
-    return IMatch(konu, kollar)
+    return self.ifadeD(k, IMatch(konu, kollar))
   }
 
-  fn lambdaCozumle() -> Ifade {
+  fn lambdaCozumle() -> IfadeD {
+    let k = self.konum()
     let acilis = self.ilerle()          // `|` ya da `||` (parametresiz)
     var params: [Parametre] = []
 
     if acilis.tur == "|" {
       var devam = true
       while self.iyiMi() && devam && !self.suradaMi("|") {
+        let pKonum = self.konum()
         let ad = self.beklenenAd("lambda parametresi")
         var tip: TipIfadesi? = none
         if self.al(":") {
           tip = self.tipCozumle()
         }
-        params.push(Parametre { ad: ad, tip: tip })
+        params.push(Parametre { konum: pKonum, ad: ad, tip: tip })
         devam = self.al(",")
       }
       self.bekle("|", "lambda parametrelerini kapatan '|'")
@@ -1167,22 +1230,27 @@ struct Cozumleyici {
     }
 
     if self.suradaMi("{") {
-      return ILambda(params, donus, GBlok(self.blokCozumle()))
+      return self.ifadeD(k, ILambda(params, donus, GBlok(self.blokCozumle())))
     }
-    return ILambda(params, donus, GIfade(self.ifadeCozumle()))
+    return self.ifadeD(k, ILambda(params, donus, GIfade(self.ifadeCozumle())))
   }
 
   // --- metin literali -----------------------------------------------------
 
   // Ham metni (tırnaklarıyla) parçalara ayırır; gömmeler yeniden çözümlenir.
-  fn metinCozumle(ham: String) -> Ifade {
+  fn metinCozumle(ham: String, k: Konum) -> Ifade {
     var parcalar: [MetinParcasi] = []
     for hp in hamParcalar(ham) {
       match hp {
         HDuz(s) -> parcalar.push(Duz(s))
-        HGomme(kaynak) -> {
+        HGomme(kaynak, ofset) -> {
+          // Gömme ayrı çözümlenir; içindeki düğümlerin konumu, Python
+          // tarafındaki gibi metin literalinin konumuna taşınır.
+          // Metin literali tek satırdadır (lexer satır sonunda kapatılmamış
+          // metni reddeder), bu yüzden yalnızca sütun kayar.
+          let gommeKonumu = Konum { satir: k.satir, sutun: k.sutun + ofset }
           match ifadeMetinden(kaynak) {
-            GTamam(e) -> parcalar.push(Gomme(e))
+            GTamam(e) -> parcalar.push(Gomme(konumuTasi(e, gommeKonumu)))
             GHata(mesaj) -> self.hataVer("metin gömmesinde hata: ${mesaj}")
           }
         }
@@ -1204,14 +1272,14 @@ struct TipParametreleri {
 //
 // Tek ifade durumunu sarmalamamak hem üretilen kodu sade tutar hem de bu
 // özellik eklenmeden önce yazılmış ağaçlarla aynı kalmasını sağlar.
-fn blokIfadesi(b: Blok) -> Ifade {
+fn blokIfadesi(b: Blok) -> IfadeD {
   if b.deyimler.len() == 1 {
-    match b.deyimler[0] {
+    match b.deyimler[0].ic {
       SIfade(e) -> return e
       _ -> {}
     }
   }
-  return IBlok(b)
+  return IfadeD { konum: b.konum, ic: IBlok(b) }
 }
 
 // Atamanın sol tarafı: değişken, alan ya da dizin olmalı.
@@ -1236,11 +1304,13 @@ fn adiniAl(e: Ifade) -> String = match e {
 
 enum HamParca {
   HDuz(String)
-  HGomme(String)
+  // Gömme kaynağı ve ham metin içindeki başlangıç ofseti. Ofset, gömme
+  // içindeki düğümlerin konumunu hesaplamak için gerekli.
+  HGomme(String, Int)
 }
 
 enum GommeSonucu {
-  GTamam(Ifade)
+  GTamam(IfadeD)
   GHata(String)
 }
 
@@ -1296,6 +1366,7 @@ fn hamParcalar(ham: String) -> [HamParca] {
         tampon = ""
       }
       i += 2
+      let icBas = i
       var derinlik = 1
       var kaynak = ""
       while i < son && derinlik > 0 {
@@ -1339,7 +1410,7 @@ fn hamParcalar(ham: String) -> [HamParca] {
         kaynak += d
         i += 1
       }
-      parcalar.push(HGomme(kaynak))
+      parcalar.push(HGomme(kaynak, icBas))
       continue
     }
 
@@ -1353,6 +1424,98 @@ fn hamParcalar(ham: String) -> [HamParca] {
     parcalar.push(HDuz(tampon))
   }
   return parcalar
+}
+
+// Gömme ayrı bir çözümleyiciyle okunur; oradaki satır/sütun gömmenin kendi
+// metnine göredir. Python tarafı da bu düğümleri metin literalinin konumuna
+// taşır, burada aynısı yapılır.
+fn konumuTasi(d: IfadeD, k: Konum) -> IfadeD =
+  IfadeD { konum: k, ic: icKonumuTasi(d.ic, k) }
+
+fn icKonumuTasi(e: Ifade, k: Konum) -> Ifade = match e {
+  IMetin(parcalar) -> IMetin(parcalar.map(|p| parcaKonumuTasi(p, k)))
+  IListe(ogeler) -> IListe(ogeler.map(|o| konumuTasi(o, k)))
+  IEsleme(ciftler) -> IEsleme(ciftler.map(|c| IfadeCifti {
+    anahtar: konumuTasi(c.anahtar, k), deger: konumuTasi(c.deger, k)
+  }))
+  IStruct(ad, targs, alanlar) -> IStruct(ad, targs, alanlar.map(
+    |a| AlanDegeri { ad: a.ad, deger: konumuTasi(a.deger, k) }))
+  ITekli(op, x) -> ITekli(op, konumuTasi(x, k))
+  IIkili(op, sol, sag) -> IIkili(op, konumuTasi(sol, k), konumuTasi(sag, k))
+  IAralik(bas, son, dahil) -> IAralik(konumuTasi(bas, k), konumuTasi(son, k), dahil)
+  ICagri(hedef, args) -> ICagri(konumuTasi(hedef, k), args.map(|a| konumuTasi(a, k)))
+  IDizin(nesne, dizin) -> IDizin(konumuTasi(nesne, k), konumuTasi(dizin, k))
+  IAlan(nesne, ad, guvenli) -> IAlan(konumuTasi(nesne, k), ad, guvenli)
+  IAc(x) -> IAc(konumuTasi(x, k))
+  ILambda(params, ret, govde) -> ILambda(
+    params.map(|p| Parametre { konum: k, ad: p.ad, tip: p.tip }),
+    ret,
+    govdeKonumuTasi(govde, k))
+  IEger(kosul, ise, yoksa) -> IEger(
+    konumuTasi(kosul, k), konumuTasi(ise, k), konumuTasi(yoksa, k))
+  IBlok(b) -> IBlok(blokKonumuTasi(b, k))
+  IMatch(konu, kollar) -> IMatch(
+    konumuTasi(konu, k), kollar.map(|c| kolKonumuTasi(c, k)))
+  _ -> e
+}
+
+fn parcaKonumuTasi(p: MetinParcasi, k: Konum) -> MetinParcasi = match p {
+  Duz(s) -> Duz(s)
+  Gomme(e) -> Gomme(konumuTasi(e, k))
+}
+
+fn govdeKonumuTasi(g: Govde, k: Konum) -> Govde = match g {
+  GBlok(b) -> GBlok(blokKonumuTasi(b, k))
+  GDeyim(d) -> GDeyim(deyimKonumuTasi(d, k))
+  GIfade(e) -> GIfade(konumuTasi(e, k))
+}
+
+fn blokKonumuTasi(b: Blok, k: Konum) -> Blok = Blok {
+  konum: k,
+  deyimler: b.deyimler.map(|d| deyimKonumuTasi(d, k))
+}
+
+fn kolKonumuTasi(c: Kol, k: Konum) -> Kol = Kol {
+  konum: k,
+  desen: desenKonumuTasi(c.desen, k),
+  govde: govdeKonumuTasi(c.govde, k)
+}
+
+fn desenKonumuTasi(d: DesenD, k: Konum) -> DesenD = DesenD {
+  konum: k,
+  ic: match d.ic {
+    DDeger(e) -> DDeger(konumuTasi(e, k))
+    DVaryant(enumAdi, varyant, altlar) -> DVaryant(
+      enumAdi, varyant, altlar.map(|a| desenKonumuTasi(a, k)))
+    _ -> d.ic
+  }
+}
+
+fn deyimKonumuTasi(d: DeyimD, k: Konum) -> DeyimD = DeyimD {
+  konum: k,
+  ic: icDeyimKonumuTasi(d.ic, k)
+}
+
+fn icDeyimKonumuTasi(s: Deyim, k: Konum) -> Deyim = match s {
+  SLet(ad, tip, deger, degisebilir) -> SLet(
+    ad, tip, if deger == none { none } else { konumuTasi(deger!, k) }, degisebilir)
+  SAtama(op, hedef, deger) -> SAtama(op, konumuTasi(hedef, k), konumuTasi(deger, k))
+  SIfade(e) -> SIfade(konumuTasi(e, k))
+  SDonus(e) -> SDonus(if e == none { none } else { konumuTasi(e!, k) })
+  SEger(kosul, ise, yoksa) -> SEger(
+    konumuTasi(kosul, k), blokKonumuTasi(ise, k), yoksaKonumuTasi(yoksa, k))
+  SWhile(kosul, govde) -> SWhile(konumuTasi(kosul, k), blokKonumuTasi(govde, k))
+  SFor(adlar, kaynak, govde) -> SFor(
+    adlar, konumuTasi(kaynak, k), blokKonumuTasi(govde, k))
+  SMatch(konu, kollar) -> SMatch(
+    konumuTasi(konu, k), kollar.map(|c| kolKonumuTasi(c, k)))
+  _ -> s
+}
+
+fn yoksaKonumuTasi(y: Yoksa, k: Konum) -> Yoksa = match y {
+  YYok -> YYok
+  YBlok(b) -> YBlok(blokKonumuTasi(b, k))
+  YEger(d) -> YEger(deyimKonumuTasi(d, k))
 }
 
 // --- dışa açılan giriş noktaları ------------------------------------------
@@ -1405,6 +1568,14 @@ fn cozumle(kaynak: String) -> Cozum {
 fn sifadeUret(kaynak: String) -> String {
   match cozumle(kaynak) {
     CTamam(m) -> return yazModul(m)
+    CHata(h) -> return "HATA " + h.goster()
+  }
+}
+
+// Konumlu S-ifadesi: satır/sütun hesabını da karşılaştırmak için.
+fn sifadeUretKonumlu(kaynak: String) -> String {
+  match cozumle(kaynak) {
+    CTamam(m) -> return yazModulKonumlu(m)
     CHata(h) -> return "HATA " + h.goster()
   }
 }

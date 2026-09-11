@@ -7,7 +7,7 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 
 ## Son güncelleme
 
-**2026-09-11 04:20** — Denetleyicinin bildirim aşaması Nar'a taşındı. Sırada gövde denetimi (ifadeler ve deyimler).
+**2026-09-11 05:00** — AST artık konum taşıyor ve konumlar iki çözümleyicide birebir aynı. Sırada denetleyicinin gövde aşaması.
 
 ## Şu ana kadar biten
 
@@ -42,11 +42,12 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 | v0.7 | **Self-hosting adım 3**: tip sistemi Nar diliyle (tipler.nar) | ✅ |
 | v0.8 | **Blok ifadesi**: if/match dallarında birden çok satır | ✅ |
 | v0.8 | **Self-hosting adım 4a**: denetleyicinin bildirim aşaması | ✅ |
+| v0.8 | **Konum bilgisi**: AST satır/sütun taşıyor, konumlar da doğrulanıyor | ✅ |
 | v0.6 | **Mobil hedef**: nar build --target mobil (Capacitor projesi) | ⚠️ cihazda denenmedi |
 
-**Testler:** 246, hepsi geçiyor · `python -m unittest discover -s testler`
-**Son commit:** `3a71340` (bir sonraki: denetleyicinin bildirim aşaması)
-**Nar ile yazılan kod:** ~6500 satır (`araclar/`, `derleyici/`, `ornekler/`, `testler/nar/`)
+**Testler:** 247, hepsi geçiyor · `python -m unittest discover -s testler`
+**Son commit:** `1b2a6aa` (bir sonraki: konum bilgisi)
+**Nar ile yazılan kod:** ~7000 satır (`araclar/`, `derleyici/`, `ornekler/`, `testler/nar/`)
 
 ## Sırada (öncelik sırasıyla)
 
@@ -75,15 +76,14 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
       fonksiyon imzaları, üstlenilen arayüzlerin doğrulanması, `main`
       denetimi. 37 örnekte iki taraf birebir aynı hata listesini üretiyor.
 - [ ] **6b-2. Denetleyici: gövde denetimi** — ifadeler ve deyimler.
-      En büyük parça. Sıra önerisi: ifadeler (literal → ad → ikili işleç →
-      çağrı → alan erişimi), sonra deyimler, sonra akış çözümlemesi
-      (dönüş yolu, match tamlığı, akış daraltma).
-- [ ] **6b-3. Konum bilgisi** — AST şu an satır/sütun taşımıyor, bu yüzden
-      Nar denetleyicisinin hataları konumsuz. Çözüm: `Ifade` ve `Deyim`
-      için sarmalayıcı (`struct IfadeD { konum: Konum  ic: Ifade }`).
-      S-ifadesi yazıcı konumu **yazmaz**, böylece mevcut karşılaştırma
-      testleri değişmeden geçer; ayrı bir "konumlu" mod konumları da
-      doğrular.
+      En büyük parça. Artık AST konum taşıdığı için hatalar konumlu
+      bildirilebilir (`d.konum`). Sıra önerisi: ifadeler (literal → ad →
+      ikili işleç → çağrı → alan erişimi), sonra deyimler, sonra akış
+      çözümlemesi (dönüş yolu, match tamlığı, akış daraltma).
+      Karşılaştırma artık mesaj + satır + sütun düzeyinde yapılabilir.
+- [x] ~~**6b-3. Konum bilgisi**~~ — `IfadeD`, `DeyimD`, `DesenD`, `OgeD`
+      sarmalayıcıları. `yazModul` konumu yazmaz (mevcut testler değişmeden
+      geçti); `yazModulKonumlu` yazar ve 26 dosyada konumlar birebir aynı.
 - [ ] **7. IDE'yi arayüz kütüphanesiyle yeniden yaz** — IDE şu an DOM'a elle
       çiziyor; `Gorunum` ağacına taşınırsa hem kütüphane gerçek bir yükte
       denenmiş olur hem de IDE kodu kısalır.

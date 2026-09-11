@@ -311,7 +311,7 @@ struct Denetleyici {
   // a) tip adlarını (içleri boş) kaydet — karşılıklı başvuru için
   fn tipAdlariniTopla() {
     for o in self.modul.ogeler {
-      match o {
+      match o.ic {
         OStruct(ad, tparams, arayuzler, _, _) -> {
           if self.tipAdiVarMi(ad) {
             self.hata("'${ad}' tipi zaten tanımlı")
@@ -352,7 +352,7 @@ struct Denetleyici {
 
   fn arayuzleriTopla() {
     for o in self.modul.ogeler {
-      match o {
+      match o.ic {
         OArayuz(ad, _) -> {
           if self.tipAdiVarMi(ad) || self.arayuzBul(ad) != none {
             self.hata("'${ad}' tipi zaten tanımlı")
@@ -366,7 +366,7 @@ struct Denetleyici {
     }
 
     for o in self.modul.ogeler {
-      match o {
+      match o.ic {
         OArayuz(ad, metotlar) -> {
           let a = self.arayuzBul(ad)
           if a != none {
@@ -385,7 +385,7 @@ struct Denetleyici {
 
   fn takmaAdlariTopla() {
     for o in self.modul.ogeler {
-      match o {
+      match o.ic {
         OTypeAlias(ad, hedef) -> {
           if self.tipAdiVarMi(ad) {
             self.hata("'${ad}' tipi zaten tanımlı")
@@ -400,7 +400,7 @@ struct Denetleyici {
   // c) alanlar, varyantlar ve metot imzaları
   fn govdeleriTopla() {
     for o in self.modul.ogeler {
-      match o {
+      match o.ic {
         OStruct(ad, tparams, _, alanlar, metotlar) ->
         self.structGovdesiniTopla(ad, tparams, alanlar, metotlar)
         OEnum(ad, tparams, _, varyantlar, metotlar) ->
@@ -478,7 +478,7 @@ struct Denetleyici {
 
   fn islevleriTopla() {
     for o in self.modul.ogeler {
-      match o {
+      match o.ic {
         OIslev(f) -> {
           if YERLESIK_ADLAR.contains(f.ad) {
             self.hata("'${f.ad}' yerleşik bir fonksiyon; yeniden tanımlanamaz")
@@ -498,7 +498,7 @@ struct Denetleyici {
   // f) üstlenilen arayüzler gerçekten uygulanmış mı?
   fn arayuzUyumunuDogrula() {
     for o in self.modul.ogeler {
-      match o {
+      match o.ic {
         OStruct(ad, _, arayuzler, _, _) -> {
           let s = self.structBul(ad)
           if s != none {
