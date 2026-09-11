@@ -259,6 +259,14 @@ select.dugme { padding-right: 6px; }
   pointer-events: none;
   color: var(--metin);
 }
+/* Tarayıcının kendi kuralı <code>'a `font-family: monospace` verir ve
+   pre'den devralınan fontu ezer; boyalı metin başka fontla çizilince imleç
+   sütun ilerledikçe kayar. İki katman aynı font, aynı boy, ligatürsüz. */
+.yazim pre code { font: inherit; letter-spacing: inherit; }
+.yazim pre, .yazim textarea {
+  font-variant-ligatures: none; font-feature-settings: 'liga' 0, 'calt' 0;
+  font-kerning: none;
+}
 .yazim textarea {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
