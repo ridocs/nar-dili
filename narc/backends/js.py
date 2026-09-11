@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .. import nar_ast as A
+from .. import runtime_budama
 from ..checker import Checker
 from ..types import (
     ELEMENT, FLOAT, INT, ISTEK, OLAY, STRING, YANIT, EnumT, ListT, MapT, OptT,
@@ -262,8 +263,18 @@ class JsBackend:
 
     # ------------------------------------------------------------------ giriş
     def emit(self) -> str:
-        self.write(RUNTIME_PATH.read_text(encoding="utf-8").rstrip())
-        self.write()
+        """Önce gövdeyi üretir, sonra çalışma zamanının gereken kısmını.
+
+        Sıra önemli: hangi yardımcının gerektiği ancak üretilmiş koda
+        bakılarak bilinir. Tamamını gömmek `print("Merhaba")` için
+        26 KB demekti ve neredeyse hepsi hiç çalışmayan koddu.
+        """
+        govde = self.govde_uret()
+        calisma = runtime_budama.buda(
+            RUNTIME_PATH.read_text(encoding="utf-8"), govde)
+        return calisma + "\n\n" + govde
+
+    def govde_uret(self) -> str:
         self.write("// " + "-" * 66)
         self.write("// Nar kaynağından üretildi — elle düzenlemeyin.")
         self.write("// " + "-" * 66)
