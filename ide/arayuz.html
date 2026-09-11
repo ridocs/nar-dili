@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nar IDE</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
 /* Renkler belgeler sitesiyle aynı paletten; iki tema da ölçülmüş. */
 :root {
@@ -159,6 +160,15 @@ body.agac-kapali .kenar-cubugu { display: none; }
   font-family: var(--tek); font-size: var(--kod-boy); line-height: var(--kod-satir);
   white-space: pre; overflow-wrap: normal; tab-size: 2;
   position: absolute; inset: 0; overflow: auto;
+}
+/* Tarayıcının kendi kuralı <code>'a `font-family: monospace` verir ve
+   pre'den devralınan fontu ezer; boyalı metin başka fontla çizilince
+   imleç sütun ilerledikçe kayar. Üç katman aynı ölçülerle yazılmalı:
+   aynı font, aynı boy, ligatürsüz. */
+.boya code, .altcizgi code { font: inherit; letter-spacing: inherit; }
+.boya, .altcizgi, .alan textarea, .satirlar {
+  font-variant-ligatures: none; font-feature-settings: 'liga' 0, 'calt' 0;
+  font-kerning: none;
 }
 .boya { pointer-events: none; color: var(--metin); background: transparent; }
 /* Hata altı çizgisi ayrı bir katmanda: boyalı metnin ortasına sütun
