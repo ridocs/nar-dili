@@ -279,28 +279,31 @@ struct Cozumleyici {
 
   // --- tipler -------------------------------------------------------------
 
-  fn tipCozumle() -> TipIfadesi {
+  fn tipCozumle() -> TipD {
     var t = self.temelTipCozumle()
     while self.iyiMi() && self.suradaMi("?") {
+      // Opsiyonel işaretinin konumu `?` token'ıdır (Python tarafı da böyle).
+      let k = self.konum()
       self.ilerle()
-      t = TOpsiyonel(t)
+      t = TipD { konum: k, ic: TOpsiyonel(t) }
     }
     return t
   }
 
-  fn temelTipCozumle() -> TipIfadesi {
+  fn temelTipCozumle() -> TipD {
     let t = self.simdiki()
+    let k = self.tokenKonumu(t)
 
     if t.tur == "ident" {
       self.ilerle()
-      return TAd(t.metin, self.tipArgumanlariCozumle())
+      return TipD { konum: k, ic: TAd(t.metin, self.tipArgumanlariCozumle()) }
     }
 
     if t.tur == "[" {
       self.ilerle()
       let e = self.tipCozumle()
       self.bekle("]", "']'")
-      return TListe(e)
+      return TipD { konum: k, ic: TListe(e) }
     }
 
     if t.tur == "{" {
@@ -309,12 +312,12 @@ struct Cozumleyici {
       self.bekle(":", "':'")
       let deger = self.tipCozumle()
       self.bekle("}", "'}'")
-      return TEsleme(anahtar, deger)
+      return TipD { konum: k, ic: TEsleme(anahtar, deger) }
     }
 
     if t.tur == "(" {
       self.ilerle()
-      var params: [TipIfadesi] = []
+      var params: [TipD] = []
       if !self.suradaMi(")") {
         params.push(self.tipCozumle())
         while self.iyiMi() && self.al(",") {
@@ -324,20 +327,20 @@ struct Cozumleyici {
       self.bekle(")", "')'")
       self.bekle("->", "'->' (fonksiyon tipinin dönüş oku)")
       let donus = self.tipCozumle()
-      return TIslev(params, donus)
+      return TipD { konum: k, ic: TIslev(params, donus) }
     }
 
     self.hataVer("tip bekleniyordu, ${self.anlat()} bulundu")
-    return BOS_TIP
+    return TipD { konum: k, ic: BOS_TIP }
   }
 
   // Kullanımdaki tip argümanları: `Kutu<Int>` → [Int]
-  fn tipArgumanlariCozumle() -> [TipIfadesi] {
+  fn tipArgumanlariCozumle() -> [TipD] {
     if !self.suradaMi("<") {
       return []
     }
     self.ilerle()
-    var args: [TipIfadesi] = []
+    var args: [TipD] = []
     args.push(self.tipCozumle())
     while self.iyiMi() && self.al(",") {
       args.push(self.tipCozumle())
@@ -397,7 +400,7 @@ struct Cozumleyici {
     let params = self.parametrelerCozumle()
     self.bekle(")", "')'")
 
-    var donus: TipIfadesi? = none
+    var donus: TipD? = none
     if self.al("->") {
       donus = self.tipCozumle()
     }
@@ -492,7 +495,7 @@ struct Cozumleyici {
       } else {
         let vKonum = self.konum()
         let vAd = self.beklenenAd("varyant adı")
-        var yuk: [TipIfadesi] = []
+        var yuk: [TipD] = []
         if self.al("(") {
           yuk.push(self.tipCozumle())
           while self.iyiMi() && self.al(",") {
@@ -534,7 +537,7 @@ struct Cozumleyici {
     self.bekle("(", "'('")
     let params = self.parametrelerCozumle()
     self.bekle(")", "')'")
-    var donus: TipIfadesi? = none
+    var donus: TipD? = none
     if self.al("->") {
       donus = self.tipCozumle()
     }
@@ -642,7 +645,7 @@ struct Cozumleyici {
     let degisebilir = anahtar.tur == "var"
     let ad = self.beklenenAd("değişken adı")
 
-    var tip: TipIfadesi? = none
+    var tip: TipD? = none
     if self.al(":") {
       tip = self.tipCozumle()
     }
@@ -938,7 +941,7 @@ struct Cozumleyici {
     return uygun
   }
 
-  fn structLitCozumle(tipIfadesi: Ifade, targs: [TipIfadesi]) -> IfadeD {
+  fn structLitCozumle(tipIfadesi: Ifade, targs: [TipD]) -> IfadeD {
     self.satirSonlariniAtla()
     let k = self.konum()
     self.bekle("{", "'{'")
@@ -1214,7 +1217,7 @@ struct Cozumleyici {
       while self.iyiMi() && devam && !self.suradaMi("|") {
         let pKonum = self.konum()
         let ad = self.beklenenAd("lambda parametresi")
-        var tip: TipIfadesi? = none
+        var tip: TipD? = none
         if self.al(":") {
           tip = self.tipCozumle()
         }
@@ -1224,7 +1227,7 @@ struct Cozumleyici {
       self.bekle("|", "lambda parametrelerini kapatan '|'")
     }
 
-    var donus: TipIfadesi? = none
+    var donus: TipD? = none
     if self.al("->") {
       donus = self.tipCozumle()
     }

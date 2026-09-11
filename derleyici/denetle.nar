@@ -10,7 +10,7 @@ import "parser.nar"
 import "denetleyici.nar"
 
 enum DenetimSonucu {
-  DTamam([String])            // bulunan hatalar (boşsa temiz)
+  DTamam([DenetimHatasi])     // bulunan hatalar (boşsa temiz)
   DCozumHatasi(String)        // kaynak zaten çözümlenemedi
 }
 
@@ -30,7 +30,7 @@ fn denetimRaporu(kaynak: String, kutuphane: Bool) -> String {
       if hatalar.len() == 0 {
         return "tamam — hata yok"
       }
-      return hatalar.map(|h| "hata: " + h).join("\n")
+      return hatalar.map(|h| "hata: " + h.goster()).join("\n")
     }
   }
 }

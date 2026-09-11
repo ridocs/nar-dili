@@ -28,18 +28,24 @@ fn konumsuz() -> Konum = Konum { satir: 0, sutun: 0 }
 
 // --- tip yazımı -----------------------------------------------------------
 
+// Konumuyla birlikte bir tip yazımı.
+struct TipD {
+  konum: Konum
+  ic: TipIfadesi
+}
+
 enum TipIfadesi {
-  TAd(String, [TipIfadesi])              // Int, Kutu<Int>
-  TListe(TipIfadesi)                     // [Int]
-  TEsleme(TipIfadesi, TipIfadesi)        // {String: Int}
-  TOpsiyonel(TipIfadesi)                 // Int?
-  TIslev([TipIfadesi], TipIfadesi?)      // (Int) -> Bool
+  TAd(String, [TipD])                    // Int, Kutu<Int>
+  TListe(TipD)                           // [Int]
+  TEsleme(TipD, TipD)                    // {String: Int}
+  TOpsiyonel(TipD)                       // Int?
+  TIslev([TipD], TipD?)                  // (Int) -> Bool
 }
 
 struct Parametre {
   konum: Konum
   ad: String
-  tip: TipIfadesi?
+  tip: TipD?
 }
 
 // --- ifadeler -------------------------------------------------------------
@@ -76,7 +82,7 @@ enum Ifade {
   IBen                                   // self
   IListe([IfadeD])
   IEsleme([IfadeCifti])
-  IStruct(String, [TipIfadesi], [AlanDegeri])
+  IStruct(String, [TipD], [AlanDegeri])
   ITekli(String, IfadeD)                 // -x, !x
   IIkili(String, IfadeD, IfadeD)
   IAralik(IfadeD, IfadeD, Bool)          // son dahil mi
@@ -84,7 +90,7 @@ enum Ifade {
   IDizin(IfadeD, IfadeD)
   IAlan(IfadeD, String, Bool)            // güvenli mi (?.)
   IAc(IfadeD)                            // x!
-  ILambda([Parametre], TipIfadesi?, Govde)
+  ILambda([Parametre], TipD?, Govde)
   IEger(IfadeD, IfadeD, IfadeD)          // değer üreten if; else zorunlu
   IBlok(Blok)                            // { deyimler...  son_ifade }
   IMatch(IfadeD, [Kol])
@@ -137,7 +143,7 @@ enum Yoksa {
 }
 
 enum Deyim {
-  SLet(String, TipIfadesi?, IfadeD?, Bool)  // ad, tip, değer, değişebilir mi
+  SLet(String, TipD?, IfadeD?, Bool)        // ad, tip, değer, değişebilir mi
   SAtama(String, IfadeD, IfadeD)            // işleç, hedef, değer
   SIfade(IfadeD)
   SDonus(IfadeD?)
@@ -162,21 +168,21 @@ struct IslevBildirimi {
   tipParametreleri: [String]
   tipSinirlari: [TipSiniri]
   parametreler: [Parametre]
-  donusTipi: TipIfadesi?
+  donusTipi: TipD?
   govde: Blok?                           // arayüz metotlarında yok
 }
 
 struct AlanBildirimi {
   konum: Konum
   ad: String
-  tip: TipIfadesi
+  tip: TipD
   degisebilir: Bool
 }
 
 struct VaryantBildirimi {
   konum: Konum
   ad: String
-  yuk: [TipIfadesi]
+  yuk: [TipD]
 }
 
 struct OgeD {
@@ -186,7 +192,7 @@ struct OgeD {
 
 enum Oge {
   OImport(String)
-  OTypeAlias(String, TipIfadesi)
+  OTypeAlias(String, TipD)
   OIslev(IslevBildirimi)
   OStruct(String, [String], [String], [AlanBildirimi], [IslevBildirimi])
   OEnum(String, [String], [String], [VaryantBildirimi], [IslevBildirimi])
@@ -305,7 +311,9 @@ fn ondalikMetni(ham: String) -> String {
 
 // --- tip yazımı -----------------------------------------------------------
 
-fn yazTip(t: TipIfadesi) -> String = match t {
+fn yazTip(t: TipD) -> String = konumla(yazTipGovdesi(t.ic), t.konum)
+
+fn yazTipGovdesi(t: TipIfadesi) -> String = match t {
   TAd(ad, args) -> if args.len() == 0 {
     dugum("tad", [tirnakla(ad)])
   } else {
@@ -317,7 +325,7 @@ fn yazTip(t: TipIfadesi) -> String = match t {
   TIslev(p, r) -> dugum("tislev", [dizi(p.map(|x| yazTip(x))), yazTipOps(r)])
 }
 
-fn yazTipOps(t: TipIfadesi?) -> String {
+fn yazTipOps(t: TipD?) -> String {
   if t == none {
     return "-"
   }

@@ -12,7 +12,7 @@ Bu yüzden karşılaştırma iki yönlü çalışır:
   - Nar'ın bulduğu her hata Python'da da bulunmalı (yanlış alarm yok).
   - Bildirim düzeyindeki örneklerde iki taraf birebir aynı listeyi vermeli.
 
-Konum bilgisi AST'de henüz yok, bu yüzden yalnızca mesajlar karşılaştırılır.
+Karşılaştırma mesajı da konumu da (satır, sütun) kapsar.
 """
 
 from __future__ import annotations
@@ -37,8 +37,8 @@ NODE = shutil.which("node")
 DENETLEYICI = KOK / "derleyici" / "denetle.nar"
 
 
-def python_hatalari(kaynak: str, kutuphane: bool = False) -> list[str]:
-    """Python denetleyicisinin bulduğu hata mesajları (sırayla)."""
+def python_hatalari(kaynak: str, kutuphane: bool = False) -> list[dict]:
+    """Python denetleyicisinin bulduğu hatalar: mesaj ve konum (sırayla)."""
     module = parse(kaynak, "t.nar")
     checker = Checker(module, kaynak, kutuphane=kutuphane)
     try:
@@ -46,8 +46,11 @@ def python_hatalari(kaynak: str, kutuphane: bool = False) -> list[str]:
     except NarError as err:
         hatalar = getattr(err, "errors", None)
         if hatalar is None:
-            return [err.message]
-        return [h.message for h in hatalar]
+            hatalar = [err]
+        return [
+            {"mesaj": h.message, "satir": h.span.line, "sutun": h.span.col}
+            for h in hatalar
+        ]
     return []
 
 
@@ -62,7 +65,8 @@ def nar_hatalari(betik: Path, kaynaklar: list[str], kutuphane: bool) -> list:
         "  const cikti = girdi.map((k) => {\n"
         f"    const c = Nar.kaynagiDenetle(k, {str(kutuphane).lower()});\n"
         "    if (c.$tag !== 'DTamam') return {cozumHatasi: c.$values[0]};\n"
-        "    return {hatalar: c.$values[0]};\n"
+        "    return {hatalar: c.$values[0].map(\n"
+        "      (h) => ({mesaj: h.mesaj, satir: h.satir, sutun: h.sutun}))};\n"
         "  });\n"
         "  process.stdout.write(JSON.stringify(cikti));\n"
         "});\n"
@@ -100,8 +104,8 @@ BILDIRIM_HATALARI = (
 )
 
 
-def bildirim_hatasi_mi(mesaj: str) -> bool:
-    return any(p in mesaj for p in BILDIRIM_HATALARI)
+def bildirim_hatasi_mi(h: dict) -> bool:
+    return any(p in h["mesaj"] for p in BILDIRIM_HATALARI)
 
 
 @unittest.skipIf(NODE is None, "node bulunamadı")
@@ -125,8 +129,8 @@ class NarDenetleyiciTesti(unittest.TestCase):
                 self.assertNotIn("cozumHatasi", sonuc,
                                  f"{ad}: Nar çözümleyici kaynağı okuyamadı")
                 alinan = sonuc["hatalar"]
-                beklenen = [m for m in python_hatalari(kaynak, kutuphane)
-                            if bildirim_hatasi_mi(m)]
+                beklenen = [h for h in python_hatalari(kaynak, kutuphane)
+                            if bildirim_hatasi_mi(h)]
                 self.assertEqual(alinan, beklenen, f"{ad}: hata listeleri ayrışıyor")
 
     def test_dogru_programlarda_hata_yok(self):
@@ -214,8 +218,14 @@ class NarDenetleyiciTesti(unittest.TestCase):
         for yol, kaynak, sonuc in zip(dosyalar, kaynaklar, sonuclar):
             with self.subTest(dosya=yol.name):
                 self.assertNotIn("cozumHatasi", sonuc)
-                python_kumesi = set(python_hatalari(kaynak, True))
-                uydurulan = [m for m in sonuc["hatalar"] if m not in python_kumesi]
+                python_kumesi = {
+                    (h["mesaj"], h["satir"], h["sutun"])
+                    for h in python_hatalari(kaynak, True)
+                }
+                uydurulan = [
+                    h for h in sonuc["hatalar"]
+                    if (h["mesaj"], h["satir"], h["sutun"]) not in python_kumesi
+                ]
                 self.assertEqual(
                     uydurulan, [],
                     f"{yol.name}: Python'un görmediği hata(lar) bildirildi",

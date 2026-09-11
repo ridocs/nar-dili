@@ -7,7 +7,7 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 
 ## Son güncelleme
 
-**2026-09-11 05:00** — AST artık konum taşıyor ve konumlar iki çözümleyicide birebir aynı. Sırada denetleyicinin gövde aşaması.
+**2026-09-11 05:30** — Denetleyici hataları artık konumlu ve konumlar Python'unkiyle birebir aynı. Sırada gövde denetimi.
 
 ## Şu ana kadar biten
 
@@ -43,10 +43,11 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 | v0.8 | **Blok ifadesi**: if/match dallarında birden çok satır | ✅ |
 | v0.8 | **Self-hosting adım 4a**: denetleyicinin bildirim aşaması | ✅ |
 | v0.8 | **Konum bilgisi**: AST satır/sütun taşıyor, konumlar da doğrulanıyor | ✅ |
+| v0.8 | Denetleyici hataları konumlu; mesaj+satır+sütun karşılaştırılıyor | ✅ |
 | v0.6 | **Mobil hedef**: nar build --target mobil (Capacitor projesi) | ⚠️ cihazda denenmedi |
 
 **Testler:** 247, hepsi geçiyor · `python -m unittest discover -s testler`
-**Son commit:** `1b2a6aa` (bir sonraki: konum bilgisi)
+**Son commit:** `eb48958` (bir sonraki: tip konumları + konumlu hatalar)
 **Nar ile yazılan kod:** ~7000 satır (`araclar/`, `derleyici/`, `ornekler/`, `testler/nar/`)
 
 ## Sırada (öncelik sırasıyla)

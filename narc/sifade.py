@@ -79,6 +79,10 @@ def sayi_metni(deger) -> str:
 def tip(t) -> str:
     if t is None:
         return "-"
+    return konumla(_tip(t), getattr(t, "span", None))
+
+
+def _tip(t) -> str:
     if isinstance(t, A.NamedType):
         if t.args:
             return dugum("tad", kacir(t.name), liste(tip(a) for a in t.args))
