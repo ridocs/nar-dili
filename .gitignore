@@ -5,6 +5,8 @@ cikti/
 *.html
 !narc/runtime/*.js
 !testler/*.js
+# IDE'nin arayuzu uretilmis degil, kaynak: yok sayilmamali.
+!ide/arayuz.html
 
 # Yayına giden site. GitHub Pages bu klasörü sunuyor, o yüzden üretilmiş
 # hâli depoda durur: `python site/uret.py --cikti docs/index.html`
