@@ -7,7 +7,7 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 
 ## Son güncelleme
 
-**2026-09-11 03:40** — Blok ifadesi dile eklendi. Sırada tip denetleyicinin kendisi (`narc/checker.py`, 2100+ satır).
+**2026-09-11 04:20** — Denetleyicinin bildirim aşaması Nar'a taşındı. Sırada gövde denetimi (ifadeler ve deyimler).
 
 ## Şu ana kadar biten
 
@@ -41,11 +41,12 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
 | v0.7 | S-ifadesi karşılaştırması (ast.nar + narc/sifade.py) | ✅ |
 | v0.7 | **Self-hosting adım 3**: tip sistemi Nar diliyle (tipler.nar) | ✅ |
 | v0.8 | **Blok ifadesi**: if/match dallarında birden çok satır | ✅ |
+| v0.8 | **Self-hosting adım 4a**: denetleyicinin bildirim aşaması | ✅ |
 | v0.6 | **Mobil hedef**: nar build --target mobil (Capacitor projesi) | ⚠️ cihazda denenmedi |
 
-**Testler:** 242, hepsi geçiyor · `python -m unittest discover -s testler`
-**Son commit:** `2619ffa` (bir sonraki: blok ifadesi)
-**Nar ile yazılan kod:** ~5900 satır (`araclar/`, `derleyici/`, `ornekler/`, `testler/nar/`)
+**Testler:** 246, hepsi geçiyor · `python -m unittest discover -s testler`
+**Son commit:** `3a71340` (bir sonraki: denetleyicinin bildirim aşaması)
+**Nar ile yazılan kod:** ~6500 satır (`araclar/`, `derleyici/`, `ornekler/`, `testler/nar/`)
 
 ## Sırada (öncelik sırasıyla)
 
@@ -68,12 +69,21 @@ kesilirse buradan devam edilir. Her önemli adımdan sonra güncellenir.
       taraf aynı 40 tipi kurar; atanabilirlik, ortak tip ve birleştirme
       40×40 çift üzerinde karşılaştırılır (1600 çift × 3 işlem), ayrıca
       yazım, tembel alan çözümü ve tip değişkeni arama.
-- [ ] **6b. Tip denetleyici** — sıradaki en büyük parça (`narc/checker.py`,
-      2100+ satır). Doğrulama yöntemi: iki denetleyicinin ürettiği hata
-      listelerini karşılaştır (mesaj + satır + sütun). Hatasız dosyalarda
-      ise "ikisi de hata bulmadı" yeterli.
-      Tavsiye: parça parça git — önce ifadeler, sonra deyimler, sonra
-      bildirimler. Her parçadan sonra karşılaştırmayı çalıştır.
+- [x] ~~**6b-1. Denetleyici: bildirim aşaması**~~ —
+      `derleyici/denetleyici.nar` + `derleyici/denetle.nar`. Kapsanan:
+      struct/enum/arayüz/takma ad toplama, tip ifadelerinin çözümlenmesi,
+      fonksiyon imzaları, üstlenilen arayüzlerin doğrulanması, `main`
+      denetimi. 37 örnekte iki taraf birebir aynı hata listesini üretiyor.
+- [ ] **6b-2. Denetleyici: gövde denetimi** — ifadeler ve deyimler.
+      En büyük parça. Sıra önerisi: ifadeler (literal → ad → ikili işleç →
+      çağrı → alan erişimi), sonra deyimler, sonra akış çözümlemesi
+      (dönüş yolu, match tamlığı, akış daraltma).
+- [ ] **6b-3. Konum bilgisi** — AST şu an satır/sütun taşımıyor, bu yüzden
+      Nar denetleyicisinin hataları konumsuz. Çözüm: `Ifade` ve `Deyim`
+      için sarmalayıcı (`struct IfadeD { konum: Konum  ic: Ifade }`).
+      S-ifadesi yazıcı konumu **yazmaz**, böylece mevcut karşılaştırma
+      testleri değişmeden geçer; ayrı bir "konumlu" mod konumları da
+      doğrular.
 - [ ] **7. IDE'yi arayüz kütüphanesiyle yeniden yaz** — IDE şu an DOM'a elle
       çiziyor; `Gorunum` ağacına taşınırsa hem kütüphane gerçek bir yükte
       denenmiş olur hem de IDE kodu kısalır.

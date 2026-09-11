@@ -1,0 +1,588 @@
+// Nar tip denetleyici — **Nar diliyle** yazılmıştır.
+//
+// Python'daki `narc/checker.py` ile aynı kuralları uygular. Doğruluğunun
+// ölçüsü şu: aynı kaynak için aynı hata mesajlarını aynı sırayla üretmek
+// (`testler/test_nar_denetleyici.py` karşılaştırır).
+//
+// **Bu dosya aşamalı yazılıyor.** Şu an kapsanan: bildirimlerin toplanması
+// (struct, enum, arayüz, tip takma adı, fonksiyon imzaları), tip
+// ifadelerinin çözümlenmesi, üstlenilen arayüzlerin doğrulanması ve `main`
+// denetimi. Gövde denetimi (ifadeler, deyimler) henüz yok; o yüzden
+// karşılaştırma yalnızca bu aşamanın ürettiği hatalar üzerinde yapılır.
+//
+// Konum bilgisi: AST henüz satır/sütun taşımıyor, bu yüzden hatalar
+// yalnızca mesajdan ibaret. Konum altyapısı ayrı bir adım.
+//
+// Kütüphanedir: `main` içermez.
+
+import "ast.nar"
+import "tipler.nar"
+
+// --- ortam ----------------------------------------------------------------
+
+struct Bag {
+  ad: String
+  tip: Tip
+  degisebilir: Bool
+  tur: String              // "var" | "fn" | "param"
+}
+
+struct Kapsam {
+  var baglar: [Bag]
+  ust: Kapsam?
+
+  fn tanimla(ad: String, tip: Tip, degisebilir: Bool, tur: String) {
+    self.baglar.push(Bag { ad: ad, tip: tip, degisebilir: degisebilir, tur: tur })
+  }
+
+  fn ara(ad: String) -> Bag? {
+    var i = self.baglar.len() - 1
+    while i >= 0 {
+      if self.baglar[i].ad == ad {
+        return self.baglar[i]
+      }
+      i -= 1
+    }
+    if self.ust == none {
+      return none
+    }
+    return self.ust!.ara(ad)
+  }
+
+  fn alt() -> Kapsam = Kapsam { baglar: [], ust: self }
+}
+
+fn kokKapsam() -> Kapsam = Kapsam { baglar: [], ust: none }
+
+// --- yerleşikler ----------------------------------------------------------
+
+let YERLESIK_ADLAR = [
+  "print", "str", "len", "int", "float", "abs", "min", "max", "sqrt",
+  "pow", "floor", "ceil", "round", "random", "panic", "assert",
+  "bul", "bulHepsi", "olustur", "govde", "zamanla", "istek",
+  "dosyaOku", "dosyaYaz", "dosyaEkle", "dosyaVarMi", "dosyaSil",
+  "klasorListele", "satirOku", "tumGirdi", "argumanlar", "cik",
+  "simdi", "zamanMetni", "koddan"
+]
+
+// --- denetleyici ----------------------------------------------------------
+
+struct AdStruct {
+  ad: String
+  tip: StructTipi
+}
+
+struct AdEnum {
+  ad: String
+  tip: EnumTipi
+}
+
+struct AdArayuz {
+  ad: String
+  tip: ArayuzTipi
+}
+
+struct AdListe {
+  ad: String
+  var ogeler: [String]
+}
+
+struct Denetleyici {
+  modul: Modul
+  kutuphane: Bool
+
+  var hatalar: [String]
+
+  var structlar: [AdStruct]
+  var enumlar: [AdEnum]
+  var arayuzler: [AdArayuz]
+  var takmaAdlar: [AdTip]
+  var islevler: [AdTip]
+
+  // Kapsamdaki tip parametreleri (T, U…) ve arayüz sınırlamaları.
+  var tipDegiskenleri: [AdTip]
+  var tipSinirlari: [AdListe]
+
+  // Varyant adı -> onu tanımlayan enum adları.
+  var varyantSahipleri: [AdListe]
+
+  var evrensel: Kapsam
+
+  // --- hata -------------------------------------------------------------
+
+  fn hata(mesaj: String) {
+    self.hatalar.push(mesaj)
+  }
+
+  // --- arama ------------------------------------------------------------
+
+  fn structBul(ad: String) -> StructTipi? {
+    for s in self.structlar {
+      if s.ad == ad {
+        return s.tip
+      }
+    }
+    return none
+  }
+
+  fn enumBul(ad: String) -> EnumTipi? {
+    for e in self.enumlar {
+      if e.ad == ad {
+        return e.tip
+      }
+    }
+    return none
+  }
+
+  fn arayuzBul(ad: String) -> ArayuzTipi? {
+    for a in self.arayuzler {
+      if a.ad == ad {
+        return a.tip
+      }
+    }
+    return none
+  }
+
+  fn tipAdiVarMi(ad: String) -> Bool =
+    self.structBul(ad) != none || self.enumBul(ad) != none
+
+  fn islevVarMi(ad: String) -> Bool = adaGoreTip(self.islevler, ad) != none
+
+  // --- tip kapsamı ------------------------------------------------------
+
+  // Tip parametrelerini kapsama açar; önceki durumu döndürür.
+  fn tipKapsamiAc(params: [String], sinirlar: [TipSiniri]) -> [AdTip] {
+    let onceki = self.tipDegiskenleri
+    var yeni = self.tipDegiskenleri
+    for p in params {
+      yeni = yeni.filter(|d| d.ad != p)
+      yeni.push(AdTip { ad: p, tip: TipDegisken(p) })
+    }
+    self.tipDegiskenleri = yeni
+    for s in sinirlar {
+      self.tipSinirlari.push(AdListe { ad: s.ad, ogeler: s.arayuzler })
+    }
+    return onceki
+  }
+
+  fn tipKapsamiKapat(onceki: [AdTip]) {
+    self.tipDegiskenleri = onceki
+  }
+
+  // --- tip çözümleme ----------------------------------------------------
+
+  fn tipCoz(t: TipIfadesi?) -> Tip {
+    if t == none {
+      return VOID_TIPI
+    }
+    return match t! {
+      TAd(ad, args) -> self.adliTipCoz(ad, args)
+      TListe(e) -> TipListe(self.tipCoz(e))
+      TEsleme(k, v) -> self.eslemeTipiCoz(k, v)
+      TOpsiyonel(i) -> opsiyonelYap(self.tipCoz(i))
+      TIslev(p, r) -> TipIslev(p.map(|x| self.tipCoz(x)), self.tipCoz(r))
+    }
+  }
+
+  fn eslemeTipiCoz(k: TipIfadesi, v: TipIfadesi) -> Tip {
+    let anahtar = self.tipCoz(k)
+    if !eslemeAnahtariOlabilirMi(anahtar) {
+      self.hata("eşleme anahtarı '${tipMetni(anahtar)}' olamaz")
+    }
+    return TipEsleme(anahtar, self.tipCoz(v))
+  }
+
+  fn adliTipCoz(ad: String, args: [TipIfadesi]) -> Tip {
+    // Kapsamdaki tip parametresi her şeyden önce gelir.
+    let degisken = adaGoreTip(self.tipDegiskenleri, ad)
+    if degisken != none {
+      if args.len() > 0 {
+        self.hata("'${ad}' bir tip parametresi; tip argümanı alamaz")
+      }
+      return degisken!
+    }
+
+    if ilkelMi(ad) {
+      if args.len() > 0 {
+        self.hata("'${ad}' tip argümanı almaz")
+      }
+      return TipPrim(ad)
+    }
+
+    let arayuz = self.arayuzBul(ad)
+    if arayuz != none {
+      if args.len() > 0 {
+        self.hata("'${ad}' bir arayüz; tip argümanı almaz")
+      }
+      return TipArayuz(arayuz!)
+    }
+
+    let st = self.structBul(ad)
+    if st != none {
+      return self.genelTipiUygula(ad, st!.tipParametreleri, args, true)
+    }
+
+    let en = self.enumBul(ad)
+    if en != none {
+      return self.genelTipiUygula(ad, en!.tipParametreleri, args, false)
+    }
+
+    let takma = adaGoreTip(self.takmaAdlar, ad)
+    if takma != none {
+      if args.len() > 0 {
+        self.hata("'${ad}' bir tip takma adı; tip argümanı alamaz")
+      }
+      return takma!
+    }
+
+    self.hata("bilinmeyen tip: '${ad}'")
+    return TipHerhangi
+  }
+
+  // `Kutu<Int>` gibi bir kullanımı çözer, sayı uyuşmazlığını bildirir.
+  fn genelTipiUygula(ad: String, params: [String], args: [TipIfadesi],
+                     structMu: Bool) -> Tip {
+    let cozulmus = args.map(|a| self.tipCoz(a))
+
+    if params.len() == 0 {
+      if cozulmus.len() > 0 {
+        self.hata("'${ad}' tip argümanı almaz")
+      }
+      if structMu {
+        return TipStruct(self.structBul(ad)!)
+      }
+      return TipEnum(self.enumBul(ad)!)
+    }
+
+    if cozulmus.len() == 0 {
+      // `Kutu` yalın yazıldıysa şablon hâli döner; çıkarım çağrı yerinde olur.
+      if structMu {
+        return TipStruct(self.structBul(ad)!)
+      }
+      return TipEnum(self.enumBul(ad)!)
+    }
+
+    if cozulmus.len() != params.len() {
+      self.hata("'${ad}' ${params.len()} tip argümanı bekler, " +
+                "${cozulmus.len()} verildi")
+      if structMu {
+        return TipStruct(self.structBul(ad)!)
+      }
+      return TipEnum(self.enumBul(ad)!)
+    }
+
+    if structMu {
+      return TipStruct(structUygula(self.structBul(ad)!, cozulmus))
+    }
+    return TipEnum(enumUygula(self.enumBul(ad)!, cozulmus))
+  }
+
+  // --- imzalar ----------------------------------------------------------
+
+  fn imzaCoz(f: IslevBildirimi) -> Tip {
+    let onceki = self.tipKapsamiAc(f.tipParametreleri, f.tipSinirlari)
+    var params: [Tip] = []
+    var gorulen: [String] = []
+    for p in f.parametreler {
+      if gorulen.contains(p.ad) {
+        self.hata("'${p.ad}' parametresi yinelendi")
+      }
+      gorulen.push(p.ad)
+      params.push(self.tipCoz(p.tip))
+    }
+    let donus = self.tipCoz(f.donusTipi)
+    self.tipKapsamiKapat(onceki)
+    return TipIslev(params, donus)
+  }
+
+  // --- bildirimleri topla -----------------------------------------------
+
+  fn topla() {
+    self.tipAdlariniTopla()
+    self.arayuzleriTopla()
+    self.takmaAdlariTopla()
+    self.govdeleriTopla()
+    self.varyantIndeksiKur()
+    self.islevleriTopla()
+    self.arayuzUyumunuDogrula()
+    self.mainDenetle()
+  }
+
+  // a) tip adlarını (içleri boş) kaydet — karşılıklı başvuru için
+  fn tipAdlariniTopla() {
+    for o in self.modul.ogeler {
+      match o {
+        OStruct(ad, tparams, arayuzler, _, _) -> {
+          if self.tipAdiVarMi(ad) {
+            self.hata("'${ad}' tipi zaten tanımlı")
+          }
+          self.structlar.push(AdStruct { ad: ad, tip: StructTipi {
+              ad: ad,
+              arayuzler: arayuzler,
+              hamAlanlar: [],
+              degisebilirAlanlar: [],
+              hamMetotlar: [],
+              tipParametreleri: tparams,
+              tipArgumanlari: [],
+              sablon: none,
+              cozulmusAlanlar: none,
+              cozulmusMetotlar: none
+            } })
+        }
+        OEnum(ad, tparams, arayuzler, _, _) -> {
+          if self.tipAdiVarMi(ad) {
+            self.hata("'${ad}' tipi zaten tanımlı")
+          }
+          self.enumlar.push(AdEnum { ad: ad, tip: EnumTipi {
+              ad: ad,
+              arayuzler: arayuzler,
+              hamVaryantlar: [],
+              hamMetotlar: [],
+              tipParametreleri: tparams,
+              tipArgumanlari: [],
+              sablon: none,
+              cozulmusVaryantlar: none,
+              cozulmusMetotlar: none
+            } })
+        }
+        _ -> {}
+      }
+    }
+  }
+
+  fn arayuzleriTopla() {
+    for o in self.modul.ogeler {
+      match o {
+        OArayuz(ad, _) -> {
+          if self.tipAdiVarMi(ad) || self.arayuzBul(ad) != none {
+            self.hata("'${ad}' tipi zaten tanımlı")
+          }
+          self.arayuzler.push(AdArayuz { ad: ad, tip: ArayuzTipi {
+              ad: ad, metotlar: []
+            } })
+        }
+        _ -> {}
+      }
+    }
+
+    for o in self.modul.ogeler {
+      match o {
+        OArayuz(ad, metotlar) -> {
+          let a = self.arayuzBul(ad)
+          if a != none {
+            for m in metotlar {
+              if adaGoreTip(a!.metotlar, m.ad) != none {
+                self.hata("'${ad}' içinde '${m.ad}' metodu yinelendi")
+              }
+              a!.metotlar.push(AdTip { ad: m.ad, tip: self.imzaCoz(m) })
+            }
+          }
+        }
+        _ -> {}
+      }
+    }
+  }
+
+  fn takmaAdlariTopla() {
+    for o in self.modul.ogeler {
+      match o {
+        OTypeAlias(ad, hedef) -> {
+          if self.tipAdiVarMi(ad) {
+            self.hata("'${ad}' tipi zaten tanımlı")
+          }
+          self.takmaAdlar.push(AdTip { ad: ad, tip: self.tipCoz(hedef) })
+        }
+        _ -> {}
+      }
+    }
+  }
+
+  // c) alanlar, varyantlar ve metot imzaları
+  fn govdeleriTopla() {
+    for o in self.modul.ogeler {
+      match o {
+        OStruct(ad, tparams, _, alanlar, metotlar) ->
+        self.structGovdesiniTopla(ad, tparams, alanlar, metotlar)
+        OEnum(ad, tparams, _, varyantlar, metotlar) ->
+        self.enumGovdesiniTopla(ad, tparams, varyantlar, metotlar)
+        _ -> {}
+      }
+    }
+  }
+
+  fn structGovdesiniTopla(ad: String, tparams: [String],
+                          alanlar: [AlanBildirimi], metotlar: [IslevBildirimi]) {
+    let st = self.structBul(ad)
+    if st == none {
+      return
+    }
+    let s = st!
+    let onceki = self.tipKapsamiAc(tparams, [])
+    for f in alanlar {
+      if adaGoreTip(s.hamAlanlar, f.ad) != none {
+        self.hata("'${ad}' içinde '${f.ad}' alanı yinelendi")
+      }
+      s.hamAlanlar.push(AdTip { ad: f.ad, tip: self.tipCoz(f.tip) })
+      if f.degisebilir {
+        s.degisebilirAlanlar.push(f.ad)
+      }
+    }
+    for m in metotlar {
+      s.hamMetotlar.push(AdTip { ad: m.ad, tip: self.imzaCoz(m) })
+      if adaGoreTip(s.hamAlanlar, m.ad) != none {
+        self.hata("'${m.ad}' hem alan hem metot olamaz")
+      }
+    }
+    self.tipKapsamiKapat(onceki)
+  }
+
+  fn enumGovdesiniTopla(ad: String, tparams: [String],
+                        varyantlar: [VaryantBildirimi],
+                        metotlar: [IslevBildirimi]) {
+    let et = self.enumBul(ad)
+    if et == none {
+      return
+    }
+    let e = et!
+    let onceki = self.tipKapsamiAc(tparams, [])
+    for v in varyantlar {
+      if e.varyant(v.ad) != none {
+        self.hata("'${ad}' içinde '${v.ad}' varyantı yinelendi")
+      }
+      e.hamVaryantlar.push(AdYuk {
+        ad: v.ad, yuk: v.yuk.map(|t| self.tipCoz(t))
+      })
+    }
+    for m in metotlar {
+      e.hamMetotlar.push(AdTip { ad: m.ad, tip: self.imzaCoz(m) })
+    }
+    self.tipKapsamiKapat(onceki)
+  }
+
+  fn varyantIndeksiKur() {
+    for e in self.enumlar {
+      for v in e.tip.varyantlar() {
+        var bulundu = false
+        for kayit in self.varyantSahipleri {
+          if kayit.ad == v.ad {
+            kayit.ogeler.push(e.ad)
+            bulundu = true
+          }
+        }
+        if !bulundu {
+          self.varyantSahipleri.push(AdListe { ad: v.ad, ogeler: [e.ad] })
+        }
+      }
+    }
+  }
+
+  fn islevleriTopla() {
+    for o in self.modul.ogeler {
+      match o {
+        OIslev(f) -> {
+          if YERLESIK_ADLAR.contains(f.ad) {
+            self.hata("'${f.ad}' yerleşik bir fonksiyon; yeniden tanımlanamaz")
+          }
+          if self.islevVarMi(f.ad) {
+            self.hata("'${f.ad}' fonksiyonu zaten tanımlı")
+          }
+          let imza = self.imzaCoz(f)
+          self.islevler.push(AdTip { ad: f.ad, tip: imza })
+          self.evrensel.tanimla(f.ad, imza, false, "fn")
+        }
+        _ -> {}
+      }
+    }
+  }
+
+  // f) üstlenilen arayüzler gerçekten uygulanmış mı?
+  fn arayuzUyumunuDogrula() {
+    for o in self.modul.ogeler {
+      match o {
+        OStruct(ad, _, arayuzler, _, _) -> {
+          let s = self.structBul(ad)
+          if s != none {
+            self.uyumuDogrula(ad, arayuzler, s!.metotlar())
+          }
+        }
+        OEnum(ad, _, arayuzler, _, _) -> {
+          let e = self.enumBul(ad)
+          if e != none {
+            self.uyumuDogrula(ad, arayuzler, e!.metotlar())
+          }
+        }
+        _ -> {}
+      }
+    }
+  }
+
+  fn uyumuDogrula(ad: String, arayuzler: [String], metotlar: [AdTip]) {
+    for arayuzAdi in arayuzler {
+      let a = self.arayuzBul(arayuzAdi)
+      if a == none {
+        self.hata("bilinmeyen arayüz: '${arayuzAdi}'")
+        continue
+      }
+      for beklenen in a!.metotlar {
+        let mevcut = adaGoreTip(metotlar, beklenen.ad)
+        if mevcut == none {
+          self.hata("'${ad}', '${arayuzAdi}' arayüzünü üstleniyor ama " +
+                    "'${beklenen.ad}' metodu yok")
+          continue
+        }
+        if !tipEsit(mevcut!, beklenen.tip) {
+          self.hata("'${ad}.${beklenen.ad}' imzası arayüzle uyuşmuyor: " +
+                    "'${tipMetni(beklenen.tip)}' bekleniyordu, " +
+                    "'${tipMetni(mevcut!)}' bulundu")
+        }
+      }
+    }
+  }
+
+  fn mainDenetle() {
+    let main = adaGoreTip(self.islevler, "main")
+    if main == none {
+      if !self.kutuphane {
+        self.hata("programda 'main' fonksiyonu yok")
+      }
+      return
+    }
+    match main! {
+      TipIslev(params, _) -> {
+        if params.len() > 0 {
+          self.hata("'main' parametre almamalı")
+        }
+      }
+      _ -> {}
+    }
+  }
+}
+
+fn eslemeAnahtariOlabilirMi(t: Tip) -> Bool = match t {
+  TipPrim(ad) -> ad == "Int" || ad == "Float" || ad == "Bool" || ad == "String"
+  _ -> false
+}
+
+// --- dışa açılan giriş noktası --------------------------------------------
+
+fn denetleyiciKur(m: Modul, kutuphane: Bool) -> Denetleyici = Denetleyici {
+  modul: m,
+  kutuphane: kutuphane,
+  hatalar: [],
+  structlar: [],
+  enumlar: [],
+  arayuzler: [],
+  takmaAdlar: [],
+  islevler: [],
+  tipDegiskenleri: [],
+  tipSinirlari: [],
+  varyantSahipleri: [],
+  evrensel: kokKapsam()
+}
+
+// Bildirimleri toplar ve bulunan hataları döndürür.
+fn bildirimleriDenetle(m: Modul, kutuphane: Bool) -> [String] {
+  let d = denetleyiciKur(m, kutuphane)
+  d.topla()
+  return d.hatalar
+}

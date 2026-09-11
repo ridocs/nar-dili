@@ -1,0 +1,36 @@
+// Nar ile yazılmış derleyici parçalarının giriş noktası.
+//
+// Kaynak metinden başlayıp sözcüksel çözümleme, sözdizim çözümleme ve
+// (şimdilik bildirim aşamasıyla sınırlı) tip denetimini zincirler.
+//
+// Kütüphane olarak derlenir:
+//     nar build derleyici/denetle.nar --kutuphane -o cikti/nar-denetle.js
+
+import "parser.nar"
+import "denetleyici.nar"
+
+enum DenetimSonucu {
+  DTamam([String])            // bulunan hatalar (boşsa temiz)
+  DCozumHatasi(String)        // kaynak zaten çözümlenemedi
+}
+
+// Kaynağı baştan sona işler.
+fn kaynagiDenetle(kaynak: String, kutuphane: Bool) -> DenetimSonucu {
+  match cozumle(kaynak) {
+    CHata(h) -> return DCozumHatasi(h.goster())
+    CTamam(m) -> return DTamam(bildirimleriDenetle(m, kutuphane))
+  }
+}
+
+// Hataları düz metin olarak verir; komut satırından kullanmak için.
+fn denetimRaporu(kaynak: String, kutuphane: Bool) -> String {
+  match kaynagiDenetle(kaynak, kutuphane) {
+    DCozumHatasi(mesaj) -> return "çözümleme hatası: " + mesaj
+    DTamam(hatalar) -> {
+      if hatalar.len() == 0 {
+        return "tamam — hata yok"
+      }
+      return hatalar.map(|h| "hata: " + h).join("\n")
+    }
+  }
+}

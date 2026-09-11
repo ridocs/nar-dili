@@ -85,7 +85,7 @@ fn ornekTipler() -> [Tip] {
     ONDALIK,                                         // 1
     MANTIK,                                          // 2
     METIN,                                           // 3
-    BOSLUK,                                          // 4
+    VOID_TIPI,                                          // 4
     OGE,                                             // 5
     OLAY_TIPI,                                       // 6
     TipYok,                                          // 7
@@ -99,10 +99,10 @@ fn ornekTipler() -> [Tip] {
     TipOpsiyonel(TAM),                               // 15
     TipOpsiyonel(METIN),                             // 16
     TipOpsiyonel(TipListe(TAM)),                     // 17
-    TipIslev([], BOSLUK),                            // 18
+    TipIslev([], VOID_TIPI),                            // 18
     TipIslev([TAM], MANTIK),                         // 19
-    TipIslev([TAM, METIN], BOSLUK),                  // 20
-    TipIslev([OLAY_TIPI], BOSLUK),                   // 21
+    TipIslev([TAM, METIN], VOID_TIPI),                  // 20
+    TipIslev([OLAY_TIPI], VOID_TIPI),                   // 21
     TipIslev([], TAM),                               // 22
     TipAralik(TAM),                                  // 23
     TipDegisken("T"),                                // 24

@@ -165,7 +165,7 @@ let TAM = TipPrim("Int")
 let ONDALIK = TipPrim("Float")
 let MANTIK = TipPrim("Bool")
 let METIN = TipPrim("String")
-let BOSLUK = TipPrim("Void")
+let VOID_TIPI = TipPrim("Void")
 let OGE = TipPrim("Element")
 let OLAY_TIPI = TipPrim("Olay")
 
