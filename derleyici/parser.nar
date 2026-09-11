@@ -906,6 +906,11 @@ struct Cozumleyici {
         e = self.ifadeD(k, IDizin(e, dizin))
         continue
       }
+      if tur == "?" {
+        self.ilerle()
+        e = self.ifadeD(k, ISoru(e))
+        continue
+      }
       if tur == "!" {
         self.ilerle()
         e = self.ifadeD(k, IAc(e))

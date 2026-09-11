@@ -659,6 +659,10 @@ class Parser:
                 self.expect("]", "']'")
                 expr = A.Index(tok.span, expr, index)
 
+            elif tok.kind == "?":
+                self.advance()
+                expr = A.Propagate(tok.span, expr)
+
             elif tok.kind == "!":
                 self.advance()
                 expr = A.Unwrap(tok.span, expr)

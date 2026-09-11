@@ -1480,6 +1480,51 @@ fn main() {
                        "değişkene almak gerekmez.",
             },
             {
+                "id": "soru-operatoru",
+                "baslik": "? — gelmediyse ben de gelmedim",
+                "aciklama": """
+Olmayabilen değerlerle çalışan kodun büyük kısmı aynı cümledir:
+<em>gelmediyse ben de gelmedim</em>. <code>?</code> tam bunu yazar —
+değer <code>none</code> ise fonksiyondan hemen <code>none</code> döner,
+değilse açılmış değeri verir.
+<p>Bu olmadan her adım dört satırdı:</p>
+<pre class="komut"><code>let satir = satirlar.first()
+if satir == none {
+  return none
+}
+let sayi = int(satir!.trim())
+if sayi == none {
+  return none
+}
+return sayi</code></pre>
+<p><code>?</code> fonksiyondan <strong>erken çıkar</strong>, bu yüzden iki
+koşulu var: değerin opsiyonel olması ve bulunduğu fonksiyonun opsiyonel
+döndürmesi. İkisi de sağlanmıyorsa derleyici söyler.</p>
+<p>Erken çıkışın konabileceği bir yer olmayan yerlerde <code>?</code>
+kullanılamaz: <code>??</code>, <code>&amp;&amp;</code> ve <code>||</code> işleçlerinin
+sağında, değer üreten <code>if</code>in dallarında, <code>match</code>
+kollarında, <code>while</code> koşulunda ve tek ifadelik lambda gövdesinde.
+Bu yerlerde sessizce yanlış çalışmak yerine açık bir hata alırsın;
+değeri önce bir değişkene al. Gövdeli lambdada serbesttir — orada <code>?</code>
+lambdadan çıkar.</p>
+""",
+                "kod": '''// Satırların ilkindeki sayıyı okur.
+// Herhangi bir adım tutmazsa sonuç none olur.
+fn ilkSayi(satirlar: [String]) -> Int? {
+  let satir = satirlar.first()?
+  return int(satir.trim())?
+}
+
+fn main() {
+  print(ilkSayi(["  42  ", "başka satır"]) ?? -1)
+  print(ilkSayi(["sayı değil"]) ?? -1)
+  print(ilkSayi([]) ?? -1)
+}''',
+                "not": "Değer bir kez hesaplanır: <code>f()?</code> çağrıyı iki "
+                       "kez yapmaz. Üretilen JavaScript de elle yazılmış gibi "
+                       "durur — geçici bir değişken ve bir <code>if</code>.",
+            },
+            {
                 "id": "guvenli-zincir",
                 "baslik": "Güvenli erişim: ?.",
                 "aciklama": """

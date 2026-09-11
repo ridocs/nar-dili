@@ -121,6 +121,25 @@ class Env:
         return Env(self)
 
 
+class _SoruYasagi:
+    """`?` yasağını bir kapsam boyunca açar, çıkışta eski hâline döndürür."""
+
+    def __init__(self, denetci: "Checker", neden: str) -> None:
+        self.denetci = denetci
+        self.neden = neden
+        self.onceki: str | None = None
+
+    def __enter__(self) -> "_SoruYasagi":
+        self.onceki = self.denetci.soru_yasak
+        # İçteki yasak dıştakini gölgelemesin: ilk neden daha anlamlı.
+        if self.onceki is None:
+            self.denetci.soru_yasak = self.neden
+        return self
+
+    def __exit__(self, *_) -> None:
+        self.denetci.soru_yasak = self.onceki
+
+
 class Checker:
     def __init__(self, module: A.Module, source: str = "", kutuphane: bool = False) -> None:
         self.module = module
@@ -144,6 +163,9 @@ class Checker:
         self.current_ret: Type = VOID
         self.self_type: Type | None = None
         self.loop_depth = 0
+        # `?` koşullu değerlendirilen bir yerdeyse burada nedeni durur;
+        # None ise kullanılabilir.
+        self.soru_yasak: str | None = None
         # Kapsamdaki tip parametreleri: `struct Kutu<T>` içindeyken {"T": T}
         self.tip_degiskenleri: dict[str, Type] = {}
 
@@ -505,7 +527,10 @@ class Checker:
             self.check_if(stmt, env)
 
         elif isinstance(stmt, A.While):
-            cond = self.check_expr(stmt.cond, env, BOOL)
+            # Koşul her turda yeniden değerlendirilir; erken çıkış ise
+            # döngüden önce bir kez konurdu.
+            with self.yasakta("while koşulunda"):
+                cond = self.check_expr(stmt.cond, env, BOOL)
             self.expect_bool(cond, stmt.cond.span, "while koşulu")
             self.loop_depth += 1
             body_env = env.child()
@@ -976,6 +1001,9 @@ class Checker:
                 self.error("aralık sınırları 'Int' olmalı", node.span)
             return RangeT(INT)
 
+        if isinstance(node, A.Propagate):
+            return self.check_propagate(node, env)
+
         if isinstance(node, A.Unwrap):
             inner = self.check_expr(node.operand, env)
             if isinstance(inner, OptT):
@@ -1237,7 +1265,10 @@ class Checker:
                 inner = left
             else:
                 inner = unwrap_optional(left)
-            right = self.check_expr(node.right, env, inner if not isinstance(inner, NoneT) else expected)
+            with self.yasakta("'??' işlecinin sağında"):
+                right = self.check_expr(
+                    node.right, env,
+                    inner if not isinstance(inner, NoneT) else expected)
             merged = common_type(inner, right)
             if merged is None:
                 self.error(
@@ -1253,7 +1284,8 @@ class Checker:
             right_env = env.child()
             if node.op == "&&":
                 self.apply_narrowing(node.left, right_env, True)
-            right = self.check_expr(node.right, right_env, BOOL)
+            with self.yasakta(f"'{node.op}' işlecinin sağında"):
+                right = self.check_expr(node.right, right_env, BOOL)
             self.expect_bool(right, node.right.span, f"'{node.op}' sağı")
             return BOOL
 
@@ -1315,6 +1347,42 @@ class Checker:
 
         self.error(f"bilinmeyen operatör: '{op}'", span)  # pragma: no cover
         return ANY
+
+    def check_propagate(self, node: A.Propagate, env: Env) -> Type:
+        """`ifade?` — none ise fonksiyondan none döner, değilse değeri açar."""
+        if self.soru_yasak is not None:
+            self.error(
+                f"'?' {self.soru_yasak} kullanılamaz",
+                node.span,
+                hint="değeri önce bir değişkene al: let x = ...?",
+            )
+
+        inner = self.check_expr(node.operand, env)
+        if isinstance(inner, OptT):
+            ic = inner.inner
+        elif isinstance(inner, (AnyT, NoneT)):
+            ic = ANY
+        else:
+            self.error(
+                f"'?' opsiyonel bir değer bekler, '{inner}' bulundu",
+                node.operand.span,
+                hint="olmayabilen bir değer için tipi 'T?' olmalı",
+            )
+            ic = inner
+
+        if not is_optional(self.current_ret) and not isinstance(
+                self.current_ret, AnyT):
+            self.error(
+                "'?' yalnızca opsiyonel döndüren bir fonksiyonda kullanılabilir "
+                f"(bu fonksiyon '{self.current_ret}' döndürüyor)",
+                node.span,
+                hint="dönüş tipini 'T?' yap ya da '??' ile bir varsayılan ver",
+            )
+        return ic
+
+    def yasakta(self, neden: str):
+        """`?` için geçici yasak kapsamı."""
+        return _SoruYasagi(self, neden)
 
     def check_index(self, node: A.Index, env: Env) -> Type:
         obj = self.check_expr(node.obj, env)
@@ -1607,6 +1675,17 @@ class Checker:
     def check_block_expr(self, node: A.BlockExpr, env: Env,
                          expected: Type | None) -> Type:
         """Değer üreten blok: son deyim bir ifade olmalı, değeri odur."""
+        # Blok ifadesi hemen çağrılan bir işleve derlenir; oradan dönmek
+        # dış fonksiyondan dönmek olmaz.
+        yasak = self.yasakta("blok ifadesinin içinde")
+        yasak.__enter__()
+        try:
+            return self._check_block_expr(node, env, expected)
+        finally:
+            yasak.__exit__(None, None, None)
+
+    def _check_block_expr(self, node: A.BlockExpr, env: Env,
+                          expected: Type | None) -> Type:
         inner = env.child()
         block = node.block
         if not block.stmts:
@@ -1635,13 +1714,15 @@ class Checker:
         cond = self.check_expr(node.cond, env, BOOL)
         self.expect_bool(cond, node.cond.span, "if koşulu")
 
-        then_env = env.child()
-        self.apply_narrowing(node.cond, then_env, True)
-        then_ty = self.check_expr(node.then, then_env, expected)
+        with self.yasakta("değer üreten 'if'in dallarında"):
+            then_env = env.child()
+            self.apply_narrowing(node.cond, then_env, True)
+            then_ty = self.check_expr(node.then, then_env, expected)
 
-        else_env = env.child()
-        self.apply_narrowing(node.cond, else_env, False)
-        else_ty = self.check_expr(node.otherwise, else_env, expected or then_ty)
+            else_env = env.child()
+            self.apply_narrowing(node.cond, else_env, False)
+            else_ty = self.check_expr(
+                node.otherwise, else_env, expected or then_ty)
 
         merged = common_type(then_ty, else_ty)
         if merged is None:
@@ -1664,7 +1745,8 @@ class Checker:
             arm_env = env.child()
             if self.check_pattern(arm.pattern, subject, arm_env, covered):
                 has_catch_all = True
-            arm_ty = self.check_expr(arm.body, arm_env, expected or result)
+            with self.yasakta("değer üreten 'match'in kollarında"):
+                arm_ty = self.check_expr(arm.body, arm_env, expected or result)
             if result is None:
                 result = arm_ty
             else:
@@ -1860,6 +1942,12 @@ class Checker:
 
         prev_ret = self.current_ret
         self.current_ret = expected_ret if expected_ret is not None else VOID
+        # Gövdeli lambda kendi deyim listesine yazılır: `?` orada lambdadan
+        # çıkar ve doğru üretilir. Tek ifadelik lambda ok işaretinden sonra
+        # doğrudan ifadeye derlenir, erken çıkışın konacağı yer yoktur.
+        prev_yasak = self.soru_yasak
+        self.soru_yasak = (None if isinstance(node.body, A.Block)
+                           else "tek ifadelik lambda gövdesinde")
 
         if isinstance(node.body, A.Block):
             # Gövdeli lambda: dönüş tipi yazılmamışsa `return` ifadelerinden çıkar.
@@ -1881,6 +1969,7 @@ class Checker:
                 ret = expected_ret
 
         self.current_ret = prev_ret
+        self.soru_yasak = prev_yasak
         return FnT(tuple(param_types), ret)
 
     def infer_block_return(self, block: A.Block, env: Env) -> Type:

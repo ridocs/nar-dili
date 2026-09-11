@@ -249,10 +249,23 @@ class JsBackend:
         self.lines: list[str] = []
         self.indent = 0
         self.tmp = 0
+        # `?` gibi ifade içinde durup deyim üreten şeylerin bıraktığı
+        # satırlar; bir sonraki `write` onları kendinden önce boşaltır.
+        self.bekleyen: list[str] = []
 
     # ------------------------------------------------------------ yardımcılar
     def write(self, text: str = "") -> None:
+        # Bekleyenler önce yazılır: `write(f"... {self.expr(x)} ...")`
+        # çağrısında `expr` bu satırdan önce koşmuştur.
+        if self.bekleyen:
+            bekleyen, self.bekleyen = self.bekleyen, []
+            for satir in bekleyen:
+                self.lines.append("  " * self.indent + satir)
         self.lines.append(("  " * self.indent + text) if text else "")
+
+    def yukselt(self, satir: str) -> None:
+        """Bir deyimi, içinde bulunduğumuz deyimin önüne koyar."""
+        self.bekleyen.append(satir)
 
     def name(self, ident: str) -> str:
         return f"{ident}_" if ident in JS_RESERVED else ident
@@ -722,6 +735,13 @@ class JsBackend:
         if isinstance(node, A.Binary):
             return self.binary(node)
 
+        if isinstance(node, A.Propagate):
+            # Değer bir kez hesaplanır: `f()?` çağrıyı iki kez yapmamalı.
+            t = self.fresh("s")
+            self.yukselt(f"const {t} = {self.expr(node.operand)};")
+            self.yukselt(f"if ({t} === null) return null;")
+            return t
+
         if isinstance(node, A.Unwrap):
             # Değer zaten opsiyonel değilse açma işlemi gereksizdir; kontrolü
             # üretmeyip doğrudan değeri kullanırız.
@@ -916,9 +936,11 @@ class JsBackend:
         if isinstance(node.body, A.Block):
             saved, self.lines = self.lines, []
             saved_indent, self.indent = self.indent, 1
+            saved_bekleyen, self.bekleyen = self.bekleyen, []
             self.emit_body(node.body)
             body_lines = self.lines
             self.lines, self.indent = saved, saved_indent
+            self.bekleyen = saved_bekleyen
             pad = "  " * self.indent
             inner = "\n".join(pad + line for line in body_lines)
             return f"(({params}) => {{\n{inner}\n{pad}}})"

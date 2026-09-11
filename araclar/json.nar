@@ -63,10 +63,7 @@ struct Okuyucu {
 fn jsonOku(metin: String) -> Json? {
   let o = Okuyucu { metin: metin, konum: 0 }
   o.bosluklariAtla()
-  let sonuc = degerOku(o)
-  if sonuc == none {
-    return none
-  }
+  let sonuc = degerOku(o)?
   o.bosluklariAtla()
   // Sonda artık metin kalmışsa girdi bozuktur.
   if !o.bitti() {
@@ -84,11 +81,7 @@ fn degerOku(o: Okuyucu) -> Json? {
   let c = o.bak()
 
   if c == "\"" {
-    let s = metinOku(o)
-    if s == none {
-      return none
-    }
-    return Json.Metin(s!)
+    return Json.Metin(metinOku(o)?)
   }
   if c == "{" {
     return nesneOku(o)
@@ -170,11 +163,7 @@ fn sayiOku(o: Okuyucu) -> Json? {
     o.ilerle()
   }
   let ham = o.metin.slice(bas, o.konum)
-  let sayi = float(ham)
-  if sayi == none {
-    return none
-  }
-  return Json.Sayi(sayi!)
+  return Json.Sayi(float(ham)?)
 }
 
 fn diziOku(o: Okuyucu) -> Json? {
@@ -189,11 +178,7 @@ fn diziOku(o: Okuyucu) -> Json? {
   }
 
   while true {
-    let oge = degerOku(o)
-    if oge == none {
-      return none
-    }
-    ogeler.push(oge!)
+    ogeler.push(degerOku(o)?)
     o.bosluklariAtla()
 
     if o.tuket(",") {
@@ -220,19 +205,12 @@ fn nesneOku(o: Okuyucu) -> Json? {
 
   while true {
     o.bosluklariAtla()
-    let anahtar = metinOku(o)
-    if anahtar == none {
-      return none
-    }
+    let anahtar = metinOku(o)?
     o.bosluklariAtla()
     if !o.tuket(":") {
       return none
     }
-    let deger = degerOku(o)
-    if deger == none {
-      return none
-    }
-    kayitlar.set(anahtar!, deger!)
+    kayitlar.set(anahtar, degerOku(o)?)
     o.bosluklariAtla()
 
     if o.tuket(",") {

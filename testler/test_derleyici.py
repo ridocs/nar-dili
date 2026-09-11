@@ -256,6 +256,68 @@ fn main() { print(str(E.A(5).deger())) }
     def test_dongusuz_break(self):
         self.hatali(wrap("break"), "döngü içinde")
 
+    def test_soru_operatoru(self):
+        """`?` none ise fonksiyondan none döner."""
+        ust = "fn ilk(l: [Int]) -> Int? = l.first()\n"
+
+        def sar_opsiyonel(govde: str) -> str:
+            return (ust + "fn dene(l: [Int]) -> Int? {\n" + govde
+                    + "\n}\nfn main() { print(dene([1]) ?? 0) }\n")
+
+        self.gecerli(sar_opsiyonel("  let a = ilk(l)?\n  return a"))
+        self.gecerli(sar_opsiyonel("  return ilk(l)? + ilk(l)?"))
+        # `if` *deyiminin* koşulu bir kez ve koşulsuz değerlendirilir.
+        self.gecerli(sar_opsiyonel(
+            "  if ilk(l)? > 0 { return 1 }\n  return 0"))
+        # Gövdeli lambda kendi deyim listesine yazılır: orada serbest.
+        self.gecerli(sar_opsiyonel(
+            "  let f = |x: [Int]| -> Int? { let a = ilk(x)?\n    return a }\n"
+            "  return f(l)"))
+
+    def test_soru_tip_kurallari(self):
+        ust = "fn ilk(l: [Int]) -> Int? = l.first()\n"
+        # Opsiyonel olmayan değer açılamaz.
+        self.hatali(
+            ust + "fn dene() -> Int? {\n  let a = 5?\n  return a\n}\n"
+            + "fn main() { print(dene() ?? 0) }\n",
+            "opsiyonel bir değer bekler")
+        # Fonksiyonun dönüş tipi opsiyonel olmalı.
+        self.hatali(
+            ust + "fn dene(l: [Int]) -> Int {\n  let a = ilk(l)?\n"
+            "  return a\n}\nfn main() { print(dene([1])) }\n",
+            "opsiyonel döndüren bir fonksiyonda")
+        # Üst düzeyde dönülecek bir fonksiyon yok.
+        self.hatali(
+            ust + "let G = ilk([1])?\nfn main() { print(G ?? 0) }\n",
+            "opsiyonel döndüren bir fonksiyonda")
+
+    def test_soru_kosullu_yerlerde_yasak(self):
+        """`?` fonksiyondan erken çıkar; koşullu değerlendirilen yerlerde
+        erken çıkışın doğru yere konacağı bir yer yoktur.
+
+        Sessizce yanlış kod üretmektense açık hata verilir.
+        """
+        ust = "fn ilk(l: [Int]) -> Int? = l.first()\n"
+
+        def dene(govde: str) -> str:
+            return (ust + "fn dene(l: [Int]) -> Int? {\n" + govde
+                    + "\n  return 1\n}\nfn main() { print(dene([1]) ?? 0) }\n")
+
+        self.hatali(dene("  let x = ilk(l) ?? ilk(l)?"),
+                    "'??' işlecinin sağında")
+        self.hatali(dene("  let x = true && ilk(l)? > 0"),
+                    "'&&' işlecinin sağında")
+        self.hatali(dene("  let x = false || ilk(l)? > 0"),
+                    "'||' işlecinin sağında")
+        self.hatali(dene("  let x = if true { ilk(l)? } else { 0 }"),
+                    "değer üreten 'if'in dallarında")
+        self.hatali(dene("  let x = match 1 { _ -> ilk(l)? }"),
+                    "değer üreten 'match'in kollarında")
+        self.hatali(dene("  while ilk(l)? > 0 { break }"),
+                    "while koşulunda")
+        self.hatali(dene("  let f = |x: [Int]| ilk(x)?"),
+                    "tek ifadelik lambda gövdesinde")
+
     def test_if_let(self):
         """`if let` opsiyoneli açar; ad yalnız then dalında görünür."""
         ust = "fn belki(a: Int) -> Int? = if a > 0 { a } else { none }\n"

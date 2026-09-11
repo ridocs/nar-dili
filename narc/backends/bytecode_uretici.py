@@ -590,6 +590,16 @@ class BytecodeUretici:
             self.yaz(K.DIZIN_OKU, dugum=e)
         elif isinstance(e, A.FieldAccess):
             self._alan_erisimi(e)
+        elif isinstance(e, A.Propagate):
+            # `ifade?` — none ise işlevden hemen none döner.
+            # ATLA_VAR_TUT tam bunun için var: none değilse atlar ve
+            # değeri yığında bırakır, none ise onu atar.
+            self.ifade(e.operand)
+            devam = self.yaz(K.ATLA_VAR_TUT, 0, e)
+            self.yaz(K.YOK)
+            self.yaz(K.DON, dugum=e)
+            self.islev.yamala(devam, self.su_an())
+
         elif isinstance(e, A.Unwrap):
             # `x!` — none ise sessizce geçmek yerine durmalı; yoksa hata
             # çok sonra, anlamsız bir yerde ortaya çıkar.

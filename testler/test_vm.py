@@ -331,6 +331,12 @@ class IkiHedefAyniTesti(unittest.TestCase):
         "  return f(n - 1) + f(n - 2)\n}\n" + sar("print(f(18))"),
         sar("var t = 0\n  for i in 1..=100 { t += i }\n  print(t)"),
         sar('var s = ""\n  for c in "abcç" { s += c }\n  print(s, s.len())'),
+        "fn ilk(l: [Int]) -> Int? = l.first()\n"
+        "fn ikiKat(l: [Int]) -> Int? {\n  let a = ilk(l)?\n  return a * 2\n}\n"
+        "fn topla(a: [Int], b: [Int]) -> Int? {\n"
+        "  return ilk(a)? + ilk(b)?\n}\n"
+        + sar('print(ikiKat([5]) ?? -1, ikiKat([]) ?? -1)\n'
+              '  print(topla([3], [4]) ?? -1, topla([3], []) ?? -1)'),
         sar('for (i, x) in ["a", "b", "c"] { print(i, x) }'),
         "fn belki(a: Int) -> Int? = if a > 0 { a } else { none }\n"
         + sar('if let v = belki(5) { print("var", v) } else { print("yok") }\n'

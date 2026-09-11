@@ -153,6 +153,12 @@ class FieldAccess(Expr):
 
 
 @dataclass
+class Propagate(Expr):
+    """`ifade?` — none ise fonksiyondan none döner, değilse değeri açar."""
+    operand: Expr = None  # type: ignore[assignment]
+
+
+@dataclass
 class Unwrap(Expr):
     """`x!` — opsiyoneli zorla açar, `none` ise çalışma zamanı hatası."""
     operand: Expr = None  # type: ignore[assignment]

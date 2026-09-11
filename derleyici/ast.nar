@@ -90,6 +90,7 @@ enum Ifade {
   IDizin(IfadeD, IfadeD)
   IAlan(IfadeD, String, Bool)            // güvenli mi (?.)
   IAc(IfadeD)                            // x!
+  ISoru(IfadeD)                          // x? — none ise işlevden dön
   ILambda([Parametre], TipD?, Govde)
   IEger(IfadeD, IfadeD, IfadeD)          // değer üreten if; else zorunlu
   IBlok(Blok)                            // { deyimler...  son_ifade }
@@ -363,6 +364,7 @@ fn yazIfade(e: Ifade) -> String = match e {
   IDizin(nesne, dizin) -> dugum("dizin", [yazIfadeD(nesne), yazIfadeD(dizin)])
   IAlan(nesne, ad, guvenli) -> dugum("alanerisim", [yazIfadeD(nesne), tirnakla(ad), mantik(guvenli)])
   IAc(x) -> dugum("ac", [yazIfadeD(x)])
+  ISoru(x) -> dugum("soru", [yazIfadeD(x)])
   ILambda(params, ret, govde) -> dugum("lambda", [
     dizi(params.map(|p| yazParametre(p))),
     yazTipOps(ret),

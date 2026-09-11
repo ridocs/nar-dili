@@ -163,6 +163,8 @@ def _ifade(e) -> str:
     if isinstance(e, A.FieldAccess):
         return dugum("alanerisim", ifade(e.obj), kacir(e.name),
                      "true" if e.safe else "false")
+    if isinstance(e, A.Propagate):
+        return dugum("soru", ifade(e.operand))
     if isinstance(e, A.Unwrap):
         return dugum("ac", ifade(e.operand))
 
