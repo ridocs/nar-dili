@@ -1768,9 +1768,9 @@ function alan(d, ad) {
     return null;
   }
   return (($m8) => {
-      if ($m8.$tag === "Nesne") { const m = $m8.$values[0]; return $mapGet(m, ad); }
+      if ($m8.$tag === "Nesne") { const m = $m8.$values[0]; return bosIse($mapGet(m, ad)); }
       return null;
-    })($unwrap(d, "272:17"));
+    })($unwrap(d, "274:17"));
 }
 
 function dizin(d, i) {
@@ -1778,9 +1778,22 @@ function dizin(d, i) {
     return null;
   }
   return (($m9) => {
-      if ($m9.$tag === "Dizi") { const l = $m9.$values[0]; return ogeAl(l, i); }
+      if ($m9.$tag === "Dizi") { const l = $m9.$values[0]; return bosIse(ogeAl(l, i)); }
       return null;
-    })($unwrap(d, "282:17"));
+    })($unwrap(d, "284:17"));
+}
+
+function bosIse(d) {
+  {
+    const v = d;
+    if (v !== null) {
+      return (($m10) => {
+          if ($m10.$tag === "Bos") { return null; }
+          return d;
+        })(v);
+    }
+  }
+  return null;
 }
 
 function ogeAl(l, i) {
@@ -1794,20 +1807,20 @@ function metinAl(d) {
   if ($eq(d, null)) {
     return null;
   }
-  return (($m10) => {
-      if ($m10.$tag === "Metin") { const s = $m10.$values[0]; return s; }
+  return (($m11) => {
+      if ($m11.$tag === "Metin") { const s = $m11.$values[0]; return s; }
       return null;
-    })($unwrap(d, "299:17"));
+    })($unwrap(d, "311:17"));
 }
 
 function sayiAl(d) {
   if ($eq(d, null)) {
     return null;
   }
-  return (($m11) => {
-      if ($m11.$tag === "Sayi") { const n = $m11.$values[0]; return n; }
+  return (($m12) => {
+      if ($m12.$tag === "Sayi") { const n = $m12.$values[0]; return n; }
       return null;
-    })($unwrap(d, "309:17"));
+    })($unwrap(d, "321:17"));
 }
 
 function tamSayiAl(d) {
@@ -1815,27 +1828,27 @@ function tamSayiAl(d) {
   if ((n === null)) {
     return null;
   }
-  return $toInt($unwrap(n, "320:15"));
+  return $toInt($unwrap(n, "332:15"));
 }
 
 function mantikAl(d) {
   if ($eq(d, null)) {
     return null;
   }
-  return (($m12) => {
-      if ($m12.$tag === "Mantik") { const b = $m12.$values[0]; return b; }
+  return (($m13) => {
+      if ($m13.$tag === "Mantik") { const b = $m13.$values[0]; return b; }
       return null;
-    })($unwrap(d, "327:17"));
+    })($unwrap(d, "339:17"));
 }
 
 function diziAl(d) {
   if ($eq(d, null)) {
     return [];
   }
-  return (($m13) => {
-      if ($m13.$tag === "Dizi") { const l = $m13.$values[0]; return l; }
+  return (($m14) => {
+      if ($m14.$tag === "Dizi") { const l = $m14.$values[0]; return l; }
       return [];
-    })($unwrap(d, "337:17"));
+    })($unwrap(d, "349:17"));
 }
 
 function kodAlani() {
@@ -1962,8 +1975,8 @@ function hataSayisi() {
 function satirNumaralari(kaynak) {
   const adet = satirSayisi(kaynak);
   let parcalar = [];
-  const $son14 = adet;
-  for (let i = 1; i <= $son14; i++) {
+  const $son15 = adet;
+  for (let i = 1; i <= $son15; i++) {
     const seviye = satirSeviyesi(i);
     if ((seviye === "hata")) {
       parcalar.push(`<b>${$fmt(i, "Int", false)}</b>`);
@@ -2839,15 +2852,15 @@ function uzaklik(a, b) {
   const n = $len(a);
   const m = $len(b);
   let onceki = [];
-  const $son15 = m;
-  for (let j = 0; j <= $son15; j++) {
+  const $son16 = m;
+  for (let j = 0; j <= $son16; j++) {
     onceki.push(j);
   }
-  const $son16 = n;
-  for (let i = 1; i <= $son16; i++) {
+  const $son17 = n;
+  for (let i = 1; i <= $son17; i++) {
     let simdiki = [i];
-    const $son17 = m;
-    for (let j = 1; j <= $son17; j++) {
+    const $son18 = m;
+    for (let j = 1; j <= $son18; j++) {
       let maliyet = 1;
       if ((karakter(a, (i - 1)) === karakter(b, (j - 1)))) {
         maliyet = 0;
@@ -3382,6 +3395,7 @@ globalThis.Nar = Object.assign(globalThis.Nar || {}, {
   metinKacir: metinKacir,
   alan: alan,
   dizin: dizin,
+  bosIse: bosIse,
   ogeAl: ogeAl,
   metinAl: metinAl,
   sayiAl: sayiAl,

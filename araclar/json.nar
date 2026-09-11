@@ -263,14 +263,16 @@ fn metinKacir(s: String) -> String {
 
 // --- kolay erişim ---------------------------------------------------------
 // Bu yardımcılar `none` değerleri sessizce taşır, böylece zincirleme
-// erişimde her adımda kontrol yazmak gerekmez.
+// erişimde her adımda kontrol yazmak gerekmez. JSON'daki `null` da "yok"
+// sayılır: `{"hata": null}` ile hiç `hata` alanı olmaması aynı şeydir,
+// yoksa `if let hata = alan(veri, "hata")` boş bir hatayı yakalardı.
 
 fn alan(d: Json?, ad: String) -> Json? {
   if d == none {
     return none
   }
   return match d! {
-    Json.Nesne(m) -> m.get(ad)
+    Json.Nesne(m) -> bosIse(m.get(ad))
     _ -> none
   }
 }
@@ -280,9 +282,19 @@ fn dizin(d: Json?, i: Int) -> Json? {
     return none
   }
   return match d! {
-    Json.Dizi(l) -> ogeAl(l, i)
+    Json.Dizi(l) -> bosIse(ogeAl(l, i))
     _ -> none
   }
+}
+
+fn bosIse(d: Json?) -> Json? {
+  if let v = d {
+    return match v {
+      Json.Bos -> none
+      _ -> d
+    }
+  }
+  return none
 }
 
 fn ogeAl(l: [Json], i: Int) -> Json? {
