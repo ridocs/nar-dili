@@ -1,8 +1,9 @@
 // Nar IDE'nin davranışı — Nar diliyle yazılmıştır.
 //
 // HTML dosyasında yalnızca iskelet ve stiller var; düzenleyicinin nasıl
-// çalıştığı burada tanımlı: renklendirme, satır numaraları, klavye
-// kısayolları, tip denetimi, çalıştırma, dosya açma ve kaydetme.
+// çalıştığı burada tanımlı: dosya ağacı, renklendirme, satır numaraları,
+// hata altı çizgileri, sorun listesi, klavye kısayolları, tip denetimi,
+// çalıştırma, dosya açma, yeni dosya ve kaydetme.
 //
 // Tarayıcı `Nar.baslat()` çağırarak her şeyi başlatır.
 //
@@ -15,17 +16,29 @@ import "json.nar"
 
 var acikYol = "deneme.nar"
 var kaydedilmis = ""
-var hataSatiri = 0
 var denetimSayaci = 0
 var calisiyor = false
+var dosyaYollari: [String] = []
+
+// Son denetimin bulduğu sorunlar. Oluk işaretleri, hata altı çizgileri ve
+// Sorunlar paneli hep bu listeden beslenir; tek kaynak.
+struct Sorun {
+  satir: Int
+  sutun: Int
+  uzunluk: Int
+  mesaj: String
+  ipucu: String
+}
+
+var sorunlar: [Sorun] = []
 
 // --- öğe kısayolları ------------------------------------------------------
 // Her erişimde aranır; IDE'de öğe sayısı az, bu maliyet önemsizdir.
 
 fn kodAlani() -> Element? = bul("#kod")
 fn boyaAlani() -> Element? = bul("#boya code")
+fn altcizgiAlani() -> Element? = bul("#altcizgi code")
 fn satirAlani() -> Element? = bul("#satirlar")
-fn ciktiAlani() -> Element? = bul("#cikti")
 fn denetimRozeti() -> Element? = bul("#denetim")
 fn durumYazisi() -> Element? = bul("#durum")
 fn durumNoktasi() -> Element? = bul("#nokta")
@@ -33,17 +46,15 @@ fn imlecYazisi() -> Element? = bul("#imlec")
 fn dosyaAdiYazisi() -> Element? = bul("#dosya-adi")
 fn degistiIsareti() -> Element? = bul("#degisti")
 fn sureYazisi() -> Element? = bul("#sure")
-fn ciktiBasligi() -> Element? = bul("#cikti-basligi")
-fn dosyaSecici() -> Element? = bul("#dosyalar")
 fn surumYazisi() -> Element? = bul("#surum")
 fn motorYazisi() -> Element? = bul("#motor")
+fn agacAlani() -> Element? = bul("#agac")
 
 fn kaynakMetni() -> String {
-  let k = kodAlani()
-  if k == none {
-    return ""
+  if let k = kodAlani() {
+    return k.deger()
   }
-  return k!.deger()
+  return ""
 }
 
 // --- çizim ----------------------------------------------------------------
@@ -51,31 +62,38 @@ fn kaynakMetni() -> String {
 fn ciz() {
   let kaynak = kaynakMetni()
 
-  let boya = boyaAlani()
-  if boya != none {
-    boya!.htmlYaz(renklendir(kaynak) + "\n")
+  if let boya = boyaAlani() {
+    boya.htmlYaz(renklendir(kaynak) + "\n")
   }
-
-  let satirlar = satirAlani()
-  if satirlar != none {
-    satirlar!.htmlYaz(satirNumaralari(kaynak))
+  if let alt = altcizgiAlani() {
+    alt.htmlYaz(altcizgiHtml(kaynak) + "\n")
   }
-
-  let isaret = degistiIsareti()
-  if isaret != none {
+  if let satirlar = satirAlani() {
+    satirlar.htmlYaz(satirNumaralari(kaynak))
+  }
+  if let isaret = degistiIsareti() {
     if kaynak == kaydedilmis {
-      isaret!.stil("display", "none")
+      isaret.stil("display", "none")
     } else {
-      isaret!.stil("display", "inline")
+      isaret.stil("display", "inline")
     }
   }
+}
+
+fn hataliSatirMi(satir: Int) -> Bool {
+  for s in sorunlar {
+    if s.satir == satir {
+      return true
+    }
+  }
+  return false
 }
 
 fn satirNumaralari(kaynak: String) -> String {
   let adet = satirSayisi(kaynak)
   var parcalar: [String] = []
   for i in 1..=adet {
-    if i == hataSatiri {
+    if hataliSatirMi(i) {
       parcalar.push("<b>${i}</b>")
     } else {
       parcalar.push(str(i))
@@ -84,92 +102,216 @@ fn satirNumaralari(kaynak: String) -> String {
   return parcalar.join("\n")
 }
 
+// Hata altı çizgisi katmanı: kaynağın her karakteri yerine boşluk, hata
+// aralıkları bir `span` içinde. Boyalı metnin ortasına sütun hesabıyla
+// etiket sokmak yerine aynı ölçülerde saydam bir katman.
+fn altcizgiHtml(kaynak: String) -> String {
+  let satirlar = kaynak.split("\n")
+  var cikti: [String] = []
+  for (i, satir) in satirlar {
+    let no = i + 1
+    var parca = ""
+    var konum = 0                 // 0 tabanlı, işlenen sütun
+    for s in sorunlar {
+      if s.satir != no {
+        continue
+      }
+      let bas = s.sutun - 1
+      if bas < konum || bas > satir.len() {
+        continue
+      }
+      var uzunluk = s.uzunluk
+      if uzunluk < 1 {
+        uzunluk = 1
+      }
+      if bas + uzunluk > satir.len() {
+        uzunluk = max(1, satir.len() - bas)
+      }
+      parca += " ".repeat(bas - konum)
+      parca += "<span class=\"dalgali\">" + " ".repeat(uzunluk) + "</span>"
+      konum = bas + uzunluk
+    }
+    cikti.push(parca)
+  }
+  return cikti.join("\n")
+}
+
 fn esitle() {
-  let k = kodAlani()
-  let boya = bul("#boya")
-  let satirlar = satirAlani()
-  if k == none {
-    return
-  }
-  let ust = k!.kaydirmaUst()
-  if boya != none {
-    boya!.kaydirmaUstYaz(ust)
-  }
-  if satirlar != none {
-    satirlar!.kaydirmaUstYaz(ust)
+  if let k = kodAlani() {
+    let ust = k.kaydirmaUst()
+    let sol = k.kaydirmaSol()
+    if let boya = bul("#boya") {
+      boya.kaydirmaUstYaz(ust)
+      boya.stil("margin-left", "-${sol}px")
+    }
+    if let alt = bul("#altcizgi") {
+      alt.kaydirmaUstYaz(ust)
+      alt.stil("margin-left", "-${sol}px")
+    }
+    if let satirlar = satirAlani() {
+      satirlar.kaydirmaUstYaz(ust)
+    }
   }
 }
 
 fn imlecBildir() {
-  let k = kodAlani()
-  let yazi = imlecYazisi()
-  if k == none || yazi == none {
-    return
+  if let k = kodAlani() {
+    if let yazi = imlecYazisi() {
+      let yer = satirSutun(k.deger(), k.secimBasi())
+      yazi.metinYaz("satır ${yer[0]}, sütun ${yer[1]}")
+    }
   }
-  let yer = satirSutun(k!.deger(), k!.secimBasi())
-  yazi!.metinYaz("satır ${yer[0]}, sütun ${yer[1]}")
 }
 
 fn satirGit(satir: Int) {
   if satir <= 0 {
     return
   }
-  let k = kodAlani()
-  if k == none {
-    return
+  if let k = kodAlani() {
+    let metin = k.deger()
+    let satirlar = metin.split("\n")
+    var konum = 0
+    var i = 0
+    while i < satir - 1 && i < satirlar.len() {
+      konum += satirlar[i].len() + 1
+      i += 1
+    }
+    var uzunluk = 0
+    if satir - 1 < satirlar.len() {
+      uzunluk = satirlar[satir - 1].len()
+    }
+    k.odaklan()
+    k.secimYap(konum, konum + uzunluk)
+    k.kaydirmaUstYaz(max(0, (satir - 4) * 21))
+    esitle()
+    imlecBildir()
   }
-  let metin = k!.deger()
-  let satirlar = metin.split("\n")
-  var konum = 0
-  var i = 0
-  while i < satir - 1 && i < satirlar.len() {
-    konum += satirlar[i].len() + 1
-    i += 1
-  }
-  var uzunluk = 0
-  if satir - 1 < satirlar.len() {
-    uzunluk = satirlar[satir - 1].len()
-  }
-  k!.odaklan()
-  k!.secimYap(konum, konum + uzunluk)
-  var hedef = (satir - 4) * 21
-  if hedef < 0 {
-    hedef = 0
-  }
-  k!.kaydirmaUstYaz(hedef)
-  esitle()
-  imlecBildir()
 }
 
 // --- durum çubuğu ---------------------------------------------------------
 
 fn durumYaz(mesaj: String, hataMi: Bool) {
-  let yazi = durumYazisi()
-  if yazi != none {
-    yazi!.metinYaz(mesaj)
+  if let yazi = durumYazisi() {
+    yazi.metinYaz(mesaj)
     if hataMi {
-      yazi!.sinifEkle("tiklanir")
+      yazi.sinifEkle("tiklanir")
     } else {
-      yazi!.sinifSil("tiklanir")
+      yazi.sinifSil("tiklanir")
     }
   }
-  let nokta = durumNoktasi()
-  if nokta != none {
+  if let nokta = durumNoktasi() {
     if hataMi {
-      nokta!.sinifEkle("kotu")
+      nokta.sinifEkle("kotu")
     } else {
-      nokta!.sinifSil("kotu")
+      nokta.sinifSil("kotu")
     }
   }
 }
 
 fn rozetYaz(metin: String, sinif: String) {
-  let rozet = denetimRozeti()
-  if rozet == none {
+  if let rozet = denetimRozeti() {
+    rozet.metinYaz(metin)
+    rozet.ozellikYaz("class", "rozet " + sinif)
+  }
+}
+
+// --- sağ panel sekmeleri --------------------------------------------------
+
+let PANOLAR = ["pano-cikti", "pano-sorunlar", "pano-js"]
+
+fn sekmeSec(ad: String) {
+  for p in PANOLAR {
+    if let pano = bul("#" + p) {
+      if p == ad {
+        pano.stil("display", "block")
+      } else {
+        pano.stil("display", "none")
+      }
+    }
+  }
+  for d in bulHepsi(".sekme") {
+    if (d.ozellik("data-pano") ?? "") == ad {
+      d.ozellikYaz("aria-selected", "true")
+    } else {
+      d.ozellikYaz("aria-selected", "false")
+    }
+  }
+}
+
+fn panoYaz(ad: String, html: String) {
+  if let pano = bul("#" + ad) {
+    pano.htmlYaz(html)
+  }
+}
+
+fn ciktiYaz(html: String) {
+  panoYaz("pano-cikti", html)
+}
+
+// --- sorunlar paneli ------------------------------------------------------
+
+fn sorunlariGoster() {
+  if let sayi = bul("#sorun-sayisi") {
+    if sorunlar.len() == 0 {
+      sayi.metinYaz("")
+    } else {
+      sayi.metinYaz(str(sorunlar.len()))
+    }
+  }
+
+  if sorunlar.len() == 0 {
+    panoYaz("pano-sorunlar", "<span class=\"bos\">Sorun yok.</span>")
     return
   }
-  rozet!.metinYaz(metin)
-  rozet!.ozellikYaz("class", "rozet " + sinif)
+
+  let satirlar = kaynakMetni().split("\n")
+  var html = ""
+  for (i, s) in sorunlar {
+    var kaynakHtml = ""
+    if s.satir >= 1 && s.satir <= satirlar.len() {
+      let satir = satirlar[s.satir - 1]
+      let bas = min(max(0, s.sutun - 1), satir.len())
+      let son = min(bas + max(1, s.uzunluk), satir.len())
+      kaynakHtml = "<div class=\"kaynak\">" + kacir(satir.slice(0, bas)) +
+        "<mark>" + kacir(satir.slice(bas, son)) + "</mark>" +
+        kacir(satir.slice(son, satir.len())) + "</div>"
+    }
+    var ipucuHtml = ""
+    if s.ipucu != "" {
+      ipucuHtml = "<div class=\"ipucu\"><b>ipucu:</b> " + kacir(s.ipucu) + "</div>"
+    }
+    html += "<div class=\"sorun\" data-satir=\"${s.satir}\" data-sira=\"${i}\">" +
+      "<span class=\"yer\">${s.satir}:${s.sutun}</span>" +
+      "<div class=\"mesaj\">" + kacir(s.mesaj) + "</div>" +
+      ipucuHtml + kaynakHtml + "</div>"
+  }
+  panoYaz("pano-sorunlar", html)
+
+  for kart in bulHepsi(".sorun") {
+    let hedef = int(kart.ozellik("data-satir") ?? "0") ?? 0
+    kart.dinle("click", || { satirGit(hedef) })
+  }
+}
+
+// Sunucunun hata sözlüğünden Sorun üretir.
+fn sorunOku(h: Json?) -> Sorun = Sorun {
+  satir: tamSayiAl(alan(h, "satir")) ?? 0,
+  sutun: tamSayiAl(alan(h, "sutun")) ?? 1,
+  uzunluk: tamSayiAl(alan(h, "uzunluk")) ?? 1,
+  mesaj: metinAl(alan(h, "mesaj")) ?? "bilinmeyen hata",
+  ipucu: metinAl(alan(h, "ipucu")) ?? ""
+}
+
+fn sorunlariAyikla(hata: Json?) {
+  sorunlar = []
+  let hepsi = diziAl(alan(hata, "hepsi"))
+  if hepsi.len() == 0 {
+    sorunlar.push(sorunOku(hata))
+    return
+  }
+  for h in hepsi {
+    sorunlar.push(sorunOku(h))
+  }
 }
 
 // --- tip denetimi ---------------------------------------------------------
@@ -202,24 +344,29 @@ fn denetimSonucu(cevap: String) {
 
   if mantikAl(alan(veri, "tamam")) ?? false {
     rozetYaz("hata yok", "iyi")
-    hataSatiri = 0
+    sorunlar = []
     durumYaz("hazır", false)
+    sorunlariGoster()
     ciz()
     return
   }
 
-  let hata = alan(veri, "hata")
-  let adet = tamSayiAl(alan(hata, "adet")) ?? 1
-  let satir = tamSayiAl(alan(hata, "satir")) ?? 0
-  let mesaj = metinAl(alan(hata, "mesaj")) ?? "bilinmeyen hata"
-
-  rozetYaz("${adet} hata", "kotu")
-  hataSatiri = satir
-  if satir > 0 {
-    durumYaz("satır ${satir}: ${mesaj}", true)
+  sorunlariAyikla(alan(veri, "hata"))
+  let adet = sorunlar.len()
+  if adet == 1 {
+    rozetYaz("1 hata", "kotu")
   } else {
-    durumYaz(mesaj, true)
+    rozetYaz("${adet} hata", "kotu")
   }
+  if sorunlar.len() > 0 {
+    let ilk = sorunlar[0]
+    if ilk.satir > 0 {
+      durumYaz("satır ${ilk.satir}: ${ilk.mesaj}", true)
+    } else {
+      durumYaz(ilk.mesaj, true)
+    }
+  }
+  sorunlariGoster()
   ciz()
 }
 
@@ -231,14 +378,10 @@ fn calistir() {
   }
   calisiyor = true
 
-  let baslik = ciktiBasligi()
-  if baslik != none {
-    baslik!.metinYaz("Çıktı")
+  if let sure = sureYazisi() {
+    sure.metinYaz("")
   }
-  let sure = sureYazisi()
-  if sure != none {
-    sure!.metinYaz("")
-  }
+  sekmeSec("pano-cikti")
   ciktiYaz("<span class=\"bos\">çalışıyor…</span>")
 
   let govde = jsonYaz(Json.Nesne({"kaynak": Json.Metin(kaynakMetni())}))
@@ -258,15 +401,16 @@ fn calismaSonucu(cevap: String) {
   let durum = metinAl(alan(veri, "durum")) ?? ""
 
   if durum == "derleme-hatasi" || durum == "ortam-hatasi" {
-    let gosterim = metinAl(alan(alan(veri, "hata"), "gosterim")) ?? "hata"
-    hataSatiri = tamSayiAl(alan(alan(veri, "hata"), "satir")) ?? 0
-    ciktiYaz("<div class=\"hata-blok\" id=\"hata-blok\">" + kacir(gosterim) + "</div>")
-    let blok = bul("#hata-blok")
-    if blok != none {
-      let gidilecek = hataSatiri
-      blok!.dinle("click", || { satirGit(gidilecek) })
-    }
+    sorunlariAyikla(alan(veri, "hata"))
+    sorunlariGoster()
     ciz()
+    let gosterim = metinAl(alan(alan(veri, "hata"), "gosterim")) ?? "hata"
+    ciktiYaz("<div class=\"hata-blok\" id=\"hata-blok\">" + kacir(gosterim) + "</div>")
+    if let blok = bul("#hata-blok") {
+      blok.dinle("click", || { sekmeSec("pano-sorunlar") })
+    }
+    // Derleme hatası varsa asıl bilgi Sorunlar panelinde.
+    sekmeSec("pano-sorunlar")
     return
   }
 
@@ -291,37 +435,27 @@ fn calismaSonucu(cevap: String) {
   ciktiYaz(html)
 }
 
-fn ciktiYaz(html: String) {
-  let alan = ciktiAlani()
-  if alan != none {
-    alan!.htmlYaz(html)
-  }
-}
-
 // --- üretilen JavaScript --------------------------------------------------
 
 fn javascriptGoster() {
+  sekmeSec("pano-js")
+  panoYaz("pano-js", "<span class=\"bos\">üretiliyor…</span>")
   let govde = jsonYaz(Json.Nesne({"kaynak": Json.Metin(kaynakMetni())}))
   istek("POST", "/api/uretilen", govde, |cevap: String| {
     let veri = jsonOku(cevap)
-    let baslik = ciktiBasligi()
-    if baslik != none {
-      baslik!.metinYaz("Üretilen JavaScript")
-    }
-    let hata = alan(veri, "hata")
-    if hata != none {
-      ciktiYaz("<div class=\"hata-blok\">" +
+    if let hata = alan(veri, "hata") {
+      panoYaz("pano-js", "<div class=\"hata-blok\">" +
                kacir(metinAl(alan(hata, "gosterim")) ?? "hata") + "</div>")
       return
     }
     let kod = metinAl(alan(veri, "kod")) ?? ""
-    // Çalışma zamanı kütüphanesi uzun; kullanıcının yazdığı kısmı göster.
+    // Çalışma zamanı önde; kullanıcının yazdığı kısmı göster.
     let isaret = "// Nar kaynağından üretildi"
     let yer = kod.indexOf(isaret)
     if yer >= 0 {
-      ciktiYaz(kacir(kod.slice(yer, kod.len())))
+      panoYaz("pano-js", kacir(kod.slice(yer, kod.len())))
     } else {
-      ciktiYaz(kacir(kod))
+      panoYaz("pano-js", kacir(kod))
     }
   })
 }
@@ -329,28 +463,26 @@ fn javascriptGoster() {
 // --- biçimlendirme --------------------------------------------------------
 
 fn kodDuzenle() {
-  let k = kodAlani()
-  if k == none {
-    return
-  }
-  let oncesi = k!.deger()
-  let sonrasi = bicimlendir(oncesi)
+  if let k = kodAlani() {
+    let oncesi = k.deger()
+    let sonrasi = bicimlendir(oncesi)
 
-  if sonrasi == oncesi {
-    durumYaz("kod zaten düzenli", false)
-    return
-  }
+    if sonrasi == oncesi {
+      durumYaz("kod zaten düzenli", false)
+      return
+    }
 
-  let yer = satirSutun(oncesi, k!.secimBasi())
-  k!.degerYaz(sonrasi)
-  ciz()
-  esitle()
-  satirGit(min(yer[0], satirSayisi(sonrasi)))
-  durumYaz("kod düzenlendi", false)
-  denetimPlanla()
+    let yer = satirSutun(oncesi, k.secimBasi())
+    k.degerYaz(sonrasi)
+    ciz()
+    esitle()
+    satirGit(min(yer[0], satirSayisi(sonrasi)))
+    durumYaz("kod düzenlendi", false)
+    denetimPlanla()
+  }
 }
 
-// --- dosya işlemleri ------------------------------------------------------
+// --- dosya ağacı ----------------------------------------------------------
 
 fn dosyalariYukle() {
   istek("GET", "/api/dosyalar", "", |cevap: String| {
@@ -359,46 +491,82 @@ fn dosyalariYukle() {
       durumYaz("dosya listesi alınamadı", true)
       return
     }
-
-    let surum = surumYazisi()
-    if surum != none {
-      surum!.metinYaz("v" + (metinAl(alan(veri, "surum")) ?? "?"))
+    if let surum = surumYazisi() {
+      surum.metinYaz("v" + (metinAl(alan(veri, "surum")) ?? "?"))
     }
-
-    seciciyiDoldur(diziAl(alan(veri, "dosyalar")))
+    agaciDoldur(diziAl(alan(veri, "dosyalar")))
     dosyaAc(acikYol)
   })
 }
 
-fn seciciyiDoldur(dosyalar: [Json]) {
-  let secici = dosyaSecici()
-  if secici == none {
-    return
-  }
-  secici!.temizle()
-
-  var gorulenGruplar: [String] = []
+fn agaciDoldur(dosyalar: [Json]) {
+  dosyaYollari = []
   for d in dosyalar {
-    let grup = metinAl(alan(d, "grup")) ?? "Dosyalar"
-    if !gorulenGruplar.contains(grup) {
-      gorulenGruplar.push(grup)
-    }
+    dosyaYollari.push(metinAl(alan(d, "yol")) ?? "")
+  }
+  if let sayi = bul("#dosya-sayisi") {
+    sayi.metinYaz("${dosyalar.len()} dosya")
   }
 
-  for grup in gorulenGruplar {
-    let kume = olustur("optgroup")
-    kume.ozellikYaz("label", grup)
+  if let agac = agacAlani() {
+    agac.temizle()
+
+    var gruplar: [String] = []
     for d in dosyalar {
-      if (metinAl(alan(d, "grup")) ?? "") == grup {
-        let secenek = olustur("option")
-        secenek.ozellikYaz("value", metinAl(alan(d, "yol")) ?? "")
-        secenek.metinYaz(metinAl(alan(d, "ad")) ?? "")
-        kume.ekle(secenek)
+      let grup = metinAl(alan(d, "grup")) ?? "Dosyalar"
+      if !gruplar.contains(grup) {
+        gruplar.push(grup)
       }
     }
-    secici!.ekle(kume)
+
+    for grup in gruplar {
+      let kume = olustur("details")
+      kume.ozellikYaz("open", "")
+      let baslik = olustur("summary")
+      var adet = 0
+      let liste = olustur("ul")
+
+      for d in dosyalar {
+        if (metinAl(alan(d, "grup")) ?? "") != grup {
+          continue
+        }
+        adet += 1
+        let yol = metinAl(alan(d, "yol")) ?? ""
+        let oge = olustur("li")
+        let dugme = olustur("button")
+        dugme.ozellikYaz("type", "button")
+        dugme.sinifEkle("dosya")
+        dugme.ozellikYaz("data-yol", yol)
+        dugme.htmlYaz(DOSYA_IKONU + "<span>" + kacir(metinAl(alan(d, "ad")) ?? "") + "</span>")
+        if yol == acikYol {
+          dugme.sinifEkle("secili")
+        }
+        dugme.dinle("click", || { dosyaAc(yol) })
+        oge.ekle(dugme)
+        liste.ekle(oge)
+      }
+
+      baslik.htmlYaz("<span class=\"ok\">›</span>" + kacir(grup) +
+        "<span class=\"adet\">${adet}</span>")
+      kume.ekle(baslik)
+      kume.ekle(liste)
+      agac.ekle(kume)
+    }
   }
-  secici!.degerYaz(acikYol)
+}
+
+let DOSYA_IKONU = "<svg class=\"ikon\" viewBox=\"0 0 24 24\" fill=\"none\" " +
+  "stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\">" +
+  "<path d=\"M6 3h8l4 4v14H6z\"/><path d=\"M14 3v4h4\"/></svg>"
+
+fn seciliyiIsaretle() {
+  for d in bulHepsi(".dosya") {
+    if (d.ozellik("data-yol") ?? "") == acikYol {
+      d.sinifEkle("secili")
+    } else {
+      d.sinifSil("secili")
+    }
+  }
 }
 
 fn dosyaAc(yol: String) {
@@ -412,16 +580,16 @@ fn dosyaAc(yol: String) {
     acikYol = metinAl(alan(veri, "yol")) ?? yol
     kaydedilmis = kaynak
 
-    let k = kodAlani()
-    if k != none {
-      k!.degerYaz(kaynak)
-      k!.kaydirmaUstYaz(0)
+    if let k = kodAlani() {
+      k.degerYaz(kaynak)
+      k.kaydirmaUstYaz(0)
     }
-    let adYazisi = dosyaAdiYazisi()
-    if adYazisi != none {
-      adYazisi!.metinYaz(acikYol)
+    if let adYazisi = dosyaAdiYazisi() {
+      adYazisi.metinYaz(acikYol)
     }
-    hataSatiri = 0
+    sorunlar = []
+    sorunlariGoster()
+    seciliyiIsaretle()
     ciz()
     esitle()
     denetimPlanla()
@@ -446,6 +614,41 @@ fn kaydet() {
   })
 }
 
+// Çalışmalarım altında boş olmayan bir ad bulup yeni dosya açar.
+fn yeniDosya() {
+  var n = 1
+  var yol = "calismalar/yeni-${n}.nar"
+  while dosyaYollari.contains(yol) {
+    n += 1
+    yol = "calismalar/yeni-${n}.nar"
+  }
+  let sablon = "// Yeni Nar dosyası\n\nfn main() {\n  print(\"Merhaba\")\n}\n"
+  let govde = jsonYaz(Json.Nesne({
+    "yol": Json.Metin(yol),
+    "kaynak": Json.Metin(sablon)
+  }))
+  let hedef = yol
+  istek("POST", "/api/kaydet", govde, |cevap: String| {
+    let veri = jsonOku(cevap)
+    if mantikAl(alan(veri, "tamam")) ?? false {
+      acikYol = hedef
+      dosyalariYukle()
+      durumYaz("oluşturuldu: " + hedef, false)
+    } else {
+      durumYaz(metinAl(alan(veri, "hata")) ?? "oluşturulamadı", true)
+    }
+  })
+}
+
+fn agaciAcKapa() {
+  let g = govde()
+  if g.sinifVarMi("agac-kapali") {
+    g.sinifSil("agac-kapali")
+  } else {
+    g.sinifEkle("agac-kapali")
+  }
+}
+
 // --- klavye ---------------------------------------------------------------
 
 fn tusaBasildi(o: Olay) {
@@ -461,6 +664,11 @@ fn tusaBasildi(o: Olay) {
     kaydet()
     return
   }
+  if o.ctrl() && !o.shift() && (tus == "b" || tus == "B") {
+    o.engelle()
+    agaciAcKapa()
+    return
+  }
   if o.ctrl() && o.shift() && (tus == "d" || tus == "D") {
     o.engelle()
     kodDuzenle()
@@ -468,30 +676,25 @@ fn tusaBasildi(o: Olay) {
   }
   if tus == "Tab" {
     o.engelle()
-    let k = kodAlani()
-    if k != none {
-      k!.yaziEkle("  ")
+    if let k = kodAlani() {
+      k.yaziEkle("  ")
       ciz()
     }
     return
   }
   if tus == "Enter" {
-    let k = kodAlani()
-    if k == none {
-      return
-    }
-    let metin = k!.deger()
-    let konum = k!.secimBasi()
-    let oncesi = metin.slice(0, konum)
-    let satirBasi = oncesi.indexOf("\n")
-    let suAnkiSatir = sonSatir(oncesi)
-    let girinti = sonrakiGirinti(suAnkiSatir)
-    if girinti.len() > 0 {
-      o.engelle()
-      k!.yaziEkle("\n" + girinti)
-      ciz()
-      esitle()
-      imlecBildir()
+    if let k = kodAlani() {
+      let metin = k.deger()
+      let konum = k.secimBasi()
+      let oncesi = metin.slice(0, konum)
+      let girinti = sonrakiGirinti(sonSatir(oncesi))
+      if girinti.len() > 0 {
+        o.engelle()
+        k.yaziEkle("\n" + girinti)
+        ciz()
+        esitle()
+        imlecBildir()
+      }
     }
   }
 }
@@ -508,12 +711,12 @@ fn sonSatir(metin: String) -> String {
 // --- başlatma -------------------------------------------------------------
 
 fn baslat() {
-  let k = kodAlani()
-  if k == none {
+  let kodOgesi = kodAlani()
+  if kodOgesi == none {
     print("IDE: #kod alanı bulunamadı")
     return
   }
-  let kod = k!
+  let kod = kodOgesi!
 
   kod.dinle("input", || {
     ciz()
@@ -529,31 +732,39 @@ fn baslat() {
   dugmeyeBagla("#btn-kaydet", || { kaydet() })
   dugmeyeBagla("#btn-bicim", || { kodDuzenle() })
   dugmeyeBagla("#btn-js", || { javascriptGoster() })
+  dugmeyeBagla("#btn-denetle", || {
+    sekmeSec("pano-sorunlar")
+    denetle()
+  })
+  dugmeyeBagla("#btn-yeni", || { yeniDosya() })
+  dugmeyeBagla("#btn-agac", || { agaciAcKapa() })
 
-  let secici = dosyaSecici()
-  if secici != none {
-    secici!.dinle("change", || {
-      let s = dosyaSecici()
-      if s != none {
-        dosyaAc(s!.deger())
+  for d in bulHepsi(".sekme") {
+    let pano = d.ozellik("data-pano") ?? "pano-cikti"
+    d.dinle("click", || { sekmeSec(pano) })
+  }
+
+  // Sayfa genelinde de kısayollar çalışsın (odak düzenleyicide değilken).
+  govde().dinle("keydown", |o: Olay| {
+    if o.ctrl() && !o.shift() && (o.tus() == "b" || o.tus() == "B") {
+      o.engelle()
+      agaciAcKapa()
+    }
+  })
+
+  if let motor = motorYazisi() {
+    motor.metinYaz("araçlar: Nar ile yazıldı")
+  }
+  if let durumOgesi = durumYazisi() {
+    durumOgesi.dinle("click", || {
+      if sorunlar.len() > 0 {
+        sekmeSec("pano-sorunlar")
+        satirGit(sorunlar[0].satir)
       }
     })
   }
 
-  let motor = motorYazisi()
-  if motor != none {
-    motor!.metinYaz("araçlar: Nar ile yazıldı")
-  }
-
-  let durumYazisiOgesi = durumYazisi()
-  if durumYazisiOgesi != none {
-    durumYazisiOgesi!.dinle("click", || {
-      if hataSatiri > 0 {
-        satirGit(hataSatiri)
-      }
-    })
-  }
-
+  sekmeSec("pano-cikti")
   dosyalariYukle()
 }
 
@@ -561,8 +772,7 @@ fn baslat() {
 fn degistiMi() -> Bool = kaynakMetni() != kaydedilmis
 
 fn dugmeyeBagla(secici: String, islev: () -> Void) {
-  let d = bul(secici)
-  if d != none {
-    d!.dinle("click", islev)
+  if let d = bul(secici) {
+    d.dinle("click", islev)
   }
 }

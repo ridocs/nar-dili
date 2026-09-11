@@ -154,17 +154,28 @@ def calistir(kaynak: str) -> dict:
     }
 
 
+# Dosya ağacındaki gruplar: (klasör, görünen ad). Sıra ağaçtaki sıradır;
+# kullanıcının kendi dosyaları en üstte.
+AGAC_GRUPLARI = [
+    ("calismalar", "Çalışmalarım"),
+    ("", "Oyun alanı"),
+    ("ornekler", "Örnekler"),
+    ("araclar", "Araçlar"),
+    ("derleyici", "Derleyici"),
+    ("testler/nar", "Testler"),
+]
+
+
 def dosya_listesi() -> list[dict]:
-    """Düzenleyicide açılabilecek dosyalar."""
+    """Düzenleyicide açılabilecek dosyalar, ağaçtaki grup sırasıyla."""
     dosyalar: list[dict] = []
-    for yol in sorted(KOK.glob("*.nar")):
-        dosyalar.append({"ad": yol.name, "yol": yol.name, "grup": "Oyun alanı"})
-    for yol in sorted((KOK / "ornekler").glob("*.nar")):
-        dosyalar.append({"ad": yol.name, "yol": f"ornekler/{yol.name}", "grup": "Örnekler"})
-    if CALISMALAR.exists():
-        for yol in sorted(CALISMALAR.glob("*.nar")):
-            dosyalar.append({"ad": yol.name, "yol": f"calismalar/{yol.name}",
-                             "grup": "Çalışmalarım"})
+    for klasor, grup in AGAC_GRUPLARI:
+        kok = KOK / klasor if klasor else KOK
+        if not kok.exists():
+            continue
+        for yol in sorted(kok.glob("*.nar")):
+            bagil = f"{klasor}/{yol.name}" if klasor else yol.name
+            dosyalar.append({"ad": yol.name, "yol": bagil, "grup": grup})
     return dosyalar
 
 
