@@ -325,7 +325,17 @@ struct Cozumleyici {
         }
       }
       self.bekle(")", "')'")
-      self.bekle("->", "'->' (fonksiyon tipinin dönüş oku)")
+
+      // `->` gelmiyorsa parantez gruplandırmadır: `((Int) -> Bool)?`
+      if !self.suradaMi("->") {
+        if params.len() == 1 {
+          return params[0]
+        }
+        self.hataVer("'->' (fonksiyon tipinin dönüş oku) bekleniyordu")
+        return TipD { konum: k, ic: BOS_TIP }
+      }
+
+      self.ilerle()
       let donus = self.tipCozumle()
       return TipD { konum: k, ic: TIslev(params, donus) }
     }

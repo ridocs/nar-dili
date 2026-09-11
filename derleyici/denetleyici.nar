@@ -61,8 +61,11 @@ let YERLESIK_ADLAR = [
   "pow", "floor", "ceil", "round", "random", "panic", "assert",
   "bul", "bulHepsi", "olustur", "govde", "zamanla", "istek",
   "dosyaOku", "dosyaYaz", "dosyaEkle", "dosyaVarMi", "dosyaSil",
-  "klasorListele", "satirOku", "tumGirdi", "argumanlar", "cik",
-  "simdi", "zamanMetni", "koddan"
+  "klasorListele", "klasorMu", "klasorOlustur",
+  "satirOku", "tumGirdi", "argumanlar", "cik",
+  "simdi", "zamanMetni", "koddan",
+  "sunucu", "yanit", "yanitMetin", "yanitHtml", "yanitJson", "yanitDosya",
+  "yonlendir", "icerikTipi", "ortam", "rastgeleMetin", "sha256"
 ]
 
 // --- denetleyici ----------------------------------------------------------
@@ -493,10 +496,9 @@ struct Denetleyici {
     for o in self.modul.ogeler {
       match o.ic {
         OIslev(f) -> {
-          if YERLESIK_ADLAR.contains(f.ad) {
-            self.hata("'${f.ad}' yerleşik bir fonksiyon; yeniden tanımlanamaz",
-                      f.konum)
-          }
+          // Yerleşik bir adı yeniden tanımlamak serbesttir: kullanıcının
+          // tanımı kazanır. Böylece dile yeni bir yerleşik eklemek mevcut
+          // programları kırmaz.
           if self.islevVarMi(f.ad) {
             self.hata("'${f.ad}' fonksiyonu zaten tanımlı", f.konum)
           }

@@ -169,7 +169,8 @@ let VOID_TIPI = TipPrim("Void")
 let OGE = TipPrim("Element")
 let OLAY_TIPI = TipPrim("Olay")
 
-let ILKELLER = ["Int", "Float", "Bool", "String", "Void", "Element", "Olay"]
+let ILKELLER = ["Int", "Float", "Bool", "String", "Void", "Element", "Olay",
+  "Istek", "Yanit"]
 let SAYISAL = ["Int", "Float"]
 let SIRALANABILIR = ["Int", "Float", "String"]
 

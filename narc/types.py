@@ -283,12 +283,17 @@ VOID = Prim("Void")
 ELEMENT = Prim("Element")
 # Bir olayın ayrıntıları: hangi tuşa basıldı, Ctrl basılı mıydı...
 OLAY = Prim("Olay")
+# Sunucuya gelen bir HTTP isteği. Yalnızca Node hedefinde anlamlıdır.
+ISTEK = Prim("Istek")
+# Sunucudan dönen HTTP yanıtı. `yanit(...)` ailesiyle üretilir.
+YANIT = Prim("Yanit")
 NONE = NoneT()
 NEVER = NeverT()
 ANY = AnyT()
 
 PRIMITIVES = {"Int": INT, "Float": FLOAT, "Bool": BOOL, "String": STRING,
-              "Void": VOID, "Element": ELEMENT, "Olay": OLAY}
+              "Void": VOID, "Element": ELEMENT, "Olay": OLAY,
+              "Istek": ISTEK, "Yanit": YANIT}
 NUMERIC = (INT, FLOAT)
 ORDERED = (INT, FLOAT, STRING)
 

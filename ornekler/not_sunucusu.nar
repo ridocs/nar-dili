@@ -1,0 +1,207 @@
+// Not defteri sunucusu — Nar ile yazılmış bir web uygulaması.
+//
+// Notlar diskte JSON olarak tutulur; sunucu yeniden başlasa da durur.
+// Hem insanlar için HTML sayfası hem programlar için JSON API sunar.
+//
+// Çalıştırmak:
+//     nar run ornekler/not_sunucusu.nar
+//     tarayıcıda http://localhost:8080
+//
+// API:
+//     GET    /api/notlar          bütün notlar
+//     GET    /api/notlar/:no      tek not
+//     POST   /api/notlar          yeni not   (gövde: {"baslik": "...", "metin": "..."})
+//     DELETE /api/notlar/:no      notu sil
+
+import "../araclar/web.nar"
+import "../araclar/json.nar"
+
+let DOSYA = "notlar.json"
+
+struct Not {
+  no: Int
+  baslik: String
+  metin: String
+  zaman: String
+}
+
+// --- depo -----------------------------------------------------------------
+// Küçük bir uygulama için JSON dosyası yeterli: okunabilir, taşınabilir,
+// kurulum istemez.
+
+fn notlariOku() -> [Not] {
+  let metin = dosyaOku(DOSYA)
+  if metin == none {
+    return []
+  }
+  let veri = jsonOku(metin!)
+  if veri == none {
+    return []
+  }
+  var cikan: [Not] = []
+  for oge in diziAl(veri) {
+    cikan.push(Not {
+      no: tamSayiAl(alan(oge, "no")) ?? 0,
+      baslik: metinAl(alan(oge, "baslik")) ?? "",
+      metin: metinAl(alan(oge, "metin")) ?? "",
+      zaman: metinAl(alan(oge, "zaman")) ?? ""
+    })
+  }
+  return cikan
+}
+
+fn notlariYaz(notlar: [Not]) {
+  dosyaYaz(DOSYA, "[" + notlar.map(|n| notJson(n)).join(",") + "]")
+}
+
+fn notJson(n: Not) -> String =
+  "{\"no\":${n.no},\"baslik\":" + metinKacir(n.baslik) +
+  ",\"metin\":" + metinKacir(n.metin) +
+  ",\"zaman\":" + metinKacir(n.zaman) + "}"
+
+fn sonrakiNo(notlar: [Not]) -> Int {
+  var en = 0
+  for n in notlar {
+    if n.no > en {
+      en = n.no
+    }
+  }
+  return en + 1
+}
+
+fn notBul(no: Int) -> Not? {
+  for n in notlariOku() {
+    if n.no == no {
+      return n
+    }
+  }
+  return none
+}
+
+// --- JSON API -------------------------------------------------------------
+
+fn hepsiniVer(i: Gelen) -> Yanit =
+  yanitJson("[" + notlariOku().map(|n| notJson(n)).join(",") + "]")
+
+fn tekiniVer(i: Gelen) -> Yanit {
+  let n = notBul(int(i.parametre("no") ?? "0") ?? 0)
+  if n == none {
+    return yanit(404, "{\"hata\":\"not yok\"}").baslikYaz(
+      "Content-Type", "application/json; charset=utf-8")
+  }
+  return yanitJson(notJson(n!))
+}
+
+fn notEkle(i: Gelen) -> Yanit {
+  let veri = jsonOku(i.govde())
+  let baslik = (metinAl(alan(veri, "baslik")) ?? "").trim()
+  if baslik == "" {
+    return yanit(400, "{\"hata\":\"baslik gerekli\"}").baslikYaz(
+      "Content-Type", "application/json; charset=utf-8")
+  }
+
+  var notlar = notlariOku()
+  let yeni = Not {
+    no: sonrakiNo(notlar),
+    baslik: baslik,
+    metin: metinAl(alan(veri, "metin")) ?? "",
+    zaman: zamanMetni()
+  }
+  notlar.push(yeni)
+  notlariYaz(notlar)
+  return yanitJson(notJson(yeni)).durumYaz(201)
+}
+
+fn notSil(i: Gelen) -> Yanit {
+  let no = int(i.parametre("no") ?? "0") ?? 0
+  let notlar = notlariOku()
+  let kalan = notlar.filter(|n| n.no != no)
+  if kalan.len() == notlar.len() {
+    return yanit(404, "{\"hata\":\"not yok\"}").baslikYaz(
+      "Content-Type", "application/json; charset=utf-8")
+  }
+  notlariYaz(kalan)
+  return yanitJson("{\"silindi\":${no}}")
+}
+
+// --- HTML sayfası ---------------------------------------------------------
+
+fn sayfa(i: Gelen) -> Yanit {
+  let notlar = notlariOku()
+  var satirlar = ""
+  for n in notlar {
+    satirlar += "<article class=\"not\">" +
+      "<h2>" + htmlKacir(n.baslik) + "</h2>" +
+      "<p>" + htmlKacir(n.metin) + "</p>" +
+      "<footer>" + htmlKacir(n.zaman) +
+      " · <a href=\"/sil/${n.no}\">sil</a></footer></article>"
+  }
+  if notlar.len() == 0 {
+    satirlar = "<p class=\"bos\">Henüz not yok.</p>"
+  }
+  return yanitHtml(KALIP.replace("{notlar}", satirlar))
+}
+
+fn formIle(i: Gelen) -> Yanit {
+  let baslik = (i.alan("baslik") ?? "").trim()
+  if baslik != "" {
+    var notlar = notlariOku()
+    notlar.push(Not {
+      no: sonrakiNo(notlar),
+      baslik: baslik,
+      metin: i.alan("metin") ?? "",
+      zaman: zamanMetni()
+    })
+    notlariYaz(notlar)
+  }
+  return yonlendir("/")
+}
+
+fn silVeYonlendir(i: Gelen) -> Yanit {
+  let no = int(i.parametre("no") ?? "0") ?? 0
+  notlariYaz(notlariOku().filter(|n| n.no != no))
+  return yonlendir("/")
+}
+
+let KALIP = "<!doctype html><html lang=\"tr\"><head><meta charset=\"utf-8\">" +
+  "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
+  "<title>Notlar</title><style>" +
+  "body{margin:0;background:#faf8f6;color:#1c1917;" +
+  "font:15px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}" +
+  ".kap{max-width:640px;margin:0 auto;padding:32px 20px}" +
+  "h1{font-size:24px;margin:0 0 20px}" +
+  "form{display:flex;flex-direction:column;gap:8px;background:#fff;" +
+  "border:1px solid #e7e1dd;border-radius:10px;padding:16px;margin-bottom:24px}" +
+  "input,textarea{font:inherit;padding:8px 10px;border:1px solid #e7e1dd;" +
+  "border-radius:6px;background:#fff;color:inherit}" +
+  "button{font:inherit;align-self:flex-start;padding:8px 16px;border-radius:6px;" +
+  "border:1px solid #a32a2f;background:#a32a2f;color:#fff;cursor:pointer}" +
+  ".not{background:#fff;border:1px solid #e7e1dd;border-radius:10px;" +
+  "padding:14px 16px;margin-bottom:12px}" +
+  ".not h2{font-size:17px;margin:0 0 6px}" +
+  ".not p{margin:0 0 8px;white-space:pre-wrap}" +
+  ".not footer{font-size:13px;color:#6b635d}" +
+  "a{color:#a32a2f}.bos{color:#6b635d}" +
+  "</style></head><body><div class=\"kap\"><h1>Notlar</h1>" +
+  "<form method=\"post\" action=\"/ekle\">" +
+  "<input name=\"baslik\" placeholder=\"başlık\" required>" +
+  "<textarea name=\"metin\" placeholder=\"not...\" rows=\"3\"></textarea>" +
+  "<button type=\"submit\">Ekle</button></form>" +
+  "{notlar}</div></body></html>"
+
+// --- kurulum --------------------------------------------------------------
+
+fn main() {
+  let u = uygulama()
+
+  u.get("/", sayfa)
+  u.post("/ekle", formIle)
+  u.get("/sil/:no", silVeYonlendir)
+
+  u.get("/api/notlar", hepsiniVer)
+  u.get("/api/notlar/:no", tekiniVer)
+  u.post("/api/notlar", notEkle)
+  u.sil("/api/notlar/:no", notSil)
+
+  u.dinle(int(ortam("PORT") ?? "8080") ?? 8080)
+}

@@ -12,8 +12,8 @@ from pathlib import Path
 from .. import nar_ast as A
 from ..checker import Checker
 from ..types import (
-    ELEMENT, FLOAT, INT, OLAY, STRING, EnumT, ListT, MapT, OptT, Prim, StructT, Type,
-    TypeVar, unwrap_optional,
+    ELEMENT, FLOAT, INT, ISTEK, OLAY, STRING, YANIT, EnumT, ListT, MapT, OptT,
+    Prim, StructT, Type, TypeVar, unwrap_optional,
 )
 
 RUNTIME_PATH = Path(__file__).resolve().parent.parent / "runtime" / "nar_runtime.js"
@@ -115,6 +115,20 @@ ELEMENT_METHODS = {
     "kaydirmaSol": "({0}.scrollLeft || 0)",
 }
 
+ISTEK_METHODS = {
+    "yontem": "{0}.yontem",
+    "yol": "{0}.yol",
+    "sorgu": "$istekSorgu({0}, {1})",
+    "baslik": "$istekBaslik({0}, {1})",
+    "govde": "{0}.govde",
+    "ip": "{0}.ip",
+}
+
+YANIT_METHODS = {
+    "baslikYaz": "$yanitBaslik({0}, {1}, {2})",
+    "durumYaz": "$yanitDurum({0}, {1})",
+}
+
 OLAY_METHODS = {
     "tus": "({0}.key || \"\")",
     "ctrl": "(({0}.ctrlKey || {0}.metaKey) === true)",
@@ -133,6 +147,8 @@ SISTEM_ISLEVLERI = {
     "dosyaVarMi": "$dosyaVarMi",
     "dosyaSil": "$dosyaSil",
     "klasorListele": "$klasorListele",
+    "klasorMu": "$klasorMu",
+    "klasorOlustur": "$klasorOlustur",
     "satirOku": "$satirOku",
     "tumGirdi": "$tumGirdi",
     "argumanlar": "$argumanlar",
@@ -140,6 +156,22 @@ SISTEM_ISLEVLERI = {
     "simdi": "$simdi",
     "zamanMetni": "$zamanMetni",
     "koddan": "$koddanKarakter",
+    "sunucu": "$sunucu",
+    "yanit": "$yanit",
+    "icerikTipi": "$icerikTipi",
+    "ortam": "$ortam",
+    "rastgeleMetin": "$rastgeleMetin",
+    "sha256": "$sha256",
+}
+
+# Kısayol yanıtlar: içerik tipi birlikte gelir.
+YANIT_KISAYOLLARI = {
+    "yanitMetin": '$yanit(200, {0}, "text/plain; charset=utf-8")',
+    "yanitHtml": '$yanit(200, {0}, "text/html; charset=utf-8")',
+    "yanitJson": '$yanit(200, {0}, "application/json; charset=utf-8")',
+    "yanitDosya": "$yanitDosya({0})",
+    "yonlendir": '$yanitBaslik($yanit(302, "", "text/plain; charset=utf-8"), '
+                 '"Location", {0})',
 }
 
 MAP_METHODS = {
@@ -676,9 +708,16 @@ class JsBackend:
         chunks.append("`")
         return "".join(chunks)
 
-    def to_string(self, node: A.Expr) -> str:
-        """Bir ifadeyi metne çevirirken tipe uygun biçimleyiciyi seçer."""
-        code = self.expr(node)
+    def to_string(self, node: A.Expr, code: str | None = None) -> str:
+        """Bir ifadeyi metne çevirirken tipe uygun biçimleyiciyi seçer.
+
+        `code` verilirse ifade yeniden üretilmez. Bunu atlamak pahalıya
+        mal oluyordu: `a + b + c + ...` gibi bir zincirde her düğüm alt
+        ağacını ikinci kez üretiyor, maliyet zincir uzunluğunda üstel
+        büyüyordu (40 parçalı bir metin dakikalarca derleniyordu).
+        """
+        if code is None:
+            code = self.expr(node)
         ty = node.ty
         if ty == STRING:
             return code
@@ -716,8 +755,10 @@ class JsBackend:
             return f"({left} {'===' if node.op == '==' else '!=='} {right})"
 
         # Metin birleştirmede sayı/liste/struct tarafı otomatik yazıya dökülür.
+        # Üretilmiş kod yeniden kullanılır; `expr` ikinci kez çağrılmaz.
         if node.op == "+" and node.ty == STRING:
-            return f"({self.to_string(node.left)} + {self.to_string(node.right)})"
+            return (f"({self.to_string(node.left, left)} + "
+                    f"{self.to_string(node.right, right)})")
 
         return self.binary_js(node.op, node.ty, left, right)
 
@@ -861,6 +902,10 @@ class JsBackend:
             table = STRING_METHODS
         elif base == ELEMENT:
             table = ELEMENT_METHODS
+        elif base == ISTEK:
+            table = ISTEK_METHODS
+        elif base == YANIT:
+            table = YANIT_METHODS
         elif base == OLAY:
             table = OLAY_METHODS
         elif isinstance(base, MapT):
@@ -939,6 +984,10 @@ class JsBackend:
             return f"$istek({arglar})"
 
         # --- dosya, girdi ve zaman ---
+        if name in YANIT_KISAYOLLARI:
+            arglar = [self.expr(a) for a in args]
+            return YANIT_KISAYOLLARI[name].format(*arglar)
+
         if name in SISTEM_ISLEVLERI:
             arglar = ", ".join(self.expr(a) for a in args)
             return f"{SISTEM_ISLEVLERI[name]}({arglar})"

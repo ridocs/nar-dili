@@ -90,7 +90,6 @@ BILDIRIM_HATALARI = (
     "hem alan hem metot olamaz",
     "parametresi yinelendi",
     "fonksiyonu zaten tanımlı",
-    "yerleşik bir fonksiyon",
     "bilinmeyen tip",
     "bilinmeyen arayüz",
     "tip argümanı almaz",
@@ -166,7 +165,6 @@ class NarDenetleyiciTesti(unittest.TestCase):
             "struct A { x: Int\n  fn x() -> Int = 1 }\nfn main() { }",
             # fonksiyonlar
             "fn f() { }\nfn f() { }\nfn main() { }",
-            "fn print() { }\nfn main() { }",
             "fn f(a: Int, a: Int) { }\nfn main() { }",
             # bilinmeyen tip
             "struct A { x: Bilinmeyen }\nfn main() { }",

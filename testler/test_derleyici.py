@@ -259,8 +259,20 @@ fn main() { print(str(E.A(5).deger())) }
     def test_bilinmeyen_tip(self):
         self.hatali("fn main() { let x: Yok = 1\n print(str(x)) }", "bilinmeyen tip")
 
-    def test_yerlesik_yeniden_tanim(self):
-        self.hatali("fn print(x: Int) { }\nfn main() { }", "yerleşik")
+    def test_yerlesik_golgelenebilir(self):
+        """Kullanıcı bir yerleşiğin adını kullanabilir; kendi tanımı kazanır.
+
+        Eskiden bu bir hataydı. Ama o kural, dile her yeni yerleşik
+        eklendiğinde mevcut programları kırma riski taşıyor: `ozet` adlı bir
+        yerleşik eklenince depodaki bir örnek derlenemez oldu.
+        """
+        kaynak = (
+            'fn ozet(l: [Int]) -> String = "${l.len()} öğe"\n'
+            "fn main() { print(ozet([1, 2, 3])) }"
+        )
+        module = parse(kaynak, "t.nar")
+        checker = Checker(module, kaynak)
+        checker.check()  # hata vermemeli
 
     def test_map_tek_degiskenle(self):
         self.hatali(

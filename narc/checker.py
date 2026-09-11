@@ -14,8 +14,8 @@ from __future__ import annotations
 from . import nar_ast as A
 from .diagnostics import NarError, NarErrors, duzenle
 from .types import (
-    ANY, BOOL, ELEMENT, FLOAT, INT, NEVER, NONE, NUMERIC, OLAY, ORDERED,
-    PRIMITIVES, STRING, VOID,
+    ANY, BOOL, ELEMENT, FLOAT, INT, ISTEK, NEVER, NONE, NUMERIC, OLAY, ORDERED,
+    PRIMITIVES, STRING, VOID, YANIT,
     AnyT, EnumT, FnT, InterfaceT, ListT, MapT, NeverT, NoneT, OptT, Prim,
     RangeT, StructT,
     Type, TypeVar, assignable, birlestir, common_type, is_optional, subst,
@@ -30,9 +30,13 @@ BUILTIN_NAMES = {
     "bul", "bulHepsi", "olustur", "govde", "zamanla", "istek",
     # Dosya ve program işlemleri — yalnızca Node hedefinde anlamlıdır.
     "dosyaOku", "dosyaYaz", "dosyaEkle", "dosyaVarMi", "dosyaSil",
-    "klasorListele", "satirOku", "tumGirdi", "argumanlar", "cik",
+    "klasorListele", "klasorMu", "klasorOlustur",
+    "satirOku", "tumGirdi", "argumanlar", "cik",
     # Zaman — her ortamda çalışır.
     "simdi", "zamanMetni",
+    # Sunucu — yalnızca Node hedefinde anlamlıdır.
+    "sunucu", "yanit", "yanitMetin", "yanitHtml", "yanitJson", "yanitDosya",
+    "yonlendir", "icerikTipi", "ortam", "rastgeleMetin", "sha256",
     # Karakter kodu dönüşümü.
     "koddan",
 }
@@ -58,6 +62,8 @@ def _sistem_imzalari() -> dict[str, FnT]:
         "dosyaVarMi": FnT((STRING,), BOOL),
         "dosyaSil": FnT((STRING,), BOOL),
         "klasorListele": FnT((STRING,), ListT(STRING)),
+        "klasorMu": FnT((STRING,), BOOL),
+        "klasorOlustur": FnT((STRING,), BOOL),
         "satirOku": FnT((), OptT(STRING)),
         "tumGirdi": FnT((), STRING),
         "argumanlar": FnT((), ListT(STRING)),
@@ -66,6 +72,18 @@ def _sistem_imzalari() -> dict[str, FnT]:
         "zamanMetni": FnT((), STRING),
         # Karakter kodundan metin: koddan(65) → "A"
         "koddan": FnT((INT,), STRING),
+        # Sunucu
+        "sunucu": FnT((INT, FnT((ISTEK,), YANIT)), VOID),
+        "yanit": FnT((INT, STRING), YANIT),
+        "yanitMetin": FnT((STRING,), YANIT),
+        "yanitHtml": FnT((STRING,), YANIT),
+        "yanitJson": FnT((STRING,), YANIT),
+        "yanitDosya": FnT((STRING,), OptT(YANIT)),
+        "yonlendir": FnT((STRING,), YANIT),
+        "icerikTipi": FnT((STRING,), STRING),
+        "ortam": FnT((STRING,), OptT(STRING)),
+        "rastgeleMetin": FnT((INT,), STRING),
+        "sha256": FnT((STRING,), STRING),
     }
 
 
@@ -217,8 +235,9 @@ class Checker:
         # d) serbest fonksiyonlar
         for item in self.module.items:
             if isinstance(item, A.FnDecl):
-                if item.name in BUILTIN_NAMES:
-                    self.error(f"'{item.name}' yerleşik bir fonksiyon; yeniden tanımlanamaz", item.span)
+                # Yerleşik bir adı yeniden tanımlamak serbesttir: kullanıcının
+                # tanımı kazanır. Böylece dile yeni bir yerleşik eklemek
+                # mevcut programları kırmaz.
                 if item.name in self.functions:
                     self.error(f"'{item.name}' fonksiyonu zaten tanımlı", item.span)
                 sig = self.fn_signature(item)
@@ -2080,6 +2099,22 @@ def builtin_method(base: Type, name: str) -> FnT | None:
 
         return table.get(name)
 
+    if base == ISTEK:
+        return {
+            "yontem": FnT((), STRING),
+            "yol": FnT((), STRING),
+            "sorgu": FnT((STRING,), OptT(STRING)),
+            "baslik": FnT((STRING,), OptT(STRING)),
+            "govde": FnT((), STRING),
+            "ip": FnT((), STRING),
+        }.get(name)
+
+    if base == YANIT:
+        return {
+            "baslikYaz": FnT((STRING, STRING), YANIT),
+            "durumYaz": FnT((INT,), YANIT),
+        }.get(name)
+
     if base == OLAY:
         return {
             "tus": FnT((), STRING),        # basılan tuşun adı: "a", "Enter"…
@@ -2155,6 +2190,8 @@ _BUILTIN_MEMBER_NAMES = {
                 "bul", "bulHepsi", "secimBasi", "secimSonu", "secimYap",
                 "yaziEkle", "kaydirmaUst", "kaydirmaUstYaz", "kaydirmaSol"],
     "Olay": ["tus", "ctrl", "shift", "alt", "engelle", "durdur", "kaynak"],
+    "Istek": ["yontem", "yol", "sorgu", "baslik", "govde", "ip"],
+    "Yanit": ["baslikYaz", "durumYaz"],
 }
 
 

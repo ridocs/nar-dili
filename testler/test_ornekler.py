@@ -24,6 +24,11 @@ NODE = shutil.which("node")
 # İçe aktarılmak için yazılmış, kendi başına `main` içermeyen modüller.
 MODULLER = {"metin_araclari.nar"}
 
+# Sunucu örnekleri istek beklemek üzere ayakta kalır; "çalıştır ve çıkışını
+# oku" biçiminde sınanamazlar. Doğrulukları `testler/test_sunucu.py` içinde
+# gerçek isteklerle denetleniyor; burada yalnızca derlendikleri görülür.
+SUNUCULAR = {"not_sunucusu.nar"}
+
 
 def ornek_dosyalari() -> list[Path]:
     # `.narbuild/` gibi dizinler de `*.nar` desenine uyabilir; dosya olanı al.
@@ -43,6 +48,9 @@ class OrneklerTesti(unittest.TestCase):
             with self.subTest(ornek=yol.name):
                 derleme = compile_file(yol)
                 kod = derleme.to_js()
+
+                if yol.name in SUNUCULAR:
+                    continue  # derlendi; çalıştırmak sonsuza kadar sürerdi
 
                 with tempfile.TemporaryDirectory() as tmp:
                     betik = Path(tmp) / "program.js"

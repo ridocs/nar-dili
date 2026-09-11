@@ -1,0 +1,416 @@
+// Web sunucusu çatısı — Nar diliyle yazılmıştır.
+//
+// Nar'ın `sunucu()` yerleşiği ham bir HTTP sunucusu verir: bir istek gelir,
+// bir yanıt dönersin. Bu kütüphane onun üstüne gündelik işleri koyar:
+// yolların eşleştirilmesi, yol içindeki değişkenler, form ve JSON gövdesi
+// okuma, statik dosya sunma, çerezler.
+//
+//     fn main() {
+//       let u = uygulama()
+//       u.get("/", |i| yanitHtml("<h1>Merhaba</h1>"))
+//       u.get("/kisi/:ad", |i| yanitMetin("selam " + (i.parametre("ad") ?? "")))
+//       u.post("/kaydet", |i| { ... })
+//       u.klasor("/statik", "www")
+//       u.dinle(8080)
+//     }
+//
+// Yalnızca Node hedefinde anlamlıdır (`nar run`, `nar build --target js`).
+//
+// Bir kütüphanedir: `main` içermez.
+
+import "tarayici.nar"
+
+// --- istek sarmalayıcı ----------------------------------------------------
+
+// Yola gömülü değişkenler (`/kisi/:ad`) ham `Istek` üzerinde taşınamaz;
+// bu yüzden istek, eşleşen parametrelerle birlikte sarmalanır.
+struct Gelen {
+  ham: Istek
+  var parametreler: [[String]]
+
+  fn yontem() -> String = self.ham.yontem()
+
+  fn yol() -> String = self.ham.yol()
+
+  fn govde() -> String = self.ham.govde()
+
+  fn ip() -> String = self.ham.ip()
+
+  fn sorgu(ad: String) -> String? = self.ham.sorgu(ad)
+
+  fn baslik(ad: String) -> String? = self.ham.baslik(ad)
+
+  // `/kisi/:ad` yolundaki `ad`.
+  fn parametre(ad: String) -> String? {
+    for ikili in self.parametreler {
+      if ikili.len() == 2 && ikili[0] == ad {
+        return ikili[1]
+      }
+    }
+    return none
+  }
+
+  // `application/x-www-form-urlencoded` gövdesindeki alan.
+  fn alan(ad: String) -> String? = formAlani(self.govde(), ad)
+
+  // Çerez değeri.
+  fn cerez(ad: String) -> String? {
+    let ham = self.baslik("cookie")
+    if ham == none {
+      return none
+    }
+    for parca in ham!.split(";") {
+      let p = parca.trim()
+      let esit = p.indexOf("=")
+      if esit > 0 && p.slice(0, esit) == ad {
+        return yolCoz(p.slice(esit + 1, p.len()))
+      }
+    }
+    return none
+  }
+}
+
+// --- yol eşleştirme -------------------------------------------------------
+
+struct Yol {
+  yontem: String              // "GET", "POST", ... ya da "*" (hepsi)
+  desen: String               // "/kisi/:ad" ya da "/statik/*"
+  isleyici: (Gelen) -> Yanit
+}
+
+// Deseni yola uydurur; uyarsa parametreleri döndürür, uymazsa `none`.
+//
+// `:ad`  → tek bir parçayı yakalar ve `ad` olarak verir
+// `*`    → kalan bütün parçaları yakalar ve `kalan` olarak verir
+fn desenEslesir(desen: String, yol: String) -> [[String]]? {
+  let dp = parcalara(desen)
+  let yp = parcalara(yol)
+  var cikan: [[String]] = []
+
+  var i = 0
+  while i < dp.len() {
+    let d = dp[i]
+    if d == "*" {
+      cikan.push(["kalan", yp.slice(i, yp.len()).join("/")])
+      return cikan
+    }
+    if i >= yp.len() {
+      return none
+    }
+    if d.startsWith(":") {
+      cikan.push([d.slice(1, d.len()), yolCoz(yp[i])])
+    } else {
+      if d != yp[i] {
+        return none
+      }
+    }
+    i += 1
+  }
+
+  if yp.len() != dp.len() {
+    return none
+  }
+  return cikan
+}
+
+fn parcalara(yol: String) -> [String] {
+  var cikan: [String] = []
+  for p in yol.split("/") {
+    if p != "" {
+      cikan.push(p)
+    }
+  }
+  return cikan
+}
+
+// --- uygulama -------------------------------------------------------------
+
+struct Uygulama {
+  var yollar: [Yol]
+  var bulunamadi: ((Gelen) -> Yanit)?
+
+  fn ekle(yontem: String, desen: String, isleyici: (Gelen) -> Yanit) {
+    self.yollar.push(Yol { yontem: yontem, desen: desen, isleyici: isleyici })
+  }
+
+  fn get(desen: String, isleyici: (Gelen) -> Yanit) {
+    self.ekle("GET", desen, isleyici)
+  }
+
+  fn post(desen: String, isleyici: (Gelen) -> Yanit) {
+    self.ekle("POST", desen, isleyici)
+  }
+
+  fn put(desen: String, isleyici: (Gelen) -> Yanit) {
+    self.ekle("PUT", desen, isleyici)
+  }
+
+  fn sil(desen: String, isleyici: (Gelen) -> Yanit) {
+    self.ekle("DELETE", desen, isleyici)
+  }
+
+  // Her yöntemi karşılar; ara katman gibi kullanılabilir.
+  fn hepsi(desen: String, isleyici: (Gelen) -> Yanit) {
+    self.ekle("*", desen, isleyici)
+  }
+
+  // Bir URL önekini disk üzerindeki klasöre bağlar.
+  //
+  //     u.klasor("/statik", "www")   →  /statik/a.css  →  www/a.css
+  //
+  // Klasörün dışına çıkmaya çalışan yollar (`..`) reddedilir.
+  fn klasor(onek: String, kok: String) {
+    self.get(onek + "/*", |i| dosyaSun(kok, i.parametre("kalan") ?? ""))
+  }
+
+  fn bulunamadiKullan(isleyici: (Gelen) -> Yanit) {
+    self.bulunamadi = isleyici
+  }
+
+  fn isle(ham: Istek) -> Yanit {
+    let yol = ham.yol()
+    let yontem = ham.yontem()
+    var yontemUydu = false
+
+    for y in self.yollar {
+      let p = desenEslesir(y.desen, yol)
+      if p == none {
+        continue
+      }
+      if y.yontem != "*" && y.yontem != yontem {
+        yontemUydu = true
+        continue
+      }
+      return y.isleyici(Gelen { ham: ham, parametreler: p! })
+    }
+
+    // Yol var ama yöntem tutmuyorsa 404 değil 405 doğru yanıttır.
+    if yontemUydu {
+      return yanit(405, "405 — bu adres '${yontem}' kabul etmiyor")
+    }
+    if self.bulunamadi != none {
+      return self.bulunamadi!(Gelen { ham: ham, parametreler: [] })
+    }
+    return yanit(404, "404 — bulunamadı: ${yol}")
+  }
+
+  fn dinle(port: Int) {
+    print("sunucu: http://localhost:${port}")
+    sunucu(port, |ham| self.isle(ham))
+  }
+}
+
+fn uygulama() -> Uygulama = Uygulama { yollar: [], bulunamadi: none }
+
+// --- statik dosya ---------------------------------------------------------
+
+// Klasör dışına çıkmayı engeller: `..` içeren ya da mutlak yollar reddedilir.
+fn guvenliYolMu(goreli: String) -> Bool {
+  if goreli.contains("..") || goreli.startsWith("/") || goreli.contains(":") {
+    return false
+  }
+  return !goreli.contains("\\")
+}
+
+fn dosyaSun(kok: String, goreli: String) -> Yanit {
+  if !guvenliYolMu(goreli) {
+    return yanit(403, "403 — bu yola erişilemez")
+  }
+  var yol = kok + "/" + goreli
+  if goreli == "" {
+    yol = kok
+  }
+  // Klasör istendiyse içindeki index.html sunulur. `dosyaVarMi` klasörlere
+  // de `true` dediği için ayrımı `klasorMu` yapar.
+  if klasorMu(yol) {
+    yol = yol + "/index.html"
+  }
+  let y = yanitDosya(yol)
+  if y == none {
+    return yanit(404, "404 — dosya yok: ${goreli}")
+  }
+  return y!
+}
+
+// --- form ve sorgu ayrıştırma --------------------------------------------
+
+// `ad=Ay%C5%9Fe&yas=30` gövdesinden bir alanı okur.
+fn formAlani(govde: String, ad: String) -> String? {
+  for parca in govde.split("&") {
+    let esit = parca.indexOf("=")
+    if esit < 0 {
+      if yolCoz(parca) == ad {
+        return ""
+      }
+      continue
+    }
+    if yolCoz(parca.slice(0, esit)) == ad {
+      return yolCoz(parca.slice(esit + 1, parca.len()))
+    }
+  }
+  return none
+}
+
+// Bütün form alanlarını sırayla verir.
+fn formAlanlari(govde: String) -> [[String]] {
+  var cikan: [[String]] = []
+  for parca in govde.split("&") {
+    if parca == "" {
+      continue
+    }
+    let esit = parca.indexOf("=")
+    if esit < 0 {
+      cikan.push([yolCoz(parca), ""])
+    } else {
+      cikan.push([
+        yolCoz(parca.slice(0, esit)),
+        yolCoz(parca.slice(esit + 1, parca.len()))
+      ])
+    }
+  }
+  return cikan
+}
+
+// URL kodlamasını çözer: `%C5%9F` → `ş`, `+` → boşluk.
+//
+// UTF-8 çok baytlı karakterleri de doğru çözer: baytlar toplanır, sonra
+// kod noktasına çevrilir.
+fn yolCoz(s: String) -> String {
+  var sonuc = ""
+  var baytlar: [Int] = []
+  var i = 0
+
+  while i < s.len() {
+    let c = s.charAt(i)
+    if c == "%" && i + 2 < s.len() {
+      baytlar.push(onaltilikOku(s.slice(i + 1, i + 3)))
+      i += 3
+      continue
+    }
+    if baytlar.len() > 0 {
+      sonuc += baytlariCoz(baytlar)
+      baytlar = []
+    }
+    if c == "+" {
+      sonuc += " "
+    } else {
+      sonuc += c
+    }
+    i += 1
+  }
+  if baytlar.len() > 0 {
+    sonuc += baytlariCoz(baytlar)
+  }
+  return sonuc
+}
+
+fn onaltilikOku(iki: String) -> Int {
+  let harfler = "0123456789abcdef"
+  let k = iki.lower()
+  let ust = harfler.indexOf(k.charAt(0))
+  let alt = harfler.indexOf(k.charAt(1))
+  if ust < 0 || alt < 0 {
+    return 63                          // '?'
+  }
+  return ust * 16 + alt
+}
+
+// UTF-8 bayt dizisini metne çevirir.
+fn baytlariCoz(baytlar: [Int]) -> String {
+  var sonuc = ""
+  var i = 0
+  while i < baytlar.len() {
+    let b = baytlar[i]
+    if b < 128 {
+      sonuc += koddan(b)
+      i += 1
+      continue
+    }
+    if b >= 240 && i + 3 < baytlar.len() {
+      sonuc += koddan((b - 240) * 262144 + (baytlar[i + 1] - 128) * 4096 +
+        (baytlar[i + 2] - 128) * 64 + (baytlar[i + 3] - 128))
+      i += 4
+      continue
+    }
+    if b >= 224 && i + 2 < baytlar.len() {
+      sonuc += koddan((b - 224) * 4096 + (baytlar[i + 1] - 128) * 64 +
+        (baytlar[i + 2] - 128))
+      i += 3
+      continue
+    }
+    if b >= 192 && i + 1 < baytlar.len() {
+      sonuc += koddan((b - 192) * 64 + (baytlar[i + 1] - 128))
+      i += 2
+      continue
+    }
+    sonuc += "?"
+    i += 1
+  }
+  return sonuc
+}
+
+// Metni URL'de güvenle taşınacak biçime çevirir.
+fn yolKacir(s: String) -> String {
+  let guvenli = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~"
+  var sonuc = ""
+  for c in s {
+    if guvenli.contains(c) {
+      sonuc += c
+      continue
+    }
+    for b in utf8Baytlari(c) {
+      sonuc += "%" + onaltilikYaz(b)
+    }
+  }
+  return sonuc
+}
+
+fn utf8Baytlari(c: String) -> [Int] {
+  let k = c.kodu()
+  if k < 128 {
+    return [k]
+  }
+  if k < 2048 {
+    return [192 + k / 64, 128 + k % 64]
+  }
+  if k < 65536 {
+    return [224 + k / 4096, 128 + (k / 64) % 64, 128 + k % 64]
+  }
+  return [240 + k / 262144, 128 + (k / 4096) % 64, 128 + (k / 64) % 64,
+          128 + k % 64]
+}
+
+fn onaltilikYaz(b: Int) -> String {
+  let harfler = "0123456789ABCDEF"
+  return harfler.charAt(b / 16) + harfler.charAt(b % 16)
+}
+
+// --- HTML kaçışı ----------------------------------------------------------
+
+// Kullanıcıdan gelen metni HTML içine koymadan önce kaçır. Bunu atlamak
+// siteye kod enjekte edilmesine (XSS) yol açar.
+fn htmlKacir(s: String) -> String {
+  var sonuc = s.replace("&", "&amp;")
+  sonuc = sonuc.replace("<", "&lt;")
+  sonuc = sonuc.replace(">", "&gt;")
+  sonuc = sonuc.replace("\"", "&quot;")
+  return sonuc.replace("'", "&#39;")
+}
+
+// --- çerez ----------------------------------------------------------------
+
+// Tarayıcıya çerez yazan bir yanıt döndürür.
+//
+// `saniye` çerezin ne kadar yaşayacağı; 0 verilirse oturum çerezi olur.
+// HttpOnly her zaman açıktır: çerez JavaScript'ten okunamaz, böylece
+// çalınması zorlaşır.
+fn cerezYaz(y: Yanit, ad: String, deger: String, saniye: Int) -> Yanit {
+  var kural = ad + "=" + yolKacir(deger) + "; Path=/; HttpOnly; SameSite=Lax"
+  if saniye > 0 {
+    kural += "; Max-Age=${saniye}"
+  }
+  return y.baslikYaz("Set-Cookie", kural)
+}
+
+fn cerezSil(y: Yanit, ad: String) -> Yanit =
+  y.baslikYaz("Set-Cookie", ad + "=; Path=/; HttpOnly; Max-Age=0")

@@ -280,7 +280,19 @@ class Parser:
                 while self.match(","):
                     params.append(self.parse_type())
             self.expect(")", "')'")
-            self.expect("->", "'->' (fonksiyon tipinin dönüş oku)")
+
+            # `->` gelmiyorsa parantez gruplandırmadır: `((Int) -> Bool)?`
+            if not self.at("->"):
+                if len(params) == 1:
+                    return params[0]
+                raise NarError(
+                    "'->' (fonksiyon tipinin dönüş oku) bekleniyordu",
+                    self.cur.span,
+                    hint="parantez ya fonksiyon tipinin parametreleridir "
+                         "ya da tek bir tipi gruplar",
+                )
+
+            self.advance()
             ret = self.parse_type()
             return A.FuncType(tok.span, params, ret)
 

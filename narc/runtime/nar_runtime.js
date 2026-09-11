@@ -446,6 +446,199 @@ function $mapRemove(m, k) {
   m.delete(k);
 }
 
+// --- sunucu ---------------------------------------------------------------
+// Yalnızca Node ortamında anlamlıdır. Tarayıcıda `sunucu()` çağrılırsa
+// program net bir hatayla durur; sessizce yanlış davranmaz.
+
+function $istekNesnesi(req, govde) {
+  const url = new URL(req.url, "http://" + (req.headers.host || "yerel"));
+  return {
+    $narIstek: true,
+    yontem: req.method || "GET",
+    yol: url.pathname,
+    sorgu: url.searchParams,
+    basliklar: req.headers || {},
+    govde: govde,
+    ip: (req.socket && req.socket.remoteAddress) || "",
+  };
+}
+
+function $istekSorgu(istek, ad) {
+  const deger = istek.sorgu.get(ad);
+  return deger === null ? null : deger;
+}
+
+function $istekBaslik(istek, ad) {
+  const deger = istek.basliklar[String(ad).toLowerCase()];
+  return deger === undefined ? null : String(deger);
+}
+
+// Yanıt opak bir değerdir; alanları yalnızca buradaki yardımcılarla değişir.
+function $yanit(durum, govde, tip) {
+  return {
+    $narYanit: true,
+    durum: durum,
+    govde: govde,
+    basliklar: tip ? {"Content-Type": tip} : {},
+  };
+}
+
+function $yanitBaslik(yanit, ad, deger) {
+  yanit.basliklar[ad] = deger;
+  return yanit;
+}
+
+function $yanitDurum(yanit, durum) {
+  yanit.durum = durum;
+  return yanit;
+}
+
+// Dosya uzantısından içerik tipi. Statik dosya sunarken gerekli: yanlış tip
+// tarayıcının CSS'i metin, JS'i indirilecek dosya sanmasına yol açar.
+const $ICERIK_TIPLERI = {
+  html: "text/html; charset=utf-8",
+  htm: "text/html; charset=utf-8",
+  css: "text/css; charset=utf-8",
+  js: "text/javascript; charset=utf-8",
+  mjs: "text/javascript; charset=utf-8",
+  json: "application/json; charset=utf-8",
+  txt: "text/plain; charset=utf-8",
+  md: "text/markdown; charset=utf-8",
+  csv: "text/csv; charset=utf-8",
+  xml: "application/xml; charset=utf-8",
+  svg: "image/svg+xml",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  avif: "image/avif",
+  ico: "image/x-icon",
+  woff: "font/woff",
+  woff2: "font/woff2",
+  ttf: "font/ttf",
+  otf: "font/otf",
+  pdf: "application/pdf",
+  zip: "application/zip",
+  wasm: "application/wasm",
+  mp3: "audio/mpeg",
+  mp4: "video/mp4",
+  webm: "video/webm",
+};
+
+function $icerikTipi(yol) {
+  const nokta = String(yol).lastIndexOf(".");
+  if (nokta < 0) return "application/octet-stream";
+  const uzanti = String(yol).slice(nokta + 1).toLowerCase();
+  return $ICERIK_TIPLERI[uzanti] || "application/octet-stream";
+}
+
+// Dosyayı içerik tipiyle birlikte yanıta çevirir; yoksa `none`.
+// Metin dosyaları UTF-8, ötekiler ham bayt olarak okunur.
+function $yanitDosya(yol) {
+  const fs = $fs();
+  if (!fs) return null;
+  try {
+    const tip = $icerikTipi(yol);
+    const metinMi = tip.startsWith("text/") || tip.indexOf("charset") >= 0 ||
+      tip === "image/svg+xml" || tip === "application/xml";
+    const icerik = metinMi ? fs.readFileSync(yol, "utf8") : fs.readFileSync(yol);
+    return $yanit(200, icerik, tip);
+  } catch (e) {
+    return null;
+  }
+}
+
+function $sunucu(port, isleyici) {
+  if (!$nodeMu()) $panic("sunucu() yalnızca Node ortamında çalışır");
+  let http;
+  try {
+    http = require("http");
+  } catch (e) {
+    $panic("sunucu(): http modülü yüklenemedi");
+  }
+
+  const server = http.createServer((req, res) => {
+    const parcalar = [];
+    req.on("data", (p) => parcalar.push(p));
+    req.on("end", () => {
+      let yanit;
+      try {
+        const govde = Buffer.concat(parcalar).toString("utf8");
+        yanit = isleyici($istekNesnesi(req, govde));
+      } catch (e) {
+        // Bir isteğin çökmesi sunucuyu düşürmemeli.
+        console.error("sunucu: istek işlenirken hata:", e && e.message);
+        yanit = $yanit(500, "500 — sunucu hatası", "text/plain; charset=utf-8");
+      }
+      if (!yanit || !yanit.$narYanit) {
+        yanit = $yanit(500, "500 — geçersiz yanıt", "text/plain; charset=utf-8");
+      }
+      const basliklar = Object.assign({}, yanit.basliklar);
+      if (!basliklar["Content-Type"]) {
+        basliklar["Content-Type"] = "text/plain; charset=utf-8";
+      }
+      res.writeHead(yanit.durum, basliklar);
+      res.end(yanit.govde);
+    });
+  });
+
+  server.on("error", (e) => {
+    if (e && e.code === "EADDRINUSE") {
+      $panic("sunucu: " + port + " portu kullanımda");
+    }
+    $panic("sunucu: " + (e && e.message));
+  });
+
+  server.listen(port);
+  return null;
+}
+
+// --- ortam ve kimlik -------------------------------------------------------
+
+function $ortam(ad) {
+  if (!$nodeMu()) return null;
+  const deger = process.env[ad];
+  return deger === undefined ? null : String(deger);
+}
+
+function $kripto() {
+  if (!$nodeMu()) return null;
+  try {
+    return require("crypto");
+  } catch (e) {
+    return null;
+  }
+}
+
+// Tahmin edilemez rastgele metin: oturum anahtarı, kimlik, tuz.
+// Math.random() bu iş için uygun değildir.
+function $rastgeleMetin(uzunluk) {
+  if (uzunluk <= 0) return "";
+  const harfler = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const k = $kripto();
+  if (k) {
+    const bayt = k.randomBytes(uzunluk);
+    let sonuc = "";
+    for (let i = 0; i < uzunluk; i++) sonuc += harfler[bayt[i] % harfler.length];
+    return sonuc;
+  }
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    const bayt = new Uint8Array(uzunluk);
+    crypto.getRandomValues(bayt);
+    let sonuc = "";
+    for (let i = 0; i < uzunluk; i++) sonuc += harfler[bayt[i] % harfler.length];
+    return sonuc;
+  }
+  $panic("rastgeleMetin(): bu ortamda güvenli rastgelelik yok");
+}
+
+function $sha256(metin) {
+  const k = $kripto();
+  if (!k) $panic("sha256(): bu ortamda crypto yok");
+  return k.createHash("sha256").update(String(metin), "utf8").digest("hex");
+}
+
 // --- karakter kodları ------------------------------------------------------
 // Kod noktası (code point) kullanılır, kod birimi değil: emoji gibi
 // BMP dışı karakterler de tek parça sayılır.
@@ -617,6 +810,27 @@ function $dosyaSil(yol) {
   if (!fs) return false;
   try {
     fs.unlinkSync(yol);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function $klasorMu(yol) {
+  const fs = $fs();
+  if (!fs) return false;
+  try {
+    return fs.statSync(yol).isDirectory();
+  } catch (e) {
+    return false;
+  }
+}
+
+function $klasorOlustur(yol) {
+  const fs = $fs();
+  if (!fs) return false;
+  try {
+    fs.mkdirSync(yol, {recursive: true});
     return true;
   } catch (e) {
     return false;
