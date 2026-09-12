@@ -75,6 +75,18 @@ class NarVaryant:
 
 
 @dataclass
+class Hucre:
+    """Closure'ın paylaştığı değişken.
+
+    Bir yerel yakalandığı anda hücreye terfi eder; dış işlev de closure
+    da aynı hücreyi görür. Böylece `var i = 0` üstünde çalışan bir
+    closure `i` değerini gerçekten artırabilir.
+    """
+
+    deger: object = None
+
+
+@dataclass
 class Kapanis:
     """Bir işlev ve yakaladığı değerler."""
 
@@ -215,15 +227,27 @@ class VM:
 
             # --- değişkenler ---
             elif k == K.YEREL_OKU:
-                yigin.append(cerceve.yereller[komut[1]])
+                v = cerceve.yereller[komut[1]]
+                yigin.append(v.deger if type(v) is Hucre else v)
             elif k == K.YEREL_YAZ:
-                cerceve.yereller[komut[1]] = yigin.pop()
+                v = cerceve.yereller[komut[1]]
+                if type(v) is Hucre:
+                    v.deger = yigin.pop()
+                else:
+                    cerceve.yereller[komut[1]] = yigin.pop()
             elif k == K.GLOBAL_OKU:
                 yigin.append(self.globaller.get(komut[1]))
             elif k == K.GLOBAL_YAZ:
                 self.globaller[komut[1]] = yigin.pop()
             elif k == K.KAPALI_OKU:
-                yigin.append(cerceve.kapanis.yakalanan[komut[1]])
+                v = cerceve.kapanis.yakalanan[komut[1]]
+                yigin.append(v.deger if type(v) is Hucre else v)
+            elif k == K.KAPALI_YAZ:
+                v = cerceve.kapanis.yakalanan[komut[1]]
+                if type(v) is Hucre:
+                    v.deger = yigin.pop()
+                else:
+                    cerceve.kapanis.yakalanan[komut[1]] = yigin.pop()
 
             # --- aritmetik ---
             elif k == K.TOPLA:
@@ -318,7 +342,13 @@ class VM:
                 yakalanan = []
                 for dis_yerel_mi, indis in sablon.yakalananlar:
                     if dis_yerel_mi:
-                        yakalanan.append(cerceve.yereller[indis])
+                        # Yakalanan yerel hücreye terfi eder; dış işlev de
+                        # bundan sonra aynı hücreyi kullanır.
+                        v = cerceve.yereller[indis]
+                        if type(v) is not Hucre:
+                            v = Hucre(v)
+                            cerceve.yereller[indis] = v
+                        yakalanan.append(v)
                     else:
                         yakalanan.append(cerceve.kapanis.yakalanan[indis])
                 yigin.append(Kapanis(sablon, yakalanan))
@@ -634,6 +664,12 @@ def _sha256(vm: VM, args):
     return hashlib.sha256(str(args[0]).encode("utf-8")).hexdigest()
 
 
+def _sayfa_yok(vm: VM, args):
+    raise vm.hata(
+        "sayfa öğesi yalnızca tarayıcıda üretilebilir; "
+        "derle: nar build --target web")
+
+
 def _icerik_tipi(vm: VM, args):
     yol = str(args[0])
     nokta = yol.rfind(".")
@@ -666,6 +702,18 @@ YERLESIKLER.update({
     "rastgeleMetin": _rastgele_metin,
     "sha256": _sha256,
     "icerikTipi": _icerik_tipi,
+    # Sayfa sorguları: sanal makinede sayfa yoktur, bu yüzden hiçbir şey
+    # bulunmaz. Program bunu görüp "tarayıcıda çalıştır" diyebilsin diye
+    # durmak yerine boş sonuç dönüyoruz — Node'daki davranışın aynısı.
+    "bul": lambda vm, a: None,
+    "bulHepsi": lambda vm, a: [],
+    "odaklanan": lambda vm, a: None,
+    "medyaEslesir": lambda vm, a: False,
+    "medyaDinle": lambda vm, a: None,
+    # Sayfa üretimi: burada gerçekten yapılacak bir şey yok; program
+    # yanlış ortamda olduğunu açık bir hatayla öğrenmeli.
+    "olustur": _sayfa_yok,
+    "govde": _sayfa_yok,
 })
 
 

@@ -298,13 +298,42 @@ class VMTesti(unittest.TestCase):
 
     # --- kapsam dışı ------------------------------------------------------
 
-    def test_sayfa_islemleri_net_hata_veriyor(self):
-        """DOM sanal makinede yok; mesaj bunu açıkça söylemeli."""
-        with self.assertRaises(bytecode_uretici.UretimHatasi) as ctx:
-            vm_cikti(sar('let e = bul("#x")'))
+    def test_sayfa_programi_iki_motorda_ayni_mesaji_verir(self):
+        """`bul(...) == none` ile ortamını yoklayan program her yerde çalışır."""
+        kaynak = '''fn main() {
+  if bul("#uygulama") == none {
+    print("tarayıcıda çalıştır")
+    return
+  }
+  print("sayfa var")
+}
+'''
+        self.assertEqual(vm_cikti(kaynak), "tarayıcıda çalıştır")
+
+    def test_sayfa_sorgusu_bos_doner(self):
+        """Sanal makinede sayfa yok; arayan hiçbir şey bulamaz.
+
+        Durmak yerine boş dönüyor ki `if bul(...) == none { ... }` yazan
+        program VM'de de tarayıcı gerektiğini kendisi söyleyebilsin —
+        Node'daki davranışın aynısı.
+        """
+        self.assertEqual(
+            vm_cikti(sar('print(bul("#x") == none, bulHepsi("p").len())')),
+            "true 0")
+
+    def test_sayfa_ogesi_uretimi_calisma_aninda_duruyor(self):
+        """Öğe üretmek gerçekten yapılamaz; mesaj nereye gidileceğini söyler."""
+        with self.assertRaises(Exception) as ctx:
+            vm_cikti(sar('let e = olustur("div")'))
         mesaj = str(ctx.exception)
-        self.assertIn("sanal makinede yok", mesaj)
+        self.assertIn("tarayıcıda", mesaj)
         self.assertIn("target web", mesaj)
+
+    def test_sunucu_derleme_aninda_reddediliyor(self):
+        """Sunucu kurmanın VM'de karşılığı hiç yok."""
+        with self.assertRaises(bytecode_uretici.UretimHatasi) as ctx:
+            vm_cikti(sar('zamanla(10, || { print("x") })'))
+        self.assertIn("sanal makinede yok", str(ctx.exception))
 
 
 @unittest.skipIf(NODE is None, "node bulunamadı")
@@ -312,6 +341,23 @@ class IkiHedefAyniTesti(unittest.TestCase):
     """Sanal makine ile JavaScript arka ucu aynı sonucu vermeli."""
 
     ORNEKLER = [
+        # Lambda içindeki `self`: kapanışla yakalanmalı. VM bir süre
+        # yalnız yerel kapsama baktığı için "'self' bu kapsamda yok"
+        # diyordu, JavaScript ise doğru çalışıyordu.
+        '''struct Sayac {
+  var deger: Int
+
+  fn topla(l: [Int]) -> Int = l.map(|x| x + self.deger).toplam()
+
+  fn suzulmus(l: [Int]) -> [Int] = l.filter(|x| x > self.deger)
+}
+
+fn main() {
+  let s = Sayac { deger: 10 }
+  print(s.topla([1, 2, 3]))
+  print(s.suzulmus([5, 15, 25]))
+}
+''',
         sar("print(1 + 2 * 3 - 4, 10 / 3, 10 % 3, -7 / 2, -7 % 3)"),
         sar("print(7 / 2.0, 2.0 * 3, 1 + 0.5, 10.0 / 4)"),
         sar('print("a" + 1, "b" + 1.5, "c" + true, "d" + [1, 2])'),

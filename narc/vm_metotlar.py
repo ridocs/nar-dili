@@ -244,7 +244,34 @@ def _zorla_ac(vm, a):
     return a[0]
 
 
+# Sayfa öğesi metotları. Sanal makinede sayfa yok; bunlara sıra
+# gelirse program yanlış ortamdadır. Derlemeyi engellemek yerine burada
+# durmak, "tarayıcıda çalıştır" diyen programların VM'de de çalışıp
+# mesajını yazmasını sağlıyor.
+SAYFA_METOTLARI = {
+    "m_" + ad: (lambda vm, a, _ad=ad: _sayfa_metodu_yok(vm, _ad))
+    for ad in (
+        "metin", "metinYaz", "html", "htmlYaz", "deger", "degerYaz",
+        "sinifEkle", "sinifSil", "sinifVarMi", "ozellik", "ozellikYaz",
+        "stil", "dinle", "ekle", "cikar", "temizle", "odaklan",
+        "secimBasi", "secimSonu", "secimYap", "yaziEkle",
+        "kaydirmaUst", "kaydirmaUstYaz", "kaydirmaSol",
+        "isaretli", "isaretliYaz",
+        # Olay metotları: olay da ancak sayfada doğar.
+        "tus", "ctrl", "shift", "alt", "engelle", "durdur", "kaynak",
+        "x", "y",
+    )
+}
+
+
+def _sayfa_metodu_yok(vm, ad: str):
+    raise vm.hata(
+        f"'{ad}' bir sayfa öğesi metodu; sanal makinede sayfa yok "
+        "(derle: nar build --target web)")
+
+
 EK_YERLESIKLER = {
+    **SAYFA_METOTLARI,
     **METIN_METOTLARI,
     **LISTE_METOTLARI,
     **ESLEME_METOTLARI,

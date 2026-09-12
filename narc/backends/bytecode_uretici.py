@@ -334,6 +334,12 @@ class BytecodeUretici:
         if yerel is not None:
             self.yaz(K.YEREL_YAZ, yerel, ad_dugumu)
             return
+        # Closure'ın yakaladığı değişkene yazma; global sanılırsa dıştaki
+        # değer hiç değişmezdi.
+        yakalanan = self.kapsam.yakala(ad_dugumu.name)
+        if yakalanan is not None:
+            self.yaz(K.KAPALI_YAZ, yakalanan, ad_dugumu)
+            return
         self.yaz(K.GLOBAL_YAZ, self.global_ad(ad_dugumu.name), ad_dugumu)
 
     def _eger(self, s: A.If):
@@ -622,9 +628,15 @@ class BytecodeUretici:
             self._ad_oku(e)
         elif isinstance(e, A.SelfExpr):
             indis = self.kapsam.yerel_bul("self")
-            if indis is None:
-                raise UretimHatasi("'self' bu kapsamda yok")
-            self.yaz(K.YEREL_OKU, indis, e)
+            if indis is not None:
+                self.yaz(K.YEREL_OKU, indis, e)
+            else:
+                # Lambda icindeki `self`: metodun yereli degil, kapanisla
+                # disaridan yakalanan bir deger.
+                yakalanan = self.kapsam.yakala("self")
+                if yakalanan is None:
+                    raise UretimHatasi("'self' bu kapsamda yok")
+                self.yaz(K.KAPALI_OKU, yakalanan, e)
         elif isinstance(e, (A.TupleLit, A.ListLit)):
             # Tuple da liste gibi saklanir; `.0` indeksleme olur.
             for o in e.items:
@@ -984,16 +996,13 @@ class BytecodeUretici:
 
 # Yalnızca tarayıcı ya da Node hedefinde anlamlı olanlar. Sanal makinede
 # sayfa da sunucu da yoktur; hata mesajı bunu açıkça söylemeli.
+# Sanal makinede hiç karşılığı olmayanlar: bunlar derleme sırasında
+# reddedilir. Sayfa sorguları ve öğe metotları listede değil — onlar
+# çalışma anında, gerçekten çağrılırlarsa durur.
 SAYFA_VE_SUNUCU = {
-    "bul", "bulHepsi", "olustur", "govde", "zamanla", "istek",
-    "medyaEslesir", "medyaDinle",
+    "zamanla", "istek",
     "sunucu", "yanit", "yanitMetin", "yanitHtml", "yanitJson", "yanitDosya",
     "yonlendir",
-    # Element metotları
-    "metin", "metinYaz", "html", "htmlYaz", "deger", "degerYaz",
-    "sinifEkle", "sinifSil", "sinifVarMi", "ozellik", "ozellikYaz", "stil",
-    "dinle", "ekle", "cikar", "temizle", "odaklan", "secimBasi", "secimSonu",
-    "secimYap", "yaziEkle", "kaydirmaUst", "kaydirmaUstYaz", "kaydirmaSol",
 }
 
 # Üreticinin kullandığı, VM'de metot olarak duran ek yerleşikler.

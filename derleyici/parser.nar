@@ -761,7 +761,7 @@ struct Cozumleyici {
       self.bekle("=", "'='")
       let bagIfade = self.kosulCozumle()
       let govde = self.blokCozumle()
-      return self.deyimD(k, SWhile(self.ifadeD(k, IBos), govde, bagAd, bagIfade))
+      return self.deyimD(k, SWhile(none, govde, bagAd, bagIfade))
     }
     let kosul = self.kosulCozumle()
     return self.deyimD(k, SWhile(kosul, self.blokCozumle(), "", none))
@@ -1655,7 +1655,7 @@ fn icDeyimKonumuTasi(s: Deyim, k: Konum) -> Deyim = match s {
   SDonus(e) -> SDonus(if e == none { none } else { konumuTasi(e!, k) })
   SEger(kosul, ise, yoksa) -> SEger(
     konumuTasi(kosul, k), blokKonumuTasi(ise, k), yoksaKonumuTasi(yoksa, k))
-  SWhile(kosul, govde, bagAd, bagIfade) -> SWhile(konumuTasi(kosul, k), blokKonumuTasi(govde, k), bagAd, if bagIfade == none { none } else { konumuTasi(bagIfade!, k) })
+  SWhile(kosul, govde, bagAd, bagIfade) -> SWhile(if kosul == none { none } else { konumuTasi(kosul!, k) }, blokKonumuTasi(govde, k), bagAd, if bagIfade == none { none } else { konumuTasi(bagIfade!, k) })
   SFor(adlar, kaynak, govde) -> SFor(
     adlar, konumuTasi(kaynak, k), blokKonumuTasi(govde, k))
   SMatch(konu, kollar) -> SMatch(

@@ -172,7 +172,8 @@ fn tokenlestir(kaynak: String) -> LexSonucu {
 
     // sayı
     if rakamMi(c) {
-      let sonuc = sayiOku(d)
+      let oncekiNokta = tokenlar.len() > 0 && tokenlar[tokenlar.len() - 1].tur == "."
+      let sonuc = sayiOku(d, oncekiNokta)
       match sonuc {
         SayiSonucu.Tamam(t) -> tokenlar.push(t)
         SayiSonucu.Hata(h) -> return LexSonucu.Hata(h)
@@ -405,7 +406,9 @@ enum SayiSonucu {
   Hata(LexHatasi)
 }
 
-fn sayiOku(d: Durum) -> SayiSonucu {
+// `noktaArdindan` doğruysa ondalık kısmı okunmaz: `t.1.0` iki ayrı
+// tuple erişimidir, `1.0` diye bir sayı değil.
+fn sayiOku(d: Durum, noktaArdindan: Bool = false) -> SayiSonucu {
   let satir = d.satir
   let sutun = d.sutun
 
@@ -445,7 +448,7 @@ fn sayiOku(d: Durum) -> SayiSonucu {
       ham += d.ilerle()
       continue
     }
-    if c == "." && !ondalikli && rakamMi(d.bakIleri(1)) {
+    if c == "." && !ondalikli && !noktaArdindan && rakamMi(d.bakIleri(1)) {
       ondalikli = true
       ham += d.ilerle()
       continue

@@ -1,0 +1,252 @@
+// Dilin her köşesini dolaşan tur programı.
+// İki arka uçta da (JavaScript, bytecode VM) aynı çıktıyı vermeli.
+
+// --- tipler ---------------------------------------------------------------
+
+struct Nokta {
+  var x: Int
+  var y: Int = 0
+
+  fn uzaklik() -> Int = abs(self.x) + abs(self.y)
+  fn tasi(dx: Int = 1, dy: Int = 1) -> Nokta = Nokta { x: self.x + dx, y: self.y + dy }
+}
+
+enum Sonuc {
+  Tamam(Int)
+  Hata(String)
+  Bos
+
+  fn anlat() -> String = match self {
+    Tamam(n) if n > 100 -> "çok büyük: ${n}"
+    Tamam(n) -> "değer: ${n}"
+    Hata(m) -> "hata: ${m}"
+    Bos -> "boş"
+  }
+}
+
+struct Kutu<T> {
+  var ic: T
+
+  fn al() -> T = self.ic
+}
+
+type Sayilar = [Int]
+
+// --- sayılar --------------------------------------------------------------
+
+fn sayilar() {
+  print("== sayılar ==")
+  print(1 + 2 * 3 - 4)
+  print(10 / 3, 10 % 3, -7 / 2, -7 % 3)
+  print(7 / 2.0, 2.0 * 3, 1 + 0.5)
+  print(abs(-5), min(3, 7), max(3, 7))
+  print(floor(3.7), ceil(3.2), round(3.5))
+  print(sqrt(16.0), pow(2.0, 10.0))
+  print(int(3.9), float(3), int("42") ?? 0, int("x") ?? -1)
+  print(2147483647 + 1)
+  print(0.1 + 0.2)
+}
+
+// --- metinler -------------------------------------------------------------
+
+fn metinler() {
+  print("== metinler ==")
+  let s = "Merhaba Dünya"
+  print(s.len(), s.upper(), s.lower())
+  print("istanbul".upperTr(), "IĞDIR".lowerTr())
+  print(s.contains("Dün"), s.startsWith("Mer"), s.endsWith("ya"))
+  print(s.indexOf("Dünya"), s.slice(0, 7), s.charAt(0))
+  print("  bosluk  ".trim(), "a,b,c".split(",").len())
+  print("ab".repeat(3), s.replace("a", "*"))
+  print("A".kodu(), koddan(66))
+  print("${1 + 1} tane ${s.upper()}")
+  print("çğıöşü".len(), "çğıöşü".upperTr())
+}
+
+// --- listeler -------------------------------------------------------------
+
+fn listeler() {
+  print("== listeler ==")
+  var l: Sayilar = [5, 3, 8, 1]
+  print(l.len(), l.first() ?? 0, l.last() ?? 0)
+  print(l.contains(8), l.indexOf(8), l.slice(1, 3))
+  print(l.sort(), l.reverse())
+  print(l.map(|x| x * 2), l.filter(|x| x > 3))
+  print(l.reduce(|a, b| a + b, 0))
+  print(l.toplam(), l.carpim(), l.enBuyuk() ?? 0, l.enKucuk() ?? 0)
+  print(l.ortalama())
+  print(l.say(3), l.benzersiz())
+  print([1, 1, 2].benzersiz(), [3, 1].join("-"))
+  l.push(9)
+  print(l)
+  print(l.pop() ?? 0)
+  print(l)
+  print([[1, 2], [3]].map(|x| x.len()))
+}
+
+// --- eşlemeler ------------------------------------------------------------
+
+fn eslemeler() {
+  print("== eşlemeler ==")
+  var m = {"a": 1, "b": 2}
+  print(m.len(), m.get("a") ?? 0, m.get("z") ?? -1, m.has("b"))
+  m.set("c", 3)
+  m.remove("a")
+  print(m.keys(), m.values(), m.len())
+}
+
+// --- opsiyoneller ---------------------------------------------------------
+
+fn belki(v: Int) -> Int? = if v > 0 { v } else { none }
+
+fn zincir(v: Int) -> Int? {
+  let a = belki(v)?
+  return a * 2
+}
+
+fn opsiyoneller() {
+  print("== opsiyoneller ==")
+  print(belki(5) ?? 0, belki(-1) ?? 0)
+  print(zincir(5) ?? 0, zincir(-1) ?? 0)
+  let d: Nokta? = Nokta { x: 3 }
+  print(d?.uzaklik() ?? 0)
+  let bos: Nokta? = none
+  print(bos?.uzaklik() ?? -1)
+  if let n = belki(7) {
+    print("if let:", n)
+  }
+  print(belki(9)!)
+}
+
+// --- akış -----------------------------------------------------------------
+
+var sayac = 3
+
+fn azalt() -> Int? {
+  if sayac <= 0 {
+    return none
+  }
+  sayac -= 1
+  return sayac
+}
+
+fn akis() {
+  print("== akış ==")
+  var toplam = 0
+  for i in 1..=5 {
+    if i == 2 {
+      continue
+    }
+    if i == 5 {
+      break
+    }
+    toplam += i
+  }
+  print("for:", toplam)
+
+  for (i, h) in ["a", "b"] {
+    print(i, h)
+  }
+
+  var n = 0
+  while n < 3 {
+    n += 1
+  }
+  print("while:", n)
+
+  while let k = azalt() {
+    print("while let:", k)
+  }
+
+  for k in "abc" {
+    print("harf:", k)
+  }
+}
+
+// --- desenler -------------------------------------------------------------
+
+fn siniflandir(n: Int) -> String = match n {
+  x if x < 0 -> "eksi"
+  0 -> "sıfır"
+  1..=9 -> "tek"
+  10..99 -> "iki"
+  _ -> "büyük"
+}
+
+fn desenler() {
+  print("== desenler ==")
+  for n in [-1, 0, 5, 42, 99, 100] {
+    print(n, siniflandir(n))
+  }
+  print(Sonuc.Tamam(5).anlat())
+  print(Sonuc.Tamam(500).anlat())
+  print(Sonuc.Hata("yok").anlat())
+  print(Sonuc.Bos.anlat())
+}
+
+// --- tuple ----------------------------------------------------------------
+
+fn bolVeKalan(a: Int, b: Int) -> (Int, Int) = (a / b, a % b)
+
+fn tuplelar() {
+  print("== tuple ==")
+  let (b, k) = bolVeKalan(17, 5)
+  print(b, k)
+  let t = (1, "iki", true)
+  print(t.0, t.1, t.2)
+  print((1, 2) == (1, 2), (1, 2) == (2, 1))
+  let ic = (1, ("a", 2))
+  print(ic.1.0, ic.1.1)
+}
+
+// --- işlevler -------------------------------------------------------------
+
+fn fib(n: Int) -> Int = if n < 2 { n } else { fib(n - 1) + fib(n - 2) }
+
+fn uygula(n: Int, f: (Int) -> Int) -> Int = f(n)
+
+fn sayacUret() -> () -> Int {
+  var i = 0
+  return || {
+    i += 1
+    return i
+  }
+}
+
+fn islevler() {
+  print("== işlevler ==")
+  print(fib(10))
+  print(uygula(5, |x| x * x))
+  let c = sayacUret()
+  print(c(), c(), c())
+  print(Kutu<Int> { ic: 42 }.al())
+  print(Kutu<String> { ic: "metin" }.al())
+}
+
+// --- yapılar --------------------------------------------------------------
+
+fn yapilar() {
+  print("== yapılar ==")
+  let p = Nokta { x: 3, y: 4 }
+  print(p.x, p.y, p.uzaklik())
+  let q = Nokta { x: 1 }
+  print(q.y, q.tasi().x, q.tasi(dy: 5).y, q.tasi(10, 20).uzaklik())
+  var r = Nokta { x: 0 }
+  r.x = 7
+  print(r.x)
+  print(p == Nokta { x: 3, y: 4 })
+}
+
+fn main() {
+  sayilar()
+  metinler()
+  listeler()
+  eslemeler()
+  opsiyoneller()
+  akis()
+  desenler()
+  tuplelar()
+  islevler()
+  yapilar()
+  print("== bitti ==")
+}

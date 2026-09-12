@@ -53,6 +53,7 @@ class K(IntEnum):
     GLOBAL_OKU = 12
     GLOBAL_YAZ = 13
     KAPALI_OKU = 14    # closure'ın yakaladığı değer
+    KAPALI_YAZ = 15    # yakalanan değere yazar (paylaşılan hücre)
 
     # --- aritmetik ---
     TOPLA = 20         # Int
