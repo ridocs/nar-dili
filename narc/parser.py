@@ -12,6 +12,9 @@ from .lexer import Token, tokenize
 
 # İkili operatör öncelikleri (büyük sayı = daha sıkı bağlar).
 BINARY_PRECEDENCE = {
+    # Boru en gevşek bağlar: `a + b |> f` önce toplar, sonra borular.
+    # `??` ile aynı seviyede ve soldan birleşiyor: `x |> f |> g`.
+    "|>": 1,
     "??": 1,
     "||": 2,
     "&&": 3,
@@ -682,6 +685,20 @@ class Parser:
                 left = A.RangeExpr(op_tok.span, left, right, kind == "..=")
                 continue
 
+            if kind == "|>":
+                # `x |> f` -> `f(x)`, `x |> f(a)` -> `f(x, a)`.
+                # Burada çağrıya çevriliyor; ileride hiçbir aşama boruyu
+                # ayrıca bilmek zorunda kalmıyor.
+                right = self.parse_expr(prec + 1)
+                if isinstance(right, A.Call):
+                    right.args.insert(0, left)
+                    if getattr(right, "arg_names", None):
+                        right.arg_names.insert(0, None)
+                    left = right
+                else:
+                    left = A.Call(op_tok.span, right, [left], [None])
+                continue
+
             right = self.parse_expr(prec + 1)
             left = A.Binary(op_tok.span, kind, left, right)
 
@@ -941,6 +958,20 @@ class Parser:
         try:
             self.skip_newlines()
             while not self.at("]"):
+                # `[...digerleri, 3]` — yayma yalnız liste içinde geçerli.
+                if self.at(".."):
+                    nokta = self.advance()
+                    if not self.match("."):
+                        raise NarError(
+                            "yayma için üç nokta gerekir: '...liste'",
+                            nokta.span,
+                        )
+                    items.append(A.Spread(nokta.span, self.parse_expr()))
+                    self.skip_newlines()
+                    if not self.match(","):
+                        break
+                    self.skip_newlines()
+                    continue
                 items.append(self.parse_expr())
                 self.skip_newlines()
                 if not self.match(","):

@@ -798,7 +798,9 @@ class JsBackend:
             return "[" + ", ".join(self.expr(i) for i in node.items) + "]"
 
         if isinstance(node, A.ListLit):
-            return "[" + ", ".join(self.expr(i) for i in node.items) + "]"
+            return "[" + ", ".join(
+                f"...{self.expr(i.inner)}" if isinstance(i, A.Spread)
+                else self.expr(i) for i in node.items) + "]"
 
         if isinstance(node, A.MapLit):
             pairs = ", ".join(f"[{self.expr(k)}, {self.expr(v)}]" for k, v in node.entries)
@@ -830,6 +832,8 @@ class JsBackend:
             return f"$unwrap({self.expr(node.operand)}, {js_string(where)})"
 
         if isinstance(node, A.Index):
+            if node.__dict__.get("resolved") == "dilim":
+                return self.dilim(node)
             return self.index_read(node.obj.ty, self.expr(node.obj), self.expr(node.index))
 
         if isinstance(node, A.FieldAccess):
@@ -939,6 +943,15 @@ class JsBackend:
     def needs_deep_eq(ty: Type | None) -> bool:
         base = unwrap_optional(ty) if ty is not None else None
         return isinstance(base, (StructT, EnumT, ListT, MapT, TupleT))
+
+    def dilim(self, node: A.Index) -> str:
+        """`a[1..3]` — üst sınır dışarıda, `a[1..=3]` içeride."""
+        aralik = node.index
+        bas = self.expr(aralik.start)
+        son = self.expr(aralik.end)
+        if aralik.inclusive:
+            son = f"({son} + 1)"
+        return f"$dilim({self.expr(node.obj)}, {bas}, {son})"
 
     def index_read(self, obj_ty: Type | None, obj: str, idx: str) -> str:
         base = unwrap_optional(obj_ty) if obj_ty is not None else None

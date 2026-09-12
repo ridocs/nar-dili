@@ -1228,6 +1228,23 @@ class Checker:
             )
         return TupleT(tuple(tipler))
 
+    def yayma_tipi(self, node: A.Spread, env: Env,
+                   beklenen: Type | None) -> Type:
+        """`...liste` — yayılan şey liste olmalı; öğe tipi dışarı çıkar."""
+        ic = self.check_expr(node.inner, env,
+                             ListT(beklenen) if beklenen is not None else None)
+        taban = unwrap_optional(ic)
+        if isinstance(taban, AnyT):
+            return ANY
+        if not isinstance(taban, ListT):
+            self.error(
+                f"'{ic}' yayılamaz",
+                node.span,
+                hint="'...' yalnız listeler için; tek değeri doğrudan yaz",
+            )
+            return ANY
+        return taban.elem
+
     def check_list_lit(self, node: A.ListLit, env: Env, expected: Type | None) -> Type:
         hint = None
         if expected is not None and isinstance(unwrap_optional(expected), ListT):
@@ -1251,7 +1268,9 @@ class Checker:
         # tipler konabilmesi buna bağlı.
         if hint is not None:
             for item in node.items:
-                got = self.check_expr(item, env, hint)
+                got = (self.yayma_tipi(item, env, hint)
+                       if isinstance(item, A.Spread)
+                       else self.check_expr(item, env, hint))
                 if not assignable(hint, got):
                     self.error(
                         f"liste elemanı '{hint}' olmalı, '{got}' bulundu",
@@ -1259,9 +1278,13 @@ class Checker:
                     )
             return ListT(hint)
 
-        elem = self.check_expr(node.items[0], env, hint)
+        ilk = node.items[0]
+        elem = (self.yayma_tipi(ilk, env, hint) if isinstance(ilk, A.Spread)
+                else self.check_expr(ilk, env, hint))
         for item in node.items[1:]:
-            got = self.check_expr(item, env, hint or elem)
+            got = (self.yayma_tipi(item, env, hint or elem)
+                   if isinstance(item, A.Spread)
+                   else self.check_expr(item, env, hint or elem))
             merged = common_type(elem, got)
             if merged is None:
                 self.error(
@@ -1596,6 +1619,28 @@ class Checker:
 
     def check_index(self, node: A.Index, env: Env) -> Type:
         obj = self.check_expr(node.obj, env)
+
+        # `a[1..3]` — aralıkla indeksleme dilim demektir.
+        if isinstance(node.index, A.RangeExpr):
+            taban = unwrap_optional(obj)
+            if not isinstance(taban, ListT) and taban != STRING \
+                    and not isinstance(taban, AnyT):
+                self.error(
+                    f"'{obj}' dilimlenemez",
+                    node.span,
+                    hint="dilim yalnız liste ve metinde geçerli",
+                )
+                return ANY
+            for uc in (node.index.start, node.index.end):
+                got = self.check_expr(uc, env, INT)
+                if not assignable(INT, got):
+                    self.error(
+                        f"dilim sınırı 'Int' olmalı, '{got}' bulundu",
+                        uc.span,
+                    )
+            node.__dict__["resolved"] = "dilim"
+            return STRING if taban == STRING else taban
+
         if isinstance(obj, ListT):
             self.check_expr(node.index, env, INT)
             node.__dict__["resolved"] = "list"

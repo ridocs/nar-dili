@@ -894,6 +894,38 @@ fn main() {
 }''',
             },
             {
+                "id": "dilim-yayma-boru",
+                "baslik": "Dilim, yayma ve boru",
+                "aciklama": """
+Üç kısaltma, üçü de sık gereken işler için.
+<p><strong>Dilim</strong> <code>a[1..3]</code> listenin ya da metnin bir
+parçasını alır; <code>..=</code> üst sınırı da içine katar. Sınırlar
+uçları aşarsa kırpılır, ters verilirse boş döner — yani dilim almak
+programı durdurmaz.</p>
+<p><strong>Yayma</strong> <code>[...a, 3]</code> bir listenin öğelerini
+yenisinin içine serer. Kaynak liste değişmez.</p>
+<p><strong>Boru</strong> <code>x |&gt; f(a)</code> değeri ilk argüman
+yaparak <code>f(x, a)</code> çağırır. İç içe çağrıları soldan sağa
+okunan bir zincire çevirir: <code>sar(buyut(temizle(s)))</code> yerine
+<code>s |&gt; temizle |&gt; buyut |&gt; sar</code>.</p>
+""",
+                "kod": '''fn temizle(s: String) -> String = s.trim()
+fn buyut(s: String) -> String = s.upperTr()
+fn sar(s: String, k: String) -> String = k + s + k
+
+fn main() {
+  let sayilar = [1, 2, 3, 4, 5]
+  print(sayilar[1..3])        // [2, 3]
+  print(sayilar[1..=3])       // [2, 3, 4]
+  print("merhaba"[0..3])      // mer
+
+  let bas = [0]
+  print([...bas, ...sayilar[0..2], 9])
+
+  print("  merhaba  " |> temizle |> buyut |> sar("*"))
+}''',
+            },
+            {
                 "id": "tuple",
                 "baslik": "Tuple — iki değeri birlikte döndürmek",
                 "aciklama": """

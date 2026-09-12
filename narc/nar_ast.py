@@ -102,6 +102,12 @@ class SelfExpr(Expr):
 
 
 @dataclass
+class Spread(Expr):
+    """`...liste` — yalnız liste literali içinde anlamlı."""
+    inner: Expr = None  # type: ignore[assignment]
+
+
+@dataclass
 class TupleLit(Expr):
     items: list[Expr] = field(default_factory=list)
 

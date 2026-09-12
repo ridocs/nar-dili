@@ -83,6 +83,7 @@ enum Ifade {
   IAd(String)
   IBen                                   // self
   IListe([IfadeD])
+  IYayma(IfadeD)                         // `...liste` (yalnız liste içinde)
   ITuple([IfadeD])                       // (a, b)
   IEsleme([IfadeCifti])
   IStruct(String, [TipD], [AlanDegeri])
@@ -360,6 +361,7 @@ fn yazIfade(e: Ifade) -> String = match e {
   IAd(ad) -> dugum("ad", [tirnakla(ad)])
   IBen -> dugum("self", [])
   IListe(ogeler) -> dugum("liste", [dizi(ogeler.map(|o| yazIfadeD(o)))])
+  IYayma(ic) -> dugum("yayma", [yazIfadeD(ic)])
   ITuple(ogeler) -> dugum("tuple", [dizi(ogeler.map(|o| yazIfadeD(o)))])
   IEsleme(ciftler) -> dugum("esleme", [dizi(ciftler.map(|c| yazCift(c)))])
   IStruct(ad, targs, alanlar) -> dugum("structlit", [

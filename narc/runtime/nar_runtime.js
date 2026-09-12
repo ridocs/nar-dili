@@ -370,6 +370,20 @@ function $listTekler(list) {
 
 // Kendi ölçütünle sıralar. Kaynağı bozmaz: kopya üstünde çalışır,
 // çünkü Nar'da `sort` da kopya döndürüyor.
+// Liste ya da metin dilimi. Sınırlar uçları aşarsa kırpılır; ters
+// verilirse boş döner — `panic` yerine boş, çünkü dilim çoğu yerde
+// "elimdekinin şu kadarı" demek için kullanılır.
+function $dilim(d, bas, son) {
+  const n = typeof d === "string" ? [...d].length : d.length;
+  if (bas < 0) bas = Math.max(0, n + bas);
+  if (son < 0) son = Math.max(0, n + son);
+  bas = Math.min(bas, n);
+  son = Math.min(son, n);
+  if (son <= bas) return typeof d === "string" ? "" : [];
+  if (typeof d === "string") return [...d].slice(bas, son).join("");
+  return d.slice(bas, son);
+}
+
 function $listSirala(list, karsilastir) {
   return list.slice().sort((a, b) => karsilastir(a, b));
 }

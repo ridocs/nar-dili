@@ -133,6 +133,21 @@ def _m_ortalama(vm, a):
     return float(sum(l)) / len(l)
 
 
+def _dilim_yerlesigi(vm, a):
+    """`a[1..3]` — sinirlar kirpilir, ters verilirse bos doner."""
+    d, bas, son = a[0], a[1], a[2]
+    n = len(d)
+    if bas < 0:
+        bas = max(0, n + bas)
+    if son < 0:
+        son = max(0, n + son)
+    bas = min(bas, n)
+    son = min(son, n)
+    if son <= bas:
+        return "" if isinstance(d, str) else []
+    return d[bas:son]
+
+
 def _m_sirala(vm, a):
     """Kendi ölçütüyle sıralama; karşılaştırıcı Nar işlevi."""
     import functools
@@ -260,7 +275,15 @@ def _anahtarlar(vm, a):
 
 
 def _liste_birlestir(vm, a):
-    return list(a[0]) + list(a[1])
+    """Verilen butun listeleri arka arkaya ekler.
+
+    Iki argumanla `a + b` icin, daha coguyla `[...a, b, ...c]` icin
+    cagriliyor.
+    """
+    sonuc = []
+    for parca in a:
+        sonuc.extend(parca)
+    return sonuc
 
 
 def _zorla_ac(vm, a):
@@ -319,6 +342,7 @@ EK_YERLESIKLER = {
     "anahtarlar": _anahtarlar,
     "listeBirlestir": _liste_birlestir,
     "zorlaAc": _zorla_ac,
+    "dilim": _dilim_yerlesigi,
 }
 
 

@@ -34,8 +34,18 @@ enum Cozum {
 // --- öncelikler -----------------------------------------------------------
 
 // Büyük sayı daha sıkı bağlar. 0 = ikili işleç değil.
+// `x |> f(a)` çağrıya çevrilir: değer ilk argüman olur.
+fn boruyaCevir(k: Konum, deger: IfadeD, hedef: IfadeD) -> IfadeD = match hedef.ic {
+  ICagri(f, args, adlar) -> IfadeD {
+    konum: hedef.konum,
+    ic: ICagri(f, [deger] + args, [""] + adlar)
+  }
+  _ -> IfadeD { konum: k, ic: ICagri(hedef, [deger], [""]) }
+}
+
 fn oncelik(tur: String) -> Int {
-  if tur == "??" {
+  // Boru `??` ile aynı seviyede ve soldan birleşir: `x |> f |> g`.
+  if tur == "??" || tur == "|>" {
     return 1
   }
   if tur == "||" {
@@ -922,7 +932,13 @@ struct Cozumleyici {
       if tur == ".." || tur == "..=" {
         sol = self.ifadeD(opKonumu, IAralik(sol, sag, tur == "..="))
       } else {
-        sol = self.ifadeD(opKonumu, IIkili(tur, sol, sag))
+        if tur == "|>" {
+          // `x |> f` -> `f(x)`, `x |> f(a)` -> `f(x, a)`. Boru burada
+          // çağrıya dönüşür; sonraki aşamalar onu hiç görmez.
+          sol = boruyaCevir(opKonumu, sol, sag)
+        } else {
+          sol = self.ifadeD(opKonumu, IIkili(tur, sol, sag))
+        }
       }
     }
     return sol
@@ -1200,7 +1216,17 @@ struct Cozumleyici {
     self.satirSonlariniAtla()
     var devam = true
     while self.iyiMi() && devam && !self.suradaMi("]") {
-      ogeler.push(self.ifadeCozumle())
+      // `[...digerleri, 3]` — yayma yalnız liste içinde geçerli.
+      if self.suradaMi("..") {
+        let yaymaKonumu = self.konum()
+        self.ilerle()
+        if !self.al(".") {
+          self.hataVer("yayma için üç nokta gerekir: '...liste'")
+        }
+        ogeler.push(self.ifadeD(yaymaKonumu, IYayma(self.ifadeCozumle())))
+      } else {
+        ogeler.push(self.ifadeCozumle())
+      }
       self.satirSonlariniAtla()
       devam = self.al(",")
       self.satirSonlariniAtla()
@@ -1583,6 +1609,7 @@ fn konumuTasi(d: IfadeD, k: Konum) -> IfadeD =
 fn icKonumuTasi(e: Ifade, k: Konum) -> Ifade = match e {
   IMetin(parcalar) -> IMetin(parcalar.map(|p| parcaKonumuTasi(p, k)))
   IListe(ogeler) -> IListe(ogeler.map(|o| konumuTasi(o, k)))
+  IYayma(ic) -> IYayma(konumuTasi(ic, k))
   ITuple(ogeler) -> ITuple(ogeler.map(|o| konumuTasi(o, k)))
   IEsleme(ciftler) -> IEsleme(ciftler.map(|c| IfadeCifti {
     anahtar: konumuTasi(c.anahtar, k), deger: konumuTasi(c.deger, k)

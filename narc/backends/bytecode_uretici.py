@@ -639,9 +639,19 @@ class BytecodeUretici:
                 self.yaz(K.KAPALI_OKU, yakalanan, e)
         elif isinstance(e, (A.TupleLit, A.ListLit)):
             # Tuple da liste gibi saklanir; `.0` indeksleme olur.
-            for o in e.items:
-                self.ifade(o)
-            self.yaz(K.LISTE, len(e.items), e)
+            if any(isinstance(o, A.Spread) for o in e.items):
+                # Yayma varsa parcalar tek tek listeye cevrilip birlestirilir.
+                for o in e.items:
+                    if isinstance(o, A.Spread):
+                        self.ifade(o.inner)
+                    else:
+                        self.ifade(o)
+                        self.yaz(K.LISTE, 1, e)
+                self._yerlesik_cagir("listeBirlestir", len(e.items), e)
+            else:
+                for o in e.items:
+                    self.ifade(o)
+                self.yaz(K.LISTE, len(e.items), e)
         elif isinstance(e, A.MapLit):
             for anahtar, deger in e.entries:
                 self.ifade(anahtar)
@@ -659,9 +669,19 @@ class BytecodeUretici:
             self.yaz(K.DOGRU if e.inclusive else K.YANLIS)
             self.yaz(K.ARALIK, dugum=e)
         elif isinstance(e, A.Index):
-            self.ifade(e.obj)
-            self.ifade(e.index)
-            self.yaz(K.DIZIN_OKU, dugum=e)
+            if e.__dict__.get("resolved") == "dilim":
+                # `a[1..3]` — dilim; ust sinir `..=` ise bir artar.
+                self.ifade(e.obj)
+                self.ifade(e.index.start)
+                self.ifade(e.index.end)
+                if e.index.inclusive:
+                    self.yaz(K.SABIT, self.sabit(1))
+                    self.yaz(K.TOPLA)
+                self._yerlesik_cagir("dilim", 3, e)
+            else:
+                self.ifade(e.obj)
+                self.ifade(e.index)
+                self.yaz(K.DIZIN_OKU, dugum=e)
         elif isinstance(e, A.FieldAccess):
             self._alan_erisimi(e)
         elif isinstance(e, A.Propagate):

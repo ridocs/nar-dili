@@ -199,6 +199,24 @@ fn tuplelar() {
   print(ic.1.0, ic.1.1)
 }
 
+// --- dilim, yayma, boru ---------------------------------------------------
+
+fn iki(n: Int) -> Int = n * 2
+fn ekle(n: Int, k: Int) -> Int = n + k
+
+fn kolayliklar() {
+  print("== kolaylıklar ==")
+  let a = [1, 2, 3, 4, 5]
+  print(a[1..3], a[1..=3], a[3..99], a[4..2])
+  print("merhaba"[0..3], "çğüöşı"[1..3])
+  print([...a[0..2], 9, ...[7, 8]])
+  print(5 |> iki, 5 |> iki |> iki, 5 |> ekle(3))
+  print([3, 1, 2].sirala(|x, y| x - y))
+  print([[1, 2], [3]].duzlestir(), [1, 2].eslestir(["a", "b"]).len())
+  print([1, 2, 3].ters(), "abc".ters())
+  print("7".solaDoldur(3, "0"), "ad".sagaDoldur(4, "."))
+}
+
 // --- işlevler -------------------------------------------------------------
 
 fn fib(n: Int) -> Int = if n < 2 { n } else { fib(n - 1) + fib(n - 2) }
@@ -246,6 +264,7 @@ fn main() {
   akis()
   desenler()
   tuplelar()
+  kolayliklar()
   islevler()
   yapilar()
   print("== bitti ==")

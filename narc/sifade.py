@@ -138,6 +138,8 @@ def _ifade(e) -> str:
     if isinstance(e, A.SelfExpr):
         return dugum("self")
 
+    if isinstance(e, A.Spread):
+        return dugum("yayma", ifade(e.inner))
     if isinstance(e, A.TupleLit):
         return dugum("tuple", liste(ifade(i) for i in e.items))
     if isinstance(e, A.ListLit):
