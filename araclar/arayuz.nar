@@ -1155,22 +1155,25 @@ fn iletisimOgesi(baslik: String, cocuklar: [Gorunum],
 //     Takvim(durum.takvim, |yeni| { durum.takvim = yeni })
 
 struct TakvimDurumu {
-  var yil: Int        // görünen ilk ayın yılı
-  var ay: Int         // görünen ilk ay (1-12)
-  var giris: Int      // seçilen giriş tarihi, 0 ise seçilmedi
-  var cikis: Int      // seçilen çıkış tarihi, 0 ise seçilmedi
-  var enErken: Int    // bundan önceki günler seçilemez (0: sınır yok)
-  var enGec: Int      // bundan sonraki günler seçilemez (0: sınır yok)
-  var aySayisi: Int   // yan yana kaç ay (1 ya da 2)
-  var tekTarih: Bool  // true ise aralık değil tek gün seçilir
+  var yil: Int                // görünen ilk ayın yılı
+  var ay: Int                 // görünen ilk ay (1-12)
+  var giris: Int = 0          // seçilen giriş tarihi, 0 ise seçilmedi
+  var cikis: Int = 0          // seçilen çıkış tarihi, 0 ise seçilmedi
+  var enErken: Int = 0        // bundan önceki günler seçilemez (0: sınır yok)
+  var enGec: Int = 0          // bundan sonraki günler seçilemez
+  var aySayisi: Int = 2       // yan yana kaç ay (1 ya da 2)
+  var tekTarih: Bool = false  // true ise aralık değil tek gün seçilir
 }
 
-// Bugünün ayını gösteren, geçmişi kapalı, iki aylık bir takvim.
-fn takvimDurumu() -> TakvimDurumu {
+// Bugünün ayını gösteren, geçmişi kapalı bir takvim. Yalnız değiştirmek
+// istediğin alanı yazarsın: `takvimDurumu(aySayisi: 1)`.
+fn takvimDurumu(aySayisi: Int = 2, tekTarih: Bool = false,
+                gecmisAcik: Bool = false) -> TakvimDurumu {
   let b = bugun()
   return TakvimDurumu {
-    yil: tarihYil(b), ay: tarihAy(b), giris: 0, cikis: 0,
-    enErken: b, enGec: 0, aySayisi: 2, tekTarih: false
+    yil: tarihYil(b), ay: tarihAy(b),
+    enErken: if gecmisAcik { 0 } else { b },
+    aySayisi: aySayisi, tekTarih: tekTarih
   }
 }
 

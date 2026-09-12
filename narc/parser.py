@@ -328,7 +328,11 @@ class Parser:
             tok = self.expect("ident", "parametre adı")
             self.expect(":", "parametre tipinden önce ':'")
             type_expr = self.parse_type()
-            params.append(A.Param(tok.span, tok.value, type_expr))
+            # `= ifade` varsa bu parametre çağrıda atlanabilir.
+            varsayilan = None
+            if self.match("="):
+                varsayilan = self.parse_expr()
+            params.append(A.Param(tok.span, tok.value, type_expr, varsayilan))
             self.skip_newlines()
             if not self.match(","):
                 break
@@ -355,7 +359,12 @@ class Parser:
                 tok = self.expect("ident", "alan adı")
                 self.expect(":", "alan tipinden önce ':'")
                 type_expr = self.parse_type()
-                fields.append(A.FieldDecl(tok.span, tok.value, type_expr, mutable))
+                # `var n: Int = 0` — kurarken yazılmazsa bu değer kullanılır.
+                varsayilan = None
+                if self.match("="):
+                    varsayilan = self.parse_expr()
+                fields.append(
+                    A.FieldDecl(tok.span, tok.value, type_expr, mutable, varsayilan))
             self.skip_newlines()
 
         self.expect("}", "'}'")
@@ -648,8 +657,8 @@ class Parser:
 
             elif tok.kind == "(":
                 self.advance()
-                args = self.parse_args()
-                expr = A.Call(tok.span, expr, args)
+                args, adlar = self.parse_args()
+                expr = A.Call(tok.span, expr, args, adlar)
 
             elif tok.kind == "[":
                 self.advance()
@@ -748,13 +757,28 @@ class Parser:
         self.expect("}", "'}'")
         return A.StructLit(span, type_expr.name, fields, type_args or [])
 
-    def parse_args(self) -> list[A.Expr]:
+    def parse_args(self) -> tuple[list[A.Expr], list[str | None]]:
+        """Çağrı argümanları ve (varsa) adları.
+
+        `f(1, ad: 2)` — ad, parametreyi sırasından bağımsız seçer. Adsız
+        argümanlar için ad listesinde None durur.
+        """
         args: list[A.Expr] = []
+        adlar: list[str | None] = []
         saved = self.no_struct_lit
         self.no_struct_lit = False
         try:
             self.skip_newlines()
             while not self.at(")"):
+                # `ad:` yalnızca tanımlayıcının hemen ardından ':' gelirse
+                # adlandırılmış argümandır; `a ? b : c` gibi bir şey değil.
+                ad = None
+                if self.cur.kind == "ident" and self.peek(1).kind == ":":
+                    ad = self.cur.value
+                    self.advance()
+                    self.advance()
+                    self.skip_newlines()
+                adlar.append(ad)
                 args.append(self.parse_expr())
                 self.skip_newlines()
                 if not self.match(","):
@@ -764,7 +788,7 @@ class Parser:
         finally:
             self.no_struct_lit = saved
         self.expect(")", "')'")
-        return args
+        return args, adlar
 
     def parse_primary(self) -> A.Expr:
         tok = self.cur

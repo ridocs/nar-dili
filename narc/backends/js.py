@@ -420,15 +420,19 @@ class JsBackend:
         self.write()
 
     def emit_method(self, decl: A.FnDecl) -> None:
-        params = ", ".join(self.name(p.name) for p in decl.params)
+        params = self.param_listesi(decl.params)
         self.write(f"{self.name(decl.name)}({params}) {{")
         self.indent += 1
         self.emit_body(decl.body)
         self.indent -= 1
         self.write("}")
 
+    def param_listesi(self, params) -> str:
+        # Varsayılanlar çağrı yerinde dolduruluyor; imzada yer almazlar.
+        return ", ".join(self.name(p.name) for p in params)
+
     def emit_fn(self, decl: A.FnDecl) -> None:
-        params = ", ".join(self.name(p.name) for p in decl.params)
+        params = self.param_listesi(decl.params)
         self.write(f"function {self.name(decl.name)}({params}) {{")
         self.indent += 1
         self.emit_body(decl.body)
@@ -943,7 +947,7 @@ class JsBackend:
                 f"({self.expr(node.subject)})")
 
     def lambda_(self, node: A.Lambda) -> str:
-        params = ", ".join(self.name(p.name) for p in node.params)
+        params = self.param_listesi(node.params)
         if isinstance(node.body, A.Block):
             saved, self.lines = self.lines, []
             saved_indent, self.indent = self.indent, 1
@@ -958,6 +962,11 @@ class JsBackend:
         return f"(({params}) => {self.expr(node.body)})"
 
     # ----------------------------------------------------------------- çağrılar
+    def arg_listesi(self, node: A.Call) -> str:
+        # Denetleyici adlandırılmış argümanları sıraya dizip eksikleri
+        # varsayılanlarıyla doldurdu; burada yapacak bir şey kalmıyor.
+        return ", ".join(self.expr(a) for a in node.args)
+
     def call(self, node: A.Call) -> str:
         resolved = node.__dict__.get("resolved")
 
@@ -968,7 +977,7 @@ class JsBackend:
         if isinstance(callee, A.Ident) and resolved == "enum_variant":
             # Enum adı yazılmadan çağrılan varyant: `Metin("a")`
             enum_name = self.name(node.__dict__["enum_name"])
-            args = ", ".join(self.expr(a) for a in node.args)
+            args = self.arg_listesi(node)
             return f"{enum_name}.{self.name(callee.name)}({args})"
 
         if isinstance(callee, A.FieldAccess):
@@ -976,18 +985,18 @@ class JsBackend:
 
             if inner == "enum_variant":
                 enum_name = self.name(callee.__dict__["enum_name"])
-                args = ", ".join(self.expr(a) for a in node.args)
+                args = self.arg_listesi(node)
                 return f"{enum_name}.{self.name(callee.name)}({args})"
 
             if inner == "builtin_method":
                 return self.builtin_method_call(node, callee)
 
             obj = self.expr(callee.obj)
-            args = ", ".join(self.expr(a) for a in node.args)
+            args = self.arg_listesi(node)
             sep = "?." if callee.safe else "."
             return f"{obj}{sep}{self.name(callee.name)}({args})"
 
-        args = ", ".join(self.expr(a) for a in node.args)
+        args = self.arg_listesi(node)
         return f"{self.expr(callee)}({args})"
 
     def builtin_method_call(self, node: A.Call, callee: A.FieldAccess) -> str:

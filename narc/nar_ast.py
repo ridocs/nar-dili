@@ -137,6 +137,9 @@ class RangeExpr(Expr):
 class Call(Expr):
     callee: Expr = None  # type: ignore[assignment]
     args: list[Expr] = field(default_factory=list)
+    # `f(1, ad: 2)` — her argümanın adı; adsız verilenlerde None.
+    # Denetleyici bunları parametre sırasına dizer, üretilen kodda ad kalmaz.
+    arg_names: list[Optional[str]] = field(default_factory=list)
 
 
 @dataclass
@@ -168,6 +171,8 @@ class Unwrap(Expr):
 class Param(Node):
     name: str = ""
     type_expr: Optional[TypeExpr] = None
+    # `fn f(a: Int, b: Int = 5)` — verilmezse kullanılacak değer.
+    default: Optional[Expr] = None
     ty: object = field(default=None, init=False, repr=False)
 
 
@@ -335,6 +340,8 @@ class FieldDecl(Node):
     name: str = ""
     type_expr: TypeExpr = None  # type: ignore[assignment]
     mutable: bool = False
+    # `var sayfa: Int = 1` — kurarken verilmezse kullanılacak değer.
+    default: Optional[Expr] = None
     ty: object = field(default=None, init=False, repr=False)
 
 

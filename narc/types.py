@@ -55,6 +55,18 @@ class OptT(Type):
 class FnT(Type):
     params: tuple[Type, ...]
     ret: Type
+    # Parametre adları ve kaçıncıdan sonrasının varsayılanı olduğu.
+    # İkisi de tip eşitliğine girmez: `(Int) -> Int` her yerde aynı tiptir,
+    # parametrenin adı çağıranı ilgilendirir, atamayı değil.
+    adlar: tuple[str, ...] = field(default=(), compare=False)
+    zorunlu: int = field(default=-1, compare=False)   # -1: hepsi zorunlu
+    # Bildirim düğümü: varsayılan ifadeleri oradan okunur. Tipin kimliğine
+    # girmez — iki fonksiyon aynı imzaya sahip olup farklı varsayılan
+    # taşıyabilir.
+    decl: object = field(default=None, compare=False, repr=False)
+
+    def en_az(self) -> int:
+        return len(self.params) if self.zorunlu < 0 else self.zorunlu
 
     def __str__(self) -> str:
         return f"({', '.join(str(p) for p in self.params)}) -> {self.ret}"

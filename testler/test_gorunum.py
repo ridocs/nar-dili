@@ -399,8 +399,7 @@ fn main() {
   // Sabit bir ay: test bugünün tarihine göre değişmesin. `enErken: 0`
   // geçmiş sınırını kaldırır, yoksa 2026 Eylül bir gün kapanabilirdi.
   uygulama = uygulamaBaslat("#uygulama", TakvimDurumu {
-    yil: 2026, ay: 9, giris: 0, cikis: 0, enErken: 0, enGec: 0,
-    aySayisi: 1, tekTarih: false
+    yil: 2026, ay: 9, aySayisi: 1
   }, ciz)
 }
 '''

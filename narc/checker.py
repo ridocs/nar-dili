@@ -11,6 +11,8 @@ bu sayede `[]`, `none` ve lambda parametreleri tip yazmadan çalışır.
 
 from __future__ import annotations
 
+import copy
+
 from . import nar_ast as A
 from .diagnostics import NarError, NarErrors, NarUyari, duzenle
 from .types import (
@@ -164,6 +166,9 @@ class Checker:
         # Kütüphane derlemesinde `main` aranmaz; dosya başka koddan çağrılır.
         self.kutuphane = kutuphane
         self.structs: dict[str, StructT] = {}
+        # Struct alanlarinin varsayilan ifadeleri: kurarken yazilmayan
+        # alan bu ifadenin kopyasiyla doldurulur.
+        self.struct_varsayilanlari: dict[str, dict] = {}
         self.enums: dict[str, EnumT] = {}
         # Varyant adı -> onu tanımlayan enum adları. Tek sahibi olan
         # varyantlar enum adı yazılmadan da kullanılabilir.
@@ -267,6 +272,9 @@ class Checker:
                     st.fields[f.name] = f.ty
                     if f.mutable:
                         st.mutable_fields.add(f.name)
+                    if f.default is not None:
+                        self.struct_varsayilanlari.setdefault(
+                            item.name, {})[f.name] = f.default
                 for m in item.methods:
                     st.methods[m.name] = self.fn_signature(m)
                     if m.name in st.fields:
@@ -365,7 +373,23 @@ class Checker:
             p.ty = self.resolve_type(p.type_expr)
             params.append(p.ty)
         ret = self.resolve_type(decl.ret_type) if decl.ret_type else VOID
-        sig = FnT(tuple(params), ret)
+        # Varsayılanlı parametreler sonda olmalı: ortada bir varsayılan,
+        # sonrasındaki zorunlu parametreyi çağrıda ulaşılmaz yapardı.
+        zorunlu = len(decl.params)
+        for i, p in enumerate(decl.params):
+            if p.default is not None:
+                zorunlu = i
+                break
+        for p in decl.params[zorunlu:]:
+            if p.default is None:
+                self.error(
+                    f"'{p.name}' varsayılansız; varsayılanı olan parametrelerden "
+                    "sonra gelemez",
+                    p.span,
+                    hint="varsayılanlı parametreleri listenin sonuna al",
+                )
+        sig = FnT(tuple(params), ret,
+                  tuple(p.name for p in decl.params), zorunlu, decl)
         decl.ty = sig
         self.tip_kapsami_kapat(onceki)
         return sig
@@ -1194,12 +1218,7 @@ class Checker:
                     value.span,
                 )
 
-        missing = [f for f in st.fields if f not in given]
-        if missing:
-            self.error(
-                f"'{st.name}' için eksik alanlar: {', '.join(missing)}",
-                node.span,
-            )
+        self.eksikleri_bildir(node, env, st, given)
         return st
 
     def check_generic_struct_lit(self, node: A.StructLit, env: Env,
@@ -1276,10 +1295,37 @@ class Checker:
                     deger.span,
                 )
 
-        eksik = [f for f in st.fields if f not in given]
-        if eksik:
-            self.error(f"'{st.name}' için eksik alanlar: {', '.join(eksik)}", node.span)
+        self.eksikleri_bildir(node, env, st, given)
         return st
+
+    def eksikleri_bildir(self, node: A.StructLit, env: Env, st: StructT,
+                         verilen: set) -> None:
+        """Yazılmayan alanları varsayılanlarıyla doldurur, kalanı hata sayar.
+
+        Varsayılan ifadenin kopyası konur: aynı düğümü iki struct literaline
+        koymak tip bilgisini paylaştırır, ikinci kullanımda yanlış tip
+        çıkarımına yol açardı.
+        """
+        varsayilanlar = self.struct_varsayilanlari.get(st.name, {})
+        eksik = []
+        for f in st.fields:
+            if f in verilen:
+                continue
+            if f in varsayilanlar:
+                kopya = copy.deepcopy(varsayilanlar[f])
+                got = self.check_expr(kopya, env, st.fields[f])
+                if not assignable(st.fields[f], got):
+                    self.error(
+                        f"'{st.name}.{f}' varsayılanı: '{st.fields[f]}' "
+                        f"bekleniyordu, '{got}' bulundu",
+                        node.span,
+                    )
+                node.fields.append((f, kopya))
+                continue
+            eksik.append(f)
+        if eksik:
+            self.error(f"'{st.name}' için eksik alanlar: {', '.join(eksik)}",
+                       node.span)
 
     def check_unary(self, node: A.Unary, env: Env) -> Type:
         if node.op == "!":
@@ -1937,22 +1983,119 @@ class Checker:
                 )
         return ret
 
+    def cagri_duzeni(self, node: A.Call, fn_ty: FnT) -> list[int | None]:
+        """Her parametre için hangi argümanın verildiği; verilmeyen None.
+
+        Adlandırılmış argümanlar burada sıraya girer, üretilen kodda ad
+        kalmaz. Geriye kalan boşlukları varsayılanlar doldurur.
+        """
+        adlar = getattr(node, "arg_names", None) or [None] * len(node.args)
+        duzen: list[int | None] = [None] * len(fn_ty.params)
+        sirali = 0
+        for i, ad in enumerate(adlar):
+            if ad is None:
+                # Adsız argüman sıradaki boş yere gider.
+                while sirali < len(duzen) and duzen[sirali] is not None:
+                    sirali += 1
+                if sirali < len(duzen):
+                    duzen[sirali] = i
+                    sirali += 1
+                continue
+            if ad not in fn_ty.adlar:
+                self.error(
+                    f"'{ad}' adında bir parametre yok",
+                    node.args[i].span,
+                    hint=("parametreler: " + ", ".join(fn_ty.adlar)
+                          if fn_ty.adlar else None),
+                )
+                continue
+            yer = fn_ty.adlar.index(ad)
+            if duzen[yer] is not None:
+                self.error(f"'{ad}' argümanı iki kez verildi", node.args[i].span)
+                continue
+            duzen[yer] = i
+        return duzen
+
     def check_args(self, node: A.Call, fn_ty: FnT, env: Env) -> None:
-        if len(node.args) != len(fn_ty.params):
+        adli_var = any(getattr(node, "arg_names", None) or [])
+        # Esnek yol yalnız gerçekten gerekliyse: varsayılanı olan bir
+        # parametre ya da adlandırılmış argüman varsa. Yoksa eski, daha
+        # net hata mesajlarını veren yol çalışır.
+        esnek = fn_ty.en_az() < len(fn_ty.params) or adli_var
+
+        if not esnek:
+            if len(node.args) != len(fn_ty.params):
+                self.error(
+                    f"{len(fn_ty.params)} argüman bekleniyordu, "
+                    f"{len(node.args)} verildi",
+                    node.span,
+                    hint=f"imza: {fn_ty}",
+                )
+            for arg, param_ty in zip(node.args, fn_ty.params):
+                got = self.check_expr(arg, env, param_ty)
+                if not assignable(param_ty, got):
+                    self.error(
+                        f"argüman tipi uyuşmuyor: '{param_ty}' bekleniyordu, "
+                        f"'{got}' bulundu",
+                        arg.span,
+                    )
+            for extra in node.args[len(fn_ty.params):]:
+                self.check_expr(extra, env)
+            return
+
+        if len(node.args) > len(fn_ty.params):
             self.error(
-                f"{len(fn_ty.params)} argüman bekleniyordu, {len(node.args)} verildi",
+                f"en çok {len(fn_ty.params)} argüman alır, "
+                f"{len(node.args)} verildi",
                 node.span,
                 hint=f"imza: {fn_ty}",
             )
-        for arg, param_ty in zip(node.args, fn_ty.params):
-            got = self.check_expr(arg, env, param_ty)
-            if not assignable(param_ty, got):
+
+        duzen = self.cagri_duzeni(node, fn_ty)
+        parametreler = getattr(fn_ty.decl, "params", None) or []
+
+        # Yerleşmeyen argümanlar da denetlensin; hataları kaybolmasın.
+        yerlesen = {i for i in duzen if i is not None}
+        for i, arg in enumerate(node.args):
+            if i not in yerlesen:
+                self.check_expr(arg, env)
+
+        # Çağrı burada normalleşir: argümanlar parametre sırasına dizilir,
+        # yazılmayanların yerine varsayılan ifadenin bir kopyası konur.
+        # Böylece arka uçlar (JavaScript, bytecode) adlandırılmış argümanı
+        # da varsayılanı da hiç bilmeden doğru kodu üretir.
+        yeni_args = []
+        for yer, param_ty in enumerate(fn_ty.params):
+            i = duzen[yer]
+            if i is not None:
+                arg = node.args[i]
+                got = self.check_expr(arg, env, param_ty)
+                if not assignable(param_ty, got):
+                    self.error(
+                        f"argüman tipi uyuşmuyor: '{param_ty}' bekleniyordu, "
+                        f"'{got}' bulundu",
+                        arg.span,
+                    )
+                yeni_args.append(arg)
+                continue
+
+            varsayilan = (parametreler[yer].default
+                          if yer < len(parametreler) else None)
+            if varsayilan is None:
+                ad = fn_ty.adlar[yer] if yer < len(fn_ty.adlar) else str(yer + 1)
                 self.error(
-                    f"argüman tipi uyuşmuyor: '{param_ty}' bekleniyordu, '{got}' bulundu",
-                    arg.span,
+                    f"'{ad}' argümanı verilmedi",
+                    node.span,
+                    hint=f"imza: {fn_ty}",
                 )
-        for extra in node.args[len(fn_ty.params):]:
-            self.check_expr(extra, env)
+                continue
+            kopya = copy.deepcopy(varsayilan)
+            self.check_expr(kopya, env, param_ty)
+            yeni_args.append(kopya)
+
+        if len(yeni_args) == len(fn_ty.params):
+            node.args = yeni_args
+            node.arg_names = [None] * len(yeni_args)
 
     def check_lambda(self, node: A.Lambda, env: Env, expected: Type | None) -> Type:
         base = unwrap_optional(expected) if expected else None
