@@ -61,6 +61,7 @@ fn kaynakMetni() -> String {
 // --- çizim ----------------------------------------------------------------
 
 fn ciz() {
+  anahatGuncelle()
   let kaynak = kaynakMetni()
 
   if let boya = boyaAlani() {
@@ -1284,6 +1285,529 @@ fn fareHareket(o: Olay) {
   })
 }
 
+// --- anahat ---------------------------------------------------------------
+//
+// Dosyadaki üst düzey tanımlar: `fn`, `struct`, `enum` ve modül
+// değişkenleri. Girintili satırlara bakılmaz — iç fonksiyon ya da
+// blok içindeki `let` anahat değildir.
+
+struct Sembol {
+  var tur: String
+  var ad: String
+  var satir: Int
+}
+
+let SEMBOL_ANAHTARLARI = ["fn", "struct", "enum", "let", "var", "import"]
+
+// Anahtar kelimeden sonraki adı okur: "fn topla(a: Int)" -> "topla".
+fn tanimAdi(satir: String, anahtar: String) -> String {
+  let kalan = satir.slice(anahtar.len() + 1, satir.len()).trim()
+  var ad = ""
+  for h in kalan.split("") {
+    // Ad harf, rakam, alt çizgi ve Türkçe harflerden oluşur; ilk
+    // ayraçta (boşluk, parantez, iki nokta) biter.
+    if h == " " || h == "(" || h == ":" || h == "=" || h == "<" || h == "{" {
+      return ad
+    }
+    ad += h
+  }
+  return ad
+}
+
+fn anahatCikar(kaynak: String) -> [Sembol] {
+  var sonuc: [Sembol] = []
+  for (i, satir) in kaynak.split("\n") {
+    // Girintili satır üst düzey tanım değildir.
+    if satir.startsWith(" ") || satir.startsWith("\t") {
+      continue
+    }
+    for anahtar in SEMBOL_ANAHTARLARI {
+      if satir.startsWith(anahtar + " ") {
+        let ad = tanimAdi(satir, anahtar)
+        if ad != "" {
+          sonuc.push(Sembol { tur: anahtar, ad: ad, satir: i + 1 })
+        }
+      }
+    }
+  }
+  return sonuc
+}
+
+var anahatKaynagi = "@yok"
+var anahat: [Sembol] = []
+
+fn anahatGuncelle() {
+  let kaynak = kaynakMetni()
+  // Her tuş vuruşunda listeyi yeniden kurmak israf; kaynak değişmediyse
+  // eldeki durur.
+  if kaynak == anahatKaynagi {
+    return
+  }
+  anahatKaynagi = kaynak
+  anahat = anahatCikar(kaynak)
+  anahatCiz()
+}
+
+fn anahatCiz() {
+  if let alan = bul("#anahat") {
+    if anahat.len() == 0 {
+      alan.htmlYaz("<div class=\"anahat-bos\">tanım yok</div>")
+    } else {
+      var html = ""
+      for (i, s) in anahat {
+        html += "<div class=\"anahat-satir\" data-sira=\"" + str(i) +
+          "\" title=\"satır " + str(s.satir) + "\">" +
+          "<span class=\"tur\">" + kacir(s.tur) + "</span>" +
+          "<span class=\"ad\">" + kacir(s.ad) + "</span>" +
+          "<span class=\"no\">" + str(s.satir) + "</span></div>"
+      }
+      alan.htmlYaz(html)
+      for oge in alan.bulHepsi(".anahat-satir") {
+        oge.dinle("click", || {
+          let sira = int(oge.ozellik("data-sira") ?? "0") ?? 0
+          if sira < anahat.len() {
+            satirGit(anahat[sira].satir)
+          }
+        })
+      }
+    }
+  }
+  if let rozet = bul("#anahat-sayisi") {
+    rozet.metinYaz(str(anahat.len()))
+  }
+}
+
+// --- ara ve değiştir ------------------------------------------------------
+
+var bulAcik = false
+var bulKonumlari: [Int] = []
+var bulSirasi = 0
+
+fn bulSeridi() -> Element? = bul("#bul")
+fn bulGirisi() -> Element? = bul("#bul-giris")
+fn degistirGirisi() -> Element? = bul("#degistir-giris")
+
+// Bir metindeki bütün eşleşmelerin başlangıç konumları. Arama büyük-küçük
+// harfe bakmaz; Türkçe'de "İ" ile "i" aynı sayılsın diye `lowerTr`.
+fn tumKonumlar(metin: String, aranan: String) -> [Int] {
+  var sonuc: [Int] = []
+  if aranan == "" {
+    return sonuc
+  }
+  let alt = metin.lowerTr()
+  let ara = aranan.lowerTr()
+  var bas = 0
+  var devam = true
+  while devam {
+    let kalan = alt.slice(bas, alt.len())
+    let i = kalan.indexOf(ara)
+    if i < 0 {
+      devam = false
+    } else {
+      sonuc.push(bas + i)
+      bas = bas + i + ara.len()
+      if bas >= alt.len() {
+        devam = false
+      }
+    }
+  }
+  return sonuc
+}
+
+fn bulSayacYaz() {
+  if let sayac = bul("#bul-sayac") {
+    if bulKonumlari.len() == 0 {
+      sayac.metinYaz("eşleşme yok")
+    } else {
+      sayac.metinYaz(str(bulSirasi + 1) + " / " + str(bulKonumlari.len()))
+    }
+  }
+}
+
+fn bulGuncelle() {
+  var aranan = ""
+  if let g = bulGirisi() {
+    aranan = g.deger()
+  }
+  bulKonumlari = tumKonumlar(kaynakMetni(), aranan)
+  if bulSirasi >= bulKonumlari.len() {
+    bulSirasi = 0
+  }
+  bulSayacYaz()
+}
+
+// Bulunan eşleşmeyi seçer ve görünür hâle getirir.
+fn bulGoster() {
+  if bulKonumlari.len() == 0 {
+    return
+  }
+  var aranan = ""
+  if let g = bulGirisi() {
+    aranan = g.deger()
+  }
+  if let k = kodAlani() {
+    let bas = bulKonumlari[bulSirasi]
+    k.odaklan()
+    k.secimYap(bas, bas + aranan.len())
+    let yer = satirSutun(kaynakMetni(), bas)
+    k.kaydirmaUstYaz(max(0, (yer[0] - 6) * 21))
+    esitle()
+    imlecBildir()
+  }
+  bulSayacYaz()
+}
+
+fn bulGez(yon: Int) {
+  bulGuncelle()
+  if bulKonumlari.len() == 0 {
+    return
+  }
+  bulSirasi = (bulSirasi + yon + bulKonumlari.len()) % bulKonumlari.len()
+  bulGoster()
+}
+
+fn bulAc(degistirmeliMi: Bool) {
+  bulAcik = true
+  if let s = bulSeridi() {
+    s.sinifEkle("acik")
+  }
+  if let g = bulGirisi() {
+    // Seçili metin varsa arama kutusuna onu koy: en sık istenen şey bu.
+    if let k = kodAlani() {
+      let bas = k.secimBasi()
+      let son = k.secimSonu()
+      if son > bas {
+        g.degerYaz(kaynakMetni().slice(bas, son))
+      }
+    }
+    g.odaklan()
+  }
+  if degistirmeliMi {
+    if let d = degistirGirisi() {
+      d.odaklan()
+    }
+  }
+  bulGuncelle()
+}
+
+fn bulKapat() {
+  bulAcik = false
+  if let s = bulSeridi() {
+    s.sinifSil("acik")
+  }
+  if let k = kodAlani() {
+    k.odaklan()
+  }
+}
+
+fn degistirBir() {
+  bulGuncelle()
+  if bulKonumlari.len() == 0 {
+    return
+  }
+  var aranan = ""
+  var yenisi = ""
+  if let g = bulGirisi() {
+    aranan = g.deger()
+  }
+  if let d = degistirGirisi() {
+    yenisi = d.deger()
+  }
+  if let k = kodAlani() {
+    let metin = k.deger()
+    let bas = bulKonumlari[bulSirasi]
+    k.degerYaz(metin.slice(0, bas) + yenisi +
+               metin.slice(bas + aranan.len(), metin.len()))
+    k.secimYap(bas + yenisi.len(), bas + yenisi.len())
+    ciz()
+    esitle()
+    denetimPlanla()
+  }
+  bulGuncelle()
+  bulGoster()
+  durumYaz("bir eşleşme değiştirildi", false)
+}
+
+fn degistirHepsi() {
+  var aranan = ""
+  var yenisi = ""
+  if let g = bulGirisi() {
+    aranan = g.deger()
+  }
+  if let d = degistirGirisi() {
+    yenisi = d.deger()
+  }
+  if aranan == "" {
+    return
+  }
+  if let k = kodAlani() {
+    let metin = k.deger()
+    let konumlar = tumKonumlar(metin, aranan)
+    if konumlar.len() == 0 {
+      durumYaz("eşleşme yok", false)
+      return
+    }
+    // Sondan başa gidilir; baştan değiştirmek sonraki konumları kaydırır.
+    var sonuc = metin
+    var i = konumlar.len() - 1
+    while i >= 0 {
+      let bas = konumlar[i]
+      sonuc = sonuc.slice(0, bas) + yenisi +
+        sonuc.slice(bas + aranan.len(), sonuc.len())
+      i -= 1
+    }
+    k.degerYaz(sonuc)
+    ciz()
+    esitle()
+    denetimPlanla()
+    durumYaz(str(konumlar.len()) + " eşleşme değiştirildi", false)
+  }
+  bulGuncelle()
+}
+
+// --- komut paleti ---------------------------------------------------------
+//
+// Tek giriş noktası: dosya aç, tanıma git, satıra atla ya da komut çalıştır.
+// Baştaki işaret ne arandığını söyler:
+//     >ara   komutlar
+//     @ad    dosyadaki tanımlar
+//     :42    satır
+//     ad     dosyalar ve komutlar birlikte
+
+struct PaletOgesi {
+  var tur: String
+  var ad: String
+  var yan: String
+  var calistir: () -> Void
+}
+
+var paletAcik = false
+var paletSecili = 0
+var paletListesi: [PaletOgesi] = []
+
+fn paletPerdesi() -> Element? = bul("#palet-perde")
+fn paletGirisi() -> Element? = bul("#palet-giris")
+
+fn komutlar() -> [PaletOgesi] = [
+  PaletOgesi { tur: "komut", ad: "Çalıştır", yan: "Ctrl+Enter",
+  calistir: || { calistir() } },
+PaletOgesi { tur: "komut", ad: "Kaydet", yan: "Ctrl+S",
+  calistir: || { kaydet() } },
+PaletOgesi { tur: "komut", ad: "Kodu düzenle", yan: "Ctrl+Shift+D",
+  calistir: || { kodDuzenle() } },
+PaletOgesi { tur: "komut", ad: "Tip denetimi", yan: "",
+  calistir: || { denetle() } },
+PaletOgesi { tur: "komut", ad: "Üretilen JavaScript", yan: "",
+  calistir: || { javascriptGoster() } },
+PaletOgesi { tur: "komut", ad: "Yeni dosya", yan: "",
+  calistir: || { yeniDosya() } },
+PaletOgesi { tur: "komut", ad: "Ara ve değiştir", yan: "Ctrl+F",
+  calistir: || { bulAc(false) } },
+PaletOgesi { tur: "komut", ad: "Dosya ağacını göster/gizle", yan: "Ctrl+B",
+  calistir: || { agaciAcKapa() } },
+PaletOgesi { tur: "komut", ad: "Sorunlar paneli", yan: "",
+  calistir: || { sekmeSec("pano-sorunlar") } },
+PaletOgesi { tur: "komut", ad: "Çıktı paneli", yan: "",
+  calistir: || { sekmeSec("pano-cikti") } },
+PaletOgesi { tur: "komut", ad: "Ekran paneli", yan: "",
+  calistir: || { sekmeSec("pano-ekran") } },
+PaletOgesi { tur: "komut", ad: "Temayı değiştir", yan: "",
+  calistir: || { temayiDegistir() } }
+]
+
+fn dosyaOgeleri() -> [PaletOgesi] {
+  var sonuc: [PaletOgesi] = []
+  for yol in dosyaYollari {
+    let parcalar = yol.split("/")
+    let ad = parcalar[parcalar.len() - 1]
+    sonuc.push(PaletOgesi { tur: "dosya", ad: ad, yan: yol,
+      calistir: || { dosyaAc(yol) } })
+  }
+  return sonuc
+}
+
+fn tanimOgeleri() -> [PaletOgesi] {
+  anahatGuncelle()
+  var sonuc: [PaletOgesi] = []
+  for s in anahat {
+    let satir = s.satir
+    sonuc.push(PaletOgesi { tur: s.tur, ad: s.ad, yan: "satır " + str(satir),
+      calistir: || { satirGit(satir) } })
+  }
+  return sonuc
+}
+
+// Aramada "cal" yazan "Çalıştır"ı bulabilmeli: Türkçe harfler ASCII
+// karşılıklarına indirgenir. Yalnız palet araması için — ara/değiştir
+// yazılanı olduğu gibi arar.
+fn sadelestir(metin: String) -> String {
+  var s = metin.lowerTr()
+  s = s.replace("ç", "c")
+  s = s.replace("ğ", "g")
+  s = s.replace("ı", "i")
+  s = s.replace("ö", "o")
+  s = s.replace("ş", "s")
+  s = s.replace("ü", "u")
+  s = s.replace("â", "a")
+  s = s.replace("î", "i")
+  s = s.replace("û", "u")
+  return s
+}
+
+// Aranan harflerin hepsi sırayla geçiyorsa eşleşir: "gspn" -> "gostergePaneli".
+fn harfleriIceriyorMu(ad: String, aranan: String) -> Bool {
+  if aranan == "" {
+    return true
+  }
+  let a = sadelestir(ad)
+  let b = sadelestir(aranan)
+  var i = 0
+  for h in b.split("") {
+    let kalan = a.slice(i, a.len())
+    let yer = kalan.indexOf(h)
+    if yer < 0 {
+      return false
+    }
+    i = i + yer + 1
+  }
+  return true
+}
+
+fn paletSuz(sorgu: String) -> [PaletOgesi] {
+  var havuz: [PaletOgesi] = []
+  var ara = sorgu
+  if sorgu.startsWith(">") {
+    havuz = komutlar()
+    ara = sorgu.slice(1, sorgu.len()).trim()
+  } else {
+    if sorgu.startsWith("@") {
+      havuz = tanimOgeleri()
+      ara = sorgu.slice(1, sorgu.len()).trim()
+    } else {
+      if sorgu.startsWith(":") {
+        let no = int(sorgu.slice(1, sorgu.len()).trim()) ?? 0
+        if no > 0 {
+          return [PaletOgesi { tur: "satır", ad: "Satır " + str(no) + "'e git",
+            yan: "", calistir: || { satirGit(no) } }]
+        }
+        return []
+      }
+      // İşaretsiz arama: önce dosyalar, sonra tanımlar, sonra komutlar.
+      for o in dosyaOgeleri() {
+        havuz.push(o)
+      }
+      for o in tanimOgeleri() {
+        havuz.push(o)
+      }
+      for o in komutlar() {
+        havuz.push(o)
+      }
+    }
+  }
+
+  var sonuc: [PaletOgesi] = []
+  for o in havuz {
+    if harfleriIceriyorMu(o.ad, ara) {
+      sonuc.push(o)
+    }
+  }
+  return sonuc
+}
+
+fn paletCiz() {
+  if let liste = bul("#palet-liste") {
+    if paletListesi.len() == 0 {
+      liste.htmlYaz("<div class=\"palet-bos\">eşleşen bir şey yok</div>")
+      return
+    }
+    var html = ""
+    for (i, o) in paletListesi {
+      var sinif = "palet-satir"
+      if i == paletSecili {
+        sinif += " secili"
+      }
+      html += "<div class=\"" + sinif + "\" data-sira=\"" + str(i) + "\">" +
+        "<span class=\"tur\">" + kacir(o.tur) + "</span>" +
+        "<span class=\"ad\">" + kacir(o.ad) + "</span>" +
+        "<span class=\"yan\">" + kacir(o.yan) + "</span></div>"
+    }
+    liste.htmlYaz(html)
+    for oge in liste.bulHepsi(".palet-satir") {
+      // `mousedown`: tıklama giriş kutusundan odağı almadan işlensin.
+      oge.dinle("mousedown", |o: Olay| {
+        o.engelle()
+        let sira = int(oge.ozellik("data-sira") ?? "0") ?? 0
+        paletUygula(sira)
+      })
+    }
+  }
+}
+
+fn paletGuncelle() {
+  var sorgu = ""
+  if let g = paletGirisi() {
+    sorgu = g.deger()
+  }
+  paletListesi = paletSuz(sorgu)
+  if paletSecili >= paletListesi.len() {
+    paletSecili = 0
+  }
+  paletCiz()
+}
+
+fn paletUygula(sira: Int) {
+  if sira < 0 || sira >= paletListesi.len() {
+    return
+  }
+  let oge = paletListesi[sira]
+  paletKapat()
+  oge.calistir()
+}
+
+fn paletAc(onEk: String) {
+  paletAcik = true
+  paletSecili = 0
+  if let p = paletPerdesi() {
+    p.sinifEkle("acik")
+  }
+  if let g = paletGirisi() {
+    g.degerYaz(onEk)
+    g.odaklan()
+  }
+  paletGuncelle()
+}
+
+fn paletKapat() {
+  paletAcik = false
+  if let p = paletPerdesi() {
+    p.sinifSil("acik")
+  }
+  if let k = kodAlani() {
+    k.odaklan()
+  }
+}
+
+fn paletGez(yon: Int) {
+  if paletListesi.len() == 0 {
+    return
+  }
+  paletSecili = (paletSecili + yon + paletListesi.len()) % paletListesi.len()
+  paletCiz()
+  // Seçili satır listenin dışına çıkmışsa göster.
+  if let liste = bul("#palet-liste") {
+    liste.kaydirmaUstYaz(max(0, (paletSecili - 6) * 32))
+  }
+}
+
+// Tema kökteki `data-tema` ile seçilir; sayfadaki küçük betik değişimi
+// görüp tercihi saklar.
+fn temayiDegistir() {
+  if let kok = bul("html") {
+    let simdi = kok.ozellik("data-tema") ?? ""
+    kok.ozellikYaz("data-tema", if simdi == "koyu" { "acik" } else { "koyu" })
+  }
+}
+
 // --- klavye ---------------------------------------------------------------
 
 fn tusaBasildi(o: Olay) {
@@ -1315,6 +1839,36 @@ fn tusaBasildi(o: Olay) {
   if o.ctrl() && tus == "Enter" {
     o.engelle()
     calistir()
+    return
+  }
+  if o.ctrl() && (tus == "k" || tus == "K") {
+    o.engelle()
+    paletAc("")
+    return
+  }
+  if o.ctrl() && o.shift() && (tus == "p" || tus == "P") {
+    o.engelle()
+    paletAc(">")
+    return
+  }
+  if o.ctrl() && !o.shift() && (tus == "f" || tus == "F") {
+    o.engelle()
+    bulAc(false)
+    return
+  }
+  if o.ctrl() && !o.shift() && (tus == "h" || tus == "H") {
+    o.engelle()
+    bulAc(true)
+    return
+  }
+  if o.ctrl() && !o.shift() && (tus == "g" || tus == "G") {
+    o.engelle()
+    paletAc(":")
+    return
+  }
+  if tus == "Escape" && bulAcik {
+    o.engelle()
+    bulKapat()
     return
   }
   if o.ctrl() && !o.shift() && (tus == "s" || tus == "S") {
@@ -1435,6 +1989,11 @@ fn baslat() {
       o.engelle()
       agaciAcKapa()
     }
+    // Palet her yerden açılmalı: odak düzenleyicide olmayabilir.
+    if o.ctrl() && (o.tus() == "k" || o.tus() == "K") && !paletAcik {
+      o.engelle()
+      paletAc("")
+    }
   })
 
   if let motor = motorYazisi() {
@@ -1449,9 +2008,76 @@ fn baslat() {
     })
   }
 
+  // Komut paleti: kutuda yazıldıkça liste süzülür, oklarla gezilir.
+  if let g = paletGirisi() {
+    g.dinle("input", || { paletGuncelle() })
+    g.dinle("keydown", |o: Olay| {
+      let tus = o.tus()
+      if tus == "ArrowDown" {
+        o.engelle()
+        paletGez(1)
+      }
+      if tus == "ArrowUp" {
+        o.engelle()
+        paletGez(-1)
+      }
+      if tus == "Enter" {
+        o.engelle()
+        paletUygula(paletSecili)
+      }
+      if tus == "Escape" {
+        o.engelle()
+        paletKapat()
+      }
+    })
+  }
+  if let p = paletPerdesi() {
+    // Perdeye tıklamak kapatır; kutunun içine tıklamak kapatmaz.
+    p.dinle("mousedown", |o: Olay| {
+      if let kaynak = o.kaynak() {
+        if kaynak.sinifVarMi("palet-perde") {
+          paletKapat()
+        }
+      }
+    })
+  }
+
+  // Ara ve değiştir
+  if let g = bulGirisi() {
+    g.dinle("input", || { bulGuncelle() })
+    g.dinle("keydown", |o: Olay| {
+      if o.tus() == "Enter" {
+        o.engelle()
+        bulGez(if o.shift() { -1 } else { 1 })
+      }
+      if o.tus() == "Escape" {
+        o.engelle()
+        bulKapat()
+      }
+    })
+  }
+  if let d = degistirGirisi() {
+    d.dinle("keydown", |o: Olay| {
+      if o.tus() == "Enter" {
+        o.engelle()
+        degistirBir()
+      }
+      if o.tus() == "Escape" {
+        o.engelle()
+        bulKapat()
+      }
+    })
+  }
+  dugmeyeBagla("#bul-sonraki", || { bulGez(1) })
+  dugmeyeBagla("#bul-onceki", || { bulGez(-1) })
+  dugmeyeBagla("#btn-degistir", || { degistirBir() })
+  dugmeyeBagla("#btn-degistir-hepsi", || { degistirHepsi() })
+  dugmeyeBagla("#bul-kapat", || { bulKapat() })
+
   sekmeSec("pano-cikti")
   sozlugYukle()
   dosyalariYukle()
+  anahatGuncelle()
 }
 
 // Kaydedilmemiş değişiklik var mı? Sayfa kapanırken sorulması için.

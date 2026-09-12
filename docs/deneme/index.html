@@ -121,7 +121,7 @@ body.agac-kapali .kenar-cubugu { display: none; }
 
 /* --- dosya ağacı ---------------------------------------------------------- */
 .kenar-cubugu { background: var(--yuzey); }
-.agac { flex: 1 1 auto; overflow: auto; padding: 6px 6px 12px; font-size: 13px; }
+.agac { flex: 2 1 0; min-height: 0; overflow: auto; padding: 6px 6px 12px; font-size: 13px; }
 .agac details { margin-bottom: 4px; }
 .agac summary {
   list-style: none; cursor: pointer; user-select: none;
@@ -211,6 +211,94 @@ body.agac-kapali .kenar-cubugu { display: none; }
 .duzelt:hover { border-color: var(--vurgu); }
 .duzelt .ikon { width: 12px; height: 12px; margin-right: 4px; vertical-align: -2px; }
 /* Kod önerisi kutusu: imlecin altında, Tab ile uygulanır. */
+/* Komut paleti: Ctrl+K. Dosya, sembol ve komut aynı listede aranır —
+   ayrı ayrı pencereler açmak yerine tek giriş noktası. */
+.palet-perde {
+  position: fixed; inset: 0; z-index: 40; background: rgba(20,14,13,.34);
+  align-items: flex-start; justify-content: center; padding-top: 12vh;
+}
+.palet-perde { display: none; }
+.palet-perde.acik { display: flex; }
+.palet {
+  width: min(560px, 92vw); max-height: 64vh; display: flex;
+  flex-direction: column; background: var(--yuzey);
+  border: 1px solid var(--kenar); border-radius: 12px;
+  box-shadow: 0 24px 60px -20px rgba(0,0,0,.5); overflow: hidden;
+}
+.palet input {
+  font: inherit; font-size: 14px; padding: 12px 14px; border: none;
+  border-bottom: 1px solid var(--kenar); background: transparent;
+  color: var(--metin); outline: none;
+}
+.palet-liste { overflow-y: auto; padding: 5px; }
+.palet-satir {
+  display: flex; align-items: center; gap: 9px; padding: 7px 9px;
+  border-radius: 6px; cursor: pointer; font-size: 13px;
+}
+.palet-satir.secili, .palet-satir:hover { background: var(--vurgu-zemin); }
+.palet-satir .ad { color: var(--metin); }
+.palet-satir .ad b { color: var(--vurgu); font-weight: 600; }
+.palet-satir .yan {
+  margin-left: auto; font-size: 11px; color: var(--metin-soluk);
+  font-family: var(--tek); white-space: nowrap;
+}
+.palet-satir .tur {
+  font-family: var(--tek); font-size: 10px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--metin-soluk);
+  border: 1px solid var(--kenar); border-radius: 4px; padding: 0 4px;
+  flex: none;
+}
+.palet-bos { padding: 14px; color: var(--metin-soluk); font-size: 13px; }
+.palet-alt {
+  border-top: 1px solid var(--kenar); padding: 5px 10px; font-size: 11px;
+  color: var(--metin-soluk); display: flex; gap: 12px; flex-wrap: wrap;
+}
+.palet-alt kbd {
+  font-family: var(--tek); border: 1px solid var(--kenar);
+  border-radius: 4px; padding: 0 4px;
+}
+
+/* Ara ve değiştir: düzenleyicinin üstünde ince bir şerit. */
+.bul {
+  display: none; align-items: center; gap: 6px; padding: 6px 10px;
+  border-bottom: 1px solid var(--kenar); background: var(--panel);
+  flex-wrap: wrap;
+}
+.bul.acik { display: flex; }
+.bul input {
+  font: inherit; font-family: var(--tek); font-size: 12px; padding: 4px 7px;
+  border: 1px solid var(--kenar-guclu); border-radius: 6px;
+  background: var(--yuzey); color: var(--metin); outline: none; width: 170px;
+}
+.bul input:focus { border-color: var(--vurgu); }
+.bul button {
+  font: inherit; font-size: 12px; padding: 4px 8px; cursor: pointer;
+  border: 1px solid var(--kenar-guclu); border-radius: 6px;
+  background: var(--yuzey); color: var(--metin);
+}
+.bul button:hover { background: var(--yuzey-2); }
+.bul .sayac {
+  font-family: var(--tek); font-size: 11px; color: var(--metin-soluk);
+  min-width: 62px;
+}
+.bul .bosluk { flex: 1; }
+
+/* Anahat: dosyadaki tanımlar. Ağacın altında, kendi başlığıyla. */
+.anahat { flex: 1 1 0; min-height: 0; overflow-y: auto; padding: 4px 6px 10px; }
+.anahat-satir {
+  display: flex; align-items: center; gap: 7px; padding: 3px 7px;
+  border-radius: 5px; cursor: pointer; font-size: 12px;
+  font-family: var(--tek); color: var(--metin); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.anahat-satir:hover { background: var(--vurgu-zemin); }
+.anahat-satir .tur {
+  font-size: 10px; letter-spacing: .04em; color: var(--metin-soluk);
+  flex: none;
+}
+.anahat-satir .no { margin-left: auto; font-size: 10px; color: var(--oluk); }
+.anahat-bos { padding: 6px 10px; font-size: 12px; color: var(--metin-soluk); }
+
 .oneri {
   position: absolute; z-index: 5; min-width: 220px; max-width: 360px;
   background: var(--yuzey); border: 1px solid var(--kenar); border-radius: 8px;
@@ -335,6 +423,8 @@ body.agac-kapali .kenar-cubugu { display: none; }
   <aside class="sutun kenar-cubugu">
     <div class="sutun-baslik"><span>Dosyalar</span><div class="ara"></div><span class="rozet" id="dosya-sayisi"></span></div>
     <nav class="agac" id="agac" aria-label="Dosyalar"></nav>
+    <div class="sutun-baslik"><span>Anahat</span><div class="ara"></div><span class="rozet" id="anahat-sayisi"></span></div>
+    <nav class="anahat" id="anahat" aria-label="Dosyadaki tanımlar"></nav>
   </aside>
 
   <section class="sutun">
@@ -343,6 +433,17 @@ body.agac-kapali .kenar-cubugu { display: none; }
       <span id="degisti" style="display:none;color:var(--uyari)">•</span>
       <div class="ara"></div>
       <span class="rozet" id="denetim">denetleniyor…</span>
+    </div>
+    <div class="bul" id="bul">
+      <input id="bul-giris" type="text" placeholder="ara…" aria-label="Ara">
+      <span class="sayac" id="bul-sayac">0 / 0</span>
+      <button id="bul-onceki" type="button" title="Önceki (Shift+Enter)">↑</button>
+      <button id="bul-sonraki" type="button" title="Sonraki (Enter)">↓</button>
+      <input id="degistir-giris" type="text" placeholder="değiştir…" aria-label="Değiştir">
+      <button id="btn-degistir" type="button">Değiştir</button>
+      <button id="btn-degistir-hepsi" type="button">Hepsi</button>
+      <div class="bosluk"></div>
+      <button id="bul-kapat" type="button" title="Escape">×</button>
     </div>
     <div class="duzenleyici">
       <div class="satirlar" id="satirlar">1</div>
@@ -374,6 +475,21 @@ body.agac-kapali .kenar-cubugu { display: none; }
       <div id="pano-ekran" hidden><iframe id="ekran" title="Programın çizdiği ekran" sandbox="allow-scripts"></iframe></div>
     </div>
   </section>
+</div>
+
+<div class="palet-perde" id="palet-perde">
+  <div class="palet" role="dialog" aria-modal="true" aria-label="Komut paleti">
+    <input id="palet-giris" type="text" autocomplete="off" spellcheck="false"
+           placeholder="Komut, dosya ya da tanım ara…" aria-label="Komut paleti">
+    <div class="palet-liste" id="palet-liste" role="listbox"></div>
+    <div class="palet-alt">
+      <span><kbd>&gt;</kbd> komutlar</span>
+      <span><kbd>@</kbd> tanımlar</span>
+      <span><kbd>:</kbd> satır</span>
+      <span><kbd>↑↓</kbd> gez</span>
+      <span><kbd>↵</kbd> uygula</span>
+    </div>
+  </div>
 </div>
 
 <footer class="alt">
@@ -925,6 +1041,10 @@ function $govde() {
   return document.body;
 }
 
+function $ogeBulHepsi(oge, secici) {
+  return Array.from(oge.querySelectorAll(secici));
+}
+
 function $ogeOzellik(oge, ad) {
   const deger = oge.getAttribute(ad);
   return deger === null ? null : deger;
@@ -952,6 +1072,12 @@ function $ogeYaziEkle(oge, metin) {
   } else {
     oge.value = oge.value.slice(0, bas) + metin + oge.value.slice(son);
   }
+}
+
+function $olayKaynagi(olay) {
+  const hedef = olay.target;
+  if (typeof Element !== "undefined" && hedef instanceof Element) return hedef;
+  return null;
 }
 
 function $zamanla(ms, islev) {
@@ -1104,6 +1230,27 @@ class Duzeltme {
 }
 Duzeltme.$narName = "Duzeltme";
 $defType("Duzeltme", { params: [], fields: {"etiket": "String", "uygula": undefined} });
+
+class Sembol {
+  constructor(tur, ad, satir) {
+    this.tur = tur;
+    this.ad = ad;
+    this.satir = satir;
+  }
+}
+Sembol.$narName = "Sembol";
+$defType("Sembol", { params: [], fields: {"tur": "String", "ad": "String", "satir": "Int"} });
+
+class PaletOgesi {
+  constructor(tur, ad, yan, calistir) {
+    this.tur = tur;
+    this.ad = ad;
+    this.yan = yan;
+    this.calistir = calistir;
+  }
+}
+PaletOgesi.$narName = "PaletOgesi";
+$defType("PaletOgesi", { params: [], fields: {"tur": "String", "ad": "String", "yan": "String", "calistir": undefined} });
 
 function harfMi(c) {
   if (($len(c) === 0)) {
@@ -1918,6 +2065,7 @@ function kaynakMetni() {
 }
 
 function ciz() {
+  anahatGuncelle();
   const kaynak = kaynakMetni();
   {
     const boya = boyaAlani();
@@ -3110,6 +3258,551 @@ function fareHareket(o) {
   }));
 }
 
+function tanimAdi(satir, anahtar) {
+  const kalan = $strSlice(satir, ($len(anahtar) + 1), $len(satir)).trim();
+  let ad = "";
+  for (const h of $strSplit(kalan, "")) {
+    if (((((((h === " ") || (h === "(")) || (h === ":")) || (h === "=")) || (h === "<")) || (h === "{"))) {
+      return ad;
+    }
+    ad = ad + h;
+  }
+  return ad;
+}
+
+function anahatCikar(kaynak) {
+  let sonuc = [];
+  for (const [i, satir] of $strSplit(kaynak, "\n").entries()) {
+    if ((satir.startsWith(" ") || satir.startsWith("\t"))) {
+      continue;
+    }
+    for (const anahtar of SEMBOL_ANAHTARLARI) {
+      if (satir.startsWith((anahtar + " "))) {
+        const ad = tanimAdi(satir, anahtar);
+        if ((ad !== "")) {
+          sonuc.push(new Sembol(anahtar, ad, (i + 1)));
+        }
+      }
+    }
+  }
+  return sonuc;
+}
+
+function anahatGuncelle() {
+  const kaynak = kaynakMetni();
+  if ((kaynak === anahatKaynagi)) {
+    return;
+  }
+  anahatKaynagi = kaynak;
+  anahat = anahatCikar(kaynak);
+  anahatCiz();
+}
+
+function anahatCiz() {
+  {
+    const alan = $bul("#anahat");
+    if (alan !== null) {
+      if (($len(anahat) === 0)) {
+        alan.innerHTML = "<div class=\"anahat-bos\">tanım yok</div>";
+      } else {
+        let html = "";
+        for (const [i, s] of anahat.entries()) {
+          html = html + ((((((((((((("<div class=\"anahat-satir\" data-sira=\"" + $fmt(i, "Int", false)) + "\" title=\"satır ") + $fmt(s.satir, "Int", false)) + "\">") + "<span class=\"tur\">") + kacir(s.tur)) + "</span>") + "<span class=\"ad\">") + kacir(s.ad)) + "</span>") + "<span class=\"no\">") + $fmt(s.satir, "Int", false)) + "</span></div>");
+        }
+        alan.innerHTML = html;
+        for (const oge of $ogeBulHepsi(alan, ".anahat-satir")) {
+          oge.addEventListener("click", (() => {
+            const sira = ($parseIntOpt(($ogeOzellik(oge, "data-sira") ?? "0")) ?? 0);
+            if ((sira < $len(anahat))) {
+              satirGit($listGet(anahat, sira).satir);
+            }
+          }));
+        }
+      }
+    }
+  }
+  {
+    const rozet = $bul("#anahat-sayisi");
+    if (rozet !== null) {
+      rozet.textContent = $fmt($len(anahat), "Int", false);
+    }
+  }
+}
+
+function bulSeridi() {
+  return $bul("#bul");
+}
+
+function bulGirisi() {
+  return $bul("#bul-giris");
+}
+
+function degistirGirisi() {
+  return $bul("#degistir-giris");
+}
+
+function tumKonumlar(metin, aranan) {
+  let sonuc = [];
+  if ((aranan === "")) {
+    return sonuc;
+  }
+  const alt = $lowerTr(metin);
+  const ara = $lowerTr(aranan);
+  let bas = 0;
+  let devam = true;
+  while (devam) {
+    const kalan = $strSlice(alt, bas, $len(alt));
+    const i = $strIndexOf(kalan, ara);
+    if ((i < 0)) {
+      devam = false;
+    } else {
+      sonuc.push((bas + i));
+      bas = ((bas + i) + $len(ara));
+      if ((bas >= $len(alt))) {
+        devam = false;
+      }
+    }
+  }
+  return sonuc;
+}
+
+function bulSayacYaz() {
+  {
+    const sayac = $bul("#bul-sayac");
+    if (sayac !== null) {
+      if (($len(bulKonumlari) === 0)) {
+        sayac.textContent = "eşleşme yok";
+      } else {
+        sayac.textContent = (($fmt((bulSirasi + 1), "Int", false) + " / ") + $fmt($len(bulKonumlari), "Int", false));
+      }
+    }
+  }
+}
+
+function bulGuncelle() {
+  let aranan = "";
+  {
+    const g = bulGirisi();
+    if (g !== null) {
+      aranan = $ogeDeger(g);
+    }
+  }
+  bulKonumlari = tumKonumlar(kaynakMetni(), aranan);
+  if ((bulSirasi >= $len(bulKonumlari))) {
+    bulSirasi = 0;
+  }
+  bulSayacYaz();
+}
+
+function bulGoster() {
+  if (($len(bulKonumlari) === 0)) {
+    return;
+  }
+  let aranan = "";
+  {
+    const g = bulGirisi();
+    if (g !== null) {
+      aranan = $ogeDeger(g);
+    }
+  }
+  {
+    const k = kodAlani();
+    if (k !== null) {
+      const bas = $listGet(bulKonumlari, bulSirasi);
+      k.focus();
+      k.setSelectionRange(bas, (bas + $len(aranan)));
+      const yer = satirSutun(kaynakMetni(), bas);
+      k.scrollTop = Math.max(0, (($listGet(yer, 0) - 6) * 21));
+      esitle();
+      imlecBildir();
+    }
+  }
+  bulSayacYaz();
+}
+
+function bulGez(yon) {
+  bulGuncelle();
+  if (($len(bulKonumlari) === 0)) {
+    return;
+  }
+  bulSirasi = $imod(((bulSirasi + yon) + $len(bulKonumlari)), $len(bulKonumlari));
+  bulGoster();
+}
+
+function bulAc(degistirmeliMi) {
+  bulAcik = true;
+  {
+    const s = bulSeridi();
+    if (s !== null) {
+      s.classList.add("acik");
+    }
+  }
+  {
+    const g = bulGirisi();
+    if (g !== null) {
+      {
+        const k = kodAlani();
+        if (k !== null) {
+          const bas = (k.selectionStart || 0);
+          const son = (k.selectionEnd || 0);
+          if ((son > bas)) {
+            g.value = $strSlice(kaynakMetni(), bas, son);
+          }
+        }
+      }
+      g.focus();
+    }
+  }
+  if (degistirmeliMi) {
+    {
+      const d = degistirGirisi();
+      if (d !== null) {
+        d.focus();
+      }
+    }
+  }
+  bulGuncelle();
+}
+
+function bulKapat() {
+  bulAcik = false;
+  {
+    const s = bulSeridi();
+    if (s !== null) {
+      s.classList.remove("acik");
+    }
+  }
+  {
+    const k = kodAlani();
+    if (k !== null) {
+      k.focus();
+    }
+  }
+}
+
+function degistirBir() {
+  bulGuncelle();
+  if (($len(bulKonumlari) === 0)) {
+    return;
+  }
+  let aranan = "";
+  let yenisi = "";
+  {
+    const g = bulGirisi();
+    if (g !== null) {
+      aranan = $ogeDeger(g);
+    }
+  }
+  {
+    const d = degistirGirisi();
+    if (d !== null) {
+      yenisi = $ogeDeger(d);
+    }
+  }
+  {
+    const k = kodAlani();
+    if (k !== null) {
+      const metin = $ogeDeger(k);
+      const bas = $listGet(bulKonumlari, bulSirasi);
+      k.value = (($strSlice(metin, 0, bas) + yenisi) + $strSlice(metin, (bas + $len(aranan)), $len(metin)));
+      k.setSelectionRange((bas + $len(yenisi)), (bas + $len(yenisi)));
+      ciz();
+      esitle();
+      denetimPlanla();
+    }
+  }
+  bulGuncelle();
+  bulGoster();
+  durumYaz("bir eşleşme değiştirildi", false);
+}
+
+function degistirHepsi() {
+  let aranan = "";
+  let yenisi = "";
+  {
+    const g = bulGirisi();
+    if (g !== null) {
+      aranan = $ogeDeger(g);
+    }
+  }
+  {
+    const d = degistirGirisi();
+    if (d !== null) {
+      yenisi = $ogeDeger(d);
+    }
+  }
+  if ((aranan === "")) {
+    return;
+  }
+  {
+    const k = kodAlani();
+    if (k !== null) {
+      const metin = $ogeDeger(k);
+      const konumlar = tumKonumlar(metin, aranan);
+      if (($len(konumlar) === 0)) {
+        durumYaz("eşleşme yok", false);
+        return;
+      }
+      let sonuc = metin;
+      let i = ($len(konumlar) - 1);
+      while ((i >= 0)) {
+        const bas = $listGet(konumlar, i);
+        sonuc = (($strSlice(sonuc, 0, bas) + yenisi) + $strSlice(sonuc, (bas + $len(aranan)), $len(sonuc)));
+        i = (i - 1);
+      }
+      k.value = sonuc;
+      ciz();
+      esitle();
+      denetimPlanla();
+      durumYaz(($fmt($len(konumlar), "Int", false) + " eşleşme değiştirildi"), false);
+    }
+  }
+  bulGuncelle();
+}
+
+function paletPerdesi() {
+  return $bul("#palet-perde");
+}
+
+function paletGirisi() {
+  return $bul("#palet-giris");
+}
+
+function komutlar() {
+  return [new PaletOgesi("komut", "Çalıştır", "Ctrl+Enter", (() => {
+    calistir();
+  })), new PaletOgesi("komut", "Kaydet", "Ctrl+S", (() => {
+    kaydet();
+  })), new PaletOgesi("komut", "Kodu düzenle", "Ctrl+Shift+D", (() => {
+    kodDuzenle();
+  })), new PaletOgesi("komut", "Tip denetimi", "", (() => {
+    denetle();
+  })), new PaletOgesi("komut", "Üretilen JavaScript", "", (() => {
+    javascriptGoster();
+  })), new PaletOgesi("komut", "Yeni dosya", "", (() => {
+    yeniDosya();
+  })), new PaletOgesi("komut", "Ara ve değiştir", "Ctrl+F", (() => {
+    bulAc(false);
+  })), new PaletOgesi("komut", "Dosya ağacını göster/gizle", "Ctrl+B", (() => {
+    agaciAcKapa();
+  })), new PaletOgesi("komut", "Sorunlar paneli", "", (() => {
+    sekmeSec("pano-sorunlar");
+  })), new PaletOgesi("komut", "Çıktı paneli", "", (() => {
+    sekmeSec("pano-cikti");
+  })), new PaletOgesi("komut", "Ekran paneli", "", (() => {
+    sekmeSec("pano-ekran");
+  })), new PaletOgesi("komut", "Temayı değiştir", "", (() => {
+    temayiDegistir();
+  }))];
+}
+
+function dosyaOgeleri() {
+  let sonuc = [];
+  for (const yol of dosyaYollari) {
+    const parcalar = $strSplit(yol, "/");
+    const ad = $listGet(parcalar, ($len(parcalar) - 1));
+    sonuc.push(new PaletOgesi("dosya", ad, yol, (() => {
+      dosyaAc(yol);
+    })));
+  }
+  return sonuc;
+}
+
+function tanimOgeleri() {
+  anahatGuncelle();
+  let sonuc = [];
+  for (const s of anahat) {
+    const satir = s.satir;
+    sonuc.push(new PaletOgesi(s.tur, s.ad, ("satır " + $fmt(satir, "Int", false)), (() => {
+      satirGit(satir);
+    })));
+  }
+  return sonuc;
+}
+
+function sadelestir(metin) {
+  let s = $lowerTr(metin);
+  s = s.split("ç").join("c");
+  s = s.split("ğ").join("g");
+  s = s.split("ı").join("i");
+  s = s.split("ö").join("o");
+  s = s.split("ş").join("s");
+  s = s.split("ü").join("u");
+  s = s.split("â").join("a");
+  s = s.split("î").join("i");
+  s = s.split("û").join("u");
+  return s;
+}
+
+function harfleriIceriyorMu(ad, aranan) {
+  if ((aranan === "")) {
+    return true;
+  }
+  const a = sadelestir(ad);
+  const b = sadelestir(aranan);
+  let i = 0;
+  for (const h of $strSplit(b, "")) {
+    const kalan = $strSlice(a, i, $len(a));
+    const yer = $strIndexOf(kalan, h);
+    if ((yer < 0)) {
+      return false;
+    }
+    i = ((i + yer) + 1);
+  }
+  return true;
+}
+
+function paletSuz(sorgu) {
+  let havuz = [];
+  let ara = sorgu;
+  if (sorgu.startsWith(">")) {
+    havuz = komutlar();
+    ara = $strSlice(sorgu, 1, $len(sorgu)).trim();
+  } else {
+    if (sorgu.startsWith("@")) {
+      havuz = tanimOgeleri();
+      ara = $strSlice(sorgu, 1, $len(sorgu)).trim();
+    } else {
+      if (sorgu.startsWith(":")) {
+        const no = ($parseIntOpt($strSlice(sorgu, 1, $len(sorgu)).trim()) ?? 0);
+        if ((no > 0)) {
+          return [new PaletOgesi("satır", (("Satır " + $fmt(no, "Int", false)) + "'e git"), "", (() => {
+            satirGit(no);
+          }))];
+        }
+        return [];
+      }
+      for (const o of dosyaOgeleri()) {
+        havuz.push(o);
+      }
+      for (const o of tanimOgeleri()) {
+        havuz.push(o);
+      }
+      for (const o of komutlar()) {
+        havuz.push(o);
+      }
+    }
+  }
+  let sonuc = [];
+  for (const o of havuz) {
+    if (harfleriIceriyorMu(o.ad, ara)) {
+      sonuc.push(o);
+    }
+  }
+  return sonuc;
+}
+
+function paletCiz() {
+  {
+    const liste = $bul("#palet-liste");
+    if (liste !== null) {
+      if (($len(paletListesi) === 0)) {
+        liste.innerHTML = "<div class=\"palet-bos\">eşleşen bir şey yok</div>";
+        return;
+      }
+      let html = "";
+      for (const [i, o] of paletListesi.entries()) {
+        let sinif = "palet-satir";
+        if ((i === paletSecili)) {
+          sinif = sinif + " secili";
+        }
+        html = html + ((((((((((((("<div class=\"" + sinif) + "\" data-sira=\"") + $fmt(i, "Int", false)) + "\">") + "<span class=\"tur\">") + kacir(o.tur)) + "</span>") + "<span class=\"ad\">") + kacir(o.ad)) + "</span>") + "<span class=\"yan\">") + kacir(o.yan)) + "</span></div>");
+      }
+      liste.innerHTML = html;
+      for (const oge of $ogeBulHepsi(liste, ".palet-satir")) {
+        oge.addEventListener("mousedown", ((o) => {
+          o.preventDefault();
+          const sira = ($parseIntOpt(($ogeOzellik(oge, "data-sira") ?? "0")) ?? 0);
+          paletUygula(sira);
+        }));
+      }
+    }
+  }
+}
+
+function paletGuncelle() {
+  let sorgu = "";
+  {
+    const g = paletGirisi();
+    if (g !== null) {
+      sorgu = $ogeDeger(g);
+    }
+  }
+  paletListesi = paletSuz(sorgu);
+  if ((paletSecili >= $len(paletListesi))) {
+    paletSecili = 0;
+  }
+  paletCiz();
+}
+
+function paletUygula(sira) {
+  if (((sira < 0) || (sira >= $len(paletListesi)))) {
+    return;
+  }
+  const oge = $listGet(paletListesi, sira);
+  paletKapat();
+  oge.calistir();
+}
+
+function paletAc(onEk) {
+  paletAcik = true;
+  paletSecili = 0;
+  {
+    const p = paletPerdesi();
+    if (p !== null) {
+      p.classList.add("acik");
+    }
+  }
+  {
+    const g = paletGirisi();
+    if (g !== null) {
+      g.value = onEk;
+      g.focus();
+    }
+  }
+  paletGuncelle();
+}
+
+function paletKapat() {
+  paletAcik = false;
+  {
+    const p = paletPerdesi();
+    if (p !== null) {
+      p.classList.remove("acik");
+    }
+  }
+  {
+    const k = kodAlani();
+    if (k !== null) {
+      k.focus();
+    }
+  }
+}
+
+function paletGez(yon) {
+  if (($len(paletListesi) === 0)) {
+    return;
+  }
+  paletSecili = $imod(((paletSecili + yon) + $len(paletListesi)), $len(paletListesi));
+  paletCiz();
+  {
+    const liste = $bul("#palet-liste");
+    if (liste !== null) {
+      liste.scrollTop = Math.max(0, ((paletSecili - 6) * 32));
+    }
+  }
+}
+
+function temayiDegistir() {
+  {
+    const kok = $bul("html");
+    if (kok !== null) {
+      const simdi = ($ogeOzellik(kok, "data-tema") ?? "");
+      kok.setAttribute("data-tema", ((simdi === "koyu") ? "acik" : "koyu"));
+    }
+  }
+}
+
 function tusaBasildi(o) {
   const tus = (o.key || "");
   if (oneriAcik) {
@@ -3137,6 +3830,36 @@ function tusaBasildi(o) {
   if ((((o.ctrlKey || o.metaKey) === true) && (tus === "Enter"))) {
     o.preventDefault();
     calistir();
+    return;
+  }
+  if ((((o.ctrlKey || o.metaKey) === true) && ((tus === "k") || (tus === "K")))) {
+    o.preventDefault();
+    paletAc("");
+    return;
+  }
+  if (((((o.ctrlKey || o.metaKey) === true) && (o.shiftKey === true)) && ((tus === "p") || (tus === "P")))) {
+    o.preventDefault();
+    paletAc(">");
+    return;
+  }
+  if (((((o.ctrlKey || o.metaKey) === true) && (!(o.shiftKey === true))) && ((tus === "f") || (tus === "F")))) {
+    o.preventDefault();
+    bulAc(false);
+    return;
+  }
+  if (((((o.ctrlKey || o.metaKey) === true) && (!(o.shiftKey === true))) && ((tus === "h") || (tus === "H")))) {
+    o.preventDefault();
+    bulAc(true);
+    return;
+  }
+  if (((((o.ctrlKey || o.metaKey) === true) && (!(o.shiftKey === true))) && ((tus === "g") || (tus === "G")))) {
+    o.preventDefault();
+    paletAc(":");
+    return;
+  }
+  if (((tus === "Escape") && bulAcik)) {
+    o.preventDefault();
+    bulKapat();
     return;
   }
   if (((((o.ctrlKey || o.metaKey) === true) && (!(o.shiftKey === true))) && ((tus === "s") || (tus === "S")))) {
@@ -3199,7 +3922,7 @@ function baslat() {
     console.log("IDE: #kod alanı bulunamadı");
     return;
   }
-  const kod = $unwrap(kodOgesi, "1377:21");
+  const kod = $unwrap(kodOgesi, "1931:21");
   kod.addEventListener("input", (() => {
     ciz();
     esitle();
@@ -3282,6 +4005,10 @@ function baslat() {
       o.preventDefault();
       agaciAcKapa();
     }
+    if (((((o.ctrlKey || o.metaKey) === true) && (((o.key || "") === "k") || ((o.key || "") === "K"))) && (!paletAcik))) {
+      o.preventDefault();
+      paletAc("");
+    }
   }));
   {
     const motor = motorYazisi();
@@ -3300,9 +4027,100 @@ function baslat() {
       }));
     }
   }
+  {
+    const g = paletGirisi();
+    if (g !== null) {
+      g.addEventListener("input", (() => {
+        paletGuncelle();
+      }));
+      g.addEventListener("keydown", ((o) => {
+        const tus = (o.key || "");
+        if ((tus === "ArrowDown")) {
+          o.preventDefault();
+          paletGez(1);
+        }
+        if ((tus === "ArrowUp")) {
+          o.preventDefault();
+          paletGez((-1));
+        }
+        if ((tus === "Enter")) {
+          o.preventDefault();
+          paletUygula(paletSecili);
+        }
+        if ((tus === "Escape")) {
+          o.preventDefault();
+          paletKapat();
+        }
+      }));
+    }
+  }
+  {
+    const p = paletPerdesi();
+    if (p !== null) {
+      p.addEventListener("mousedown", ((o) => {
+        {
+          const kaynak = ($olayKaynagi(o));
+          if (kaynak !== null) {
+            if (kaynak.classList.contains("palet-perde")) {
+              paletKapat();
+            }
+          }
+        }
+      }));
+    }
+  }
+  {
+    const g = bulGirisi();
+    if (g !== null) {
+      g.addEventListener("input", (() => {
+        bulGuncelle();
+      }));
+      g.addEventListener("keydown", ((o) => {
+        if (((o.key || "") === "Enter")) {
+          o.preventDefault();
+          bulGez(((o.shiftKey === true) ? (-1) : 1));
+        }
+        if (((o.key || "") === "Escape")) {
+          o.preventDefault();
+          bulKapat();
+        }
+      }));
+    }
+  }
+  {
+    const d = degistirGirisi();
+    if (d !== null) {
+      d.addEventListener("keydown", ((o) => {
+        if (((o.key || "") === "Enter")) {
+          o.preventDefault();
+          degistirBir();
+        }
+        if (((o.key || "") === "Escape")) {
+          o.preventDefault();
+          bulKapat();
+        }
+      }));
+    }
+  }
+  dugmeyeBagla("#bul-sonraki", (() => {
+    bulGez(1);
+  }));
+  dugmeyeBagla("#bul-onceki", (() => {
+    bulGez((-1));
+  }));
+  dugmeyeBagla("#btn-degistir", (() => {
+    degistirBir();
+  }));
+  dugmeyeBagla("#btn-degistir-hepsi", (() => {
+    degistirHepsi();
+  }));
+  dugmeyeBagla("#bul-kapat", (() => {
+    bulKapat();
+  }));
   sekmeSec("pano-cikti");
   sozlugYukle();
   dosyalariYukle();
+  anahatGuncelle();
 }
 
 function degistiMi() {
@@ -3346,6 +4164,15 @@ let ipucuSirasi = (-1);
 let ipucuSayaci = 0;
 let ipucuUzerinde = false;
 const DUZELT_IKONU = (("<svg class=\"ikon\" viewBox=\"0 0 24 24\" fill=\"none\" " + "stroke=\"currentColor\" stroke-width=\"1.8\" aria-hidden=\"true\">") + "<path d=\"m5 12.5 4.5 4.5L19 7.5\"/></svg>");
+const SEMBOL_ANAHTARLARI = ["fn", "struct", "enum", "let", "var", "import"];
+let anahatKaynagi = "@yok";
+let anahat = [];
+let bulAcik = false;
+let bulKonumlari = [];
+let bulSirasi = 0;
+let paletAcik = false;
+let paletSecili = 0;
+let paletListesi = [];
 
 // Dışa açılan adlar — tarayıcıda `Nar.<ad>` ile çağrılır.
 globalThis.Nar = Object.assign(globalThis.Nar || {}, {
@@ -3478,6 +4305,39 @@ globalThis.Nar = Object.assign(globalThis.Nar || {}, {
   ipucuGoster: ipucuGoster,
   ipucuKapat: ipucuKapat,
   fareHareket: fareHareket,
+  Sembol: Sembol,
+  tanimAdi: tanimAdi,
+  anahatCikar: anahatCikar,
+  anahatGuncelle: anahatGuncelle,
+  anahatCiz: anahatCiz,
+  bulSeridi: bulSeridi,
+  bulGirisi: bulGirisi,
+  degistirGirisi: degistirGirisi,
+  tumKonumlar: tumKonumlar,
+  bulSayacYaz: bulSayacYaz,
+  bulGuncelle: bulGuncelle,
+  bulGoster: bulGoster,
+  bulGez: bulGez,
+  bulAc: bulAc,
+  bulKapat: bulKapat,
+  degistirBir: degistirBir,
+  degistirHepsi: degistirHepsi,
+  PaletOgesi: PaletOgesi,
+  paletPerdesi: paletPerdesi,
+  paletGirisi: paletGirisi,
+  komutlar: komutlar,
+  dosyaOgeleri: dosyaOgeleri,
+  tanimOgeleri: tanimOgeleri,
+  sadelestir: sadelestir,
+  harfleriIceriyorMu: harfleriIceriyorMu,
+  paletSuz: paletSuz,
+  paletCiz: paletCiz,
+  paletGuncelle: paletGuncelle,
+  paletUygula: paletUygula,
+  paletAc: paletAc,
+  paletKapat: paletKapat,
+  paletGez: paletGez,
+  temayiDegistir: temayiDegistir,
   tusaBasildi: tusaBasildi,
   sonSatir: sonSatir,
   baslat: baslat,
@@ -3496,6 +4356,15 @@ if (typeof module !== "undefined" && module.exports) {
   } catch (e) {}
   // Tema tercihi tarayıcı depolamasında durur; Nar tarafının depolama
   // yerleşiği yok, bu küçük parça o yüzden burada.
+  // Tema komut paletinden de değiştirilebiliyor; o zaman `data-tema`
+  // doğrudan yazılıyor. Seçimin kalıcı olması için değişimi izliyoruz.
+  new MutationObserver(function () {
+    try {
+      localStorage.setItem("nar-ide-tema",
+        document.documentElement.getAttribute("data-tema") || "");
+    } catch (e) {}
+  }).observe(document.documentElement, { attributeFilter: ["data-tema"] });
+
   document.getElementById("btn-tema").addEventListener("click", function () {
     var kok = document.documentElement;
     var yeni = kok.getAttribute("data-tema") === "koyu" ? "acik" : "koyu";

@@ -120,7 +120,7 @@ body.agac-kapali .kenar-cubugu { display: none; }
 
 /* --- dosya ağacı ---------------------------------------------------------- */
 .kenar-cubugu { background: var(--yuzey); }
-.agac { flex: 1 1 auto; overflow: auto; padding: 6px 6px 12px; font-size: 13px; }
+.agac { flex: 2 1 0; min-height: 0; overflow: auto; padding: 6px 6px 12px; font-size: 13px; }
 .agac details { margin-bottom: 4px; }
 .agac summary {
   list-style: none; cursor: pointer; user-select: none;
@@ -210,6 +210,94 @@ body.agac-kapali .kenar-cubugu { display: none; }
 .duzelt:hover { border-color: var(--vurgu); }
 .duzelt .ikon { width: 12px; height: 12px; margin-right: 4px; vertical-align: -2px; }
 /* Kod önerisi kutusu: imlecin altında, Tab ile uygulanır. */
+/* Komut paleti: Ctrl+K. Dosya, sembol ve komut aynı listede aranır —
+   ayrı ayrı pencereler açmak yerine tek giriş noktası. */
+.palet-perde {
+  position: fixed; inset: 0; z-index: 40; background: rgba(20,14,13,.34);
+  align-items: flex-start; justify-content: center; padding-top: 12vh;
+}
+.palet-perde { display: none; }
+.palet-perde.acik { display: flex; }
+.palet {
+  width: min(560px, 92vw); max-height: 64vh; display: flex;
+  flex-direction: column; background: var(--yuzey);
+  border: 1px solid var(--kenar); border-radius: 12px;
+  box-shadow: 0 24px 60px -20px rgba(0,0,0,.5); overflow: hidden;
+}
+.palet input {
+  font: inherit; font-size: 14px; padding: 12px 14px; border: none;
+  border-bottom: 1px solid var(--kenar); background: transparent;
+  color: var(--metin); outline: none;
+}
+.palet-liste { overflow-y: auto; padding: 5px; }
+.palet-satir {
+  display: flex; align-items: center; gap: 9px; padding: 7px 9px;
+  border-radius: 6px; cursor: pointer; font-size: 13px;
+}
+.palet-satir.secili, .palet-satir:hover { background: var(--vurgu-zemin); }
+.palet-satir .ad { color: var(--metin); }
+.palet-satir .ad b { color: var(--vurgu); font-weight: 600; }
+.palet-satir .yan {
+  margin-left: auto; font-size: 11px; color: var(--metin-soluk);
+  font-family: var(--tek); white-space: nowrap;
+}
+.palet-satir .tur {
+  font-family: var(--tek); font-size: 10px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--metin-soluk);
+  border: 1px solid var(--kenar); border-radius: 4px; padding: 0 4px;
+  flex: none;
+}
+.palet-bos { padding: 14px; color: var(--metin-soluk); font-size: 13px; }
+.palet-alt {
+  border-top: 1px solid var(--kenar); padding: 5px 10px; font-size: 11px;
+  color: var(--metin-soluk); display: flex; gap: 12px; flex-wrap: wrap;
+}
+.palet-alt kbd {
+  font-family: var(--tek); border: 1px solid var(--kenar);
+  border-radius: 4px; padding: 0 4px;
+}
+
+/* Ara ve değiştir: düzenleyicinin üstünde ince bir şerit. */
+.bul {
+  display: none; align-items: center; gap: 6px; padding: 6px 10px;
+  border-bottom: 1px solid var(--kenar); background: var(--panel);
+  flex-wrap: wrap;
+}
+.bul.acik { display: flex; }
+.bul input {
+  font: inherit; font-family: var(--tek); font-size: 12px; padding: 4px 7px;
+  border: 1px solid var(--kenar-guclu); border-radius: 6px;
+  background: var(--yuzey); color: var(--metin); outline: none; width: 170px;
+}
+.bul input:focus { border-color: var(--vurgu); }
+.bul button {
+  font: inherit; font-size: 12px; padding: 4px 8px; cursor: pointer;
+  border: 1px solid var(--kenar-guclu); border-radius: 6px;
+  background: var(--yuzey); color: var(--metin);
+}
+.bul button:hover { background: var(--yuzey-2); }
+.bul .sayac {
+  font-family: var(--tek); font-size: 11px; color: var(--metin-soluk);
+  min-width: 62px;
+}
+.bul .bosluk { flex: 1; }
+
+/* Anahat: dosyadaki tanımlar. Ağacın altında, kendi başlığıyla. */
+.anahat { flex: 1 1 0; min-height: 0; overflow-y: auto; padding: 4px 6px 10px; }
+.anahat-satir {
+  display: flex; align-items: center; gap: 7px; padding: 3px 7px;
+  border-radius: 5px; cursor: pointer; font-size: 12px;
+  font-family: var(--tek); color: var(--metin); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.anahat-satir:hover { background: var(--vurgu-zemin); }
+.anahat-satir .tur {
+  font-size: 10px; letter-spacing: .04em; color: var(--metin-soluk);
+  flex: none;
+}
+.anahat-satir .no { margin-left: auto; font-size: 10px; color: var(--oluk); }
+.anahat-bos { padding: 6px 10px; font-size: 12px; color: var(--metin-soluk); }
+
 .oneri {
   position: absolute; z-index: 5; min-width: 220px; max-width: 360px;
   background: var(--yuzey); border: 1px solid var(--kenar); border-radius: 8px;
@@ -334,6 +422,8 @@ body.agac-kapali .kenar-cubugu { display: none; }
   <aside class="sutun kenar-cubugu">
     <div class="sutun-baslik"><span>Dosyalar</span><div class="ara"></div><span class="rozet" id="dosya-sayisi"></span></div>
     <nav class="agac" id="agac" aria-label="Dosyalar"></nav>
+    <div class="sutun-baslik"><span>Anahat</span><div class="ara"></div><span class="rozet" id="anahat-sayisi"></span></div>
+    <nav class="anahat" id="anahat" aria-label="Dosyadaki tanımlar"></nav>
   </aside>
 
   <section class="sutun">
@@ -342,6 +432,17 @@ body.agac-kapali .kenar-cubugu { display: none; }
       <span id="degisti" style="display:none;color:var(--uyari)">•</span>
       <div class="ara"></div>
       <span class="rozet" id="denetim">denetleniyor…</span>
+    </div>
+    <div class="bul" id="bul">
+      <input id="bul-giris" type="text" placeholder="ara…" aria-label="Ara">
+      <span class="sayac" id="bul-sayac">0 / 0</span>
+      <button id="bul-onceki" type="button" title="Önceki (Shift+Enter)">↑</button>
+      <button id="bul-sonraki" type="button" title="Sonraki (Enter)">↓</button>
+      <input id="degistir-giris" type="text" placeholder="değiştir…" aria-label="Değiştir">
+      <button id="btn-degistir" type="button">Değiştir</button>
+      <button id="btn-degistir-hepsi" type="button">Hepsi</button>
+      <div class="bosluk"></div>
+      <button id="bul-kapat" type="button" title="Escape">×</button>
     </div>
     <div class="duzenleyici">
       <div class="satirlar" id="satirlar">1</div>
@@ -375,6 +476,21 @@ body.agac-kapali .kenar-cubugu { display: none; }
   </section>
 </div>
 
+<div class="palet-perde" id="palet-perde">
+  <div class="palet" role="dialog" aria-modal="true" aria-label="Komut paleti">
+    <input id="palet-giris" type="text" autocomplete="off" spellcheck="false"
+           placeholder="Komut, dosya ya da tanım ara…" aria-label="Komut paleti">
+    <div class="palet-liste" id="palet-liste" role="listbox"></div>
+    <div class="palet-alt">
+      <span><kbd>&gt;</kbd> komutlar</span>
+      <span><kbd>@</kbd> tanımlar</span>
+      <span><kbd>:</kbd> satır</span>
+      <span><kbd>↑↓</kbd> gez</span>
+      <span><kbd>↵</kbd> uygula</span>
+    </div>
+  </div>
+</div>
+
 <footer class="alt">
   <div class="durum"><span class="nokta" id="nokta"></span><span id="durum">hazır</span></div>
   <div class="ara"></div>
@@ -392,6 +508,15 @@ body.agac-kapali .kenar-cubugu { display: none; }
   } catch (e) {}
   // Tema tercihi tarayıcı depolamasında durur; Nar tarafının depolama
   // yerleşiği yok, bu küçük parça o yüzden burada.
+  // Tema komut paletinden de değiştirilebiliyor; o zaman `data-tema`
+  // doğrudan yazılıyor. Seçimin kalıcı olması için değişimi izliyoruz.
+  new MutationObserver(function () {
+    try {
+      localStorage.setItem("nar-ide-tema",
+        document.documentElement.getAttribute("data-tema") || "");
+    } catch (e) {}
+  }).observe(document.documentElement, { attributeFilter: ["data-tema"] });
+
   document.getElementById("btn-tema").addEventListener("click", function () {
     var kok = document.documentElement;
     var yeni = kok.getAttribute("data-tema") === "koyu" ? "acik" : "koyu";
