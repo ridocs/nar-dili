@@ -31,6 +31,7 @@
 
 // Bir görünüm parçası. Kendi içinde yine görünümler taşıyabilir.
 import "hareket.nar"
+import "arayuz_stil.nar"
 
 enum Gorunum {
   // yazı
@@ -39,13 +40,18 @@ enum Gorunum {
   Metin(String)
   Paragraf(String)
   Etiket(String)                              // küçük, soluk, aralıklı
+  Soluk(String)                               // küçük, soluk, düz
   Rozet(String, String)                       // metin, ton
   Bag(String, String)                         // metin, adres
+  Alinti(String, String)                      // söz, kaynak
+  KodBloku(String)
 
   // düğmeler
   Dugme(String, () -> Void)
   IkincilDugme(String, () -> Void)
+  SessizDugme(String, () -> Void)             // kenarlıksız, ikinci derece
   TehlikeDugmesi(String, () -> Void)
+  IkonDugme(String, String, () -> Void)       // simge, erişim etiketi, tıklayınca
 
   // girdi
   Giris(String, String, (String) -> Void)     // yer tutucu, değer, değişince
@@ -53,14 +59,23 @@ enum Gorunum {
   SayiGirisi(String, Int, (Int) -> Void)
   Onay(String, Bool, (Bool) -> Void)          // etiket, işaretli, değişince
   Secim([String], String, (String) -> Void)   // seçenekler, seçili, değişince
+  Anahtar(String, Bool, (Bool) -> Void)       // açık/kapalı düğmesi
+  Radyo([String], String, (String) -> Void)   // tek seçim
+  Kaydirici(Int, Int, Int, (Int) -> Void)     // en az, en çok, değer, değişince
+  Alan(String, String, Gorunum)               // etiket, ipucu, girdi
+  HataliAlan(String, String, Gorunum)         // etiket, hata mesajı, girdi
 
   // yerleşim
   Sutun([Gorunum])
   Satir([Gorunum])
+  SatirYay([Gorunum])                         // iki uca yaslanmış satır
   Esnek([Gorunum])                            // sarmalı satır
+  Izgara(Int, [Gorunum])                      // kaç sütun, öğeler
+  Genislik(Int, Gorunum)                      // en fazla bu kadar geniş
   Kutu([Gorunum])
   Kart(String, [Gorunum])                     // başlıklı kart
   Ortala(Gorunum)
+  Ayrac(String)                               // etiketli ayırıcı çizgi
 
   // gösterim
   Uyari(String, String)                       // ton, mesaj
@@ -69,6 +84,17 @@ enum Gorunum {
   Ilerleme(Int)                               // 0–100
   Resim(String, String)                       // adres, açıklama
   Sekmeler([String], Int, (Int) -> Void)      // başlıklar, seçili, değişince
+  Simge(String)                               // ikon adı
+  Avatar(String, String)                      // ad, resim adresi ("" ise harfler)
+  Istatistik(String, String, String)          // başlık, değer, değişim
+  Cubuklar([Int], [String])                   // değerler, etiketler
+  Adimlar([String], Int)                      // adım adları, kaçıncısındayız
+  BosDurum(String, String, String, Gorunum)   // simge, başlık, açıklama, eylem
+  Sayfalama(Int, Int, (Int) -> Void)          // şu an, toplam, gidince
+  Akordeon([String], [Gorunum], Int, (Int) -> Void)  // başlıklar, gövdeler, açık
+  Menu(String, [String], (String) -> Void)    // etiket, öğeler, seçince
+  Ipucu(String, Gorunum)                      // üstüne gelince çıkan not
+  Iletisim(String, [Gorunum], () -> Void)     // başlık, içerik, kapanınca
 
   // uyum: `.mobil()`, `.mobildeSutun()` gibi metotlar bunu üretir
   Uyarla(Gorunum, Uyarlama)
@@ -168,335 +194,11 @@ let TON_BASARI = "basari"
 let TON_UYARI = "uyari"
 let TON_HATA = "hata"
 
-// --- tema -----------------------------------------------------------------
+// --- tema ve deri ---------------------------------------------------------
 //
-// Tek bir yerden değiştirilebilsin diye stil bir metin olarak duruyor.
-// Kendi temanı istiyorsan `stiliKur(kendiCssin)` çağırabilirsin.
-
-let STIL = """
-:root {
-  --nar-zemin: #FBFAF9;
-  --nar-yuzey: #FFFFFF;
-  --nar-yuzey-2: #F5F2EF;
-  --nar-metin: #1A1815;
-  --nar-soluk: #6B6560;
-  --nar-kenar: #E6E1DC;
-  --nar-vurgu: #A3342E;
-  --nar-vurgu-koyu: #872722;
-  --nar-vurgu-zemin: #FCF2F1;
-  --nar-basari: #2F7A4F;
-  --nar-basari-zemin: #EFF7F2;
-  --nar-uyari: #8A5A00;
-  --nar-uyari-zemin: #FDF6E8;
-  --nar-hata: #B3261E;
-  --nar-hata-zemin: #FDF1F0;
-  --nar-dugme-yazi: #FFFFFF;
-  --nar-yuvarlak: 8px;
-  --nar-govde: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-               'Helvetica Neue', Arial, sans-serif;
-  color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-nar-tema='acik']) {
-    --nar-zemin: #171614;
-    --nar-yuzey: #1F1E1B;
-    --nar-yuzey-2: #272521;
-    --nar-metin: #EDEAE5;
-    --nar-soluk: #A29B93;
-    --nar-kenar: #343029;
-    --nar-vurgu: #E8756C;
-    --nar-vurgu-koyu: #F0908A;
-    --nar-vurgu-zemin: #2A1E1C;
-    --nar-basari: #6FC395;
-    --nar-basari-zemin: #1B2620;
-    --nar-uyari: #D7A64A;
-    --nar-uyari-zemin: #2A2418;
-    --nar-hata: #F08079;
-    --nar-hata-zemin: #2B1C1B;
-    /* Zemin açıldığı için yazı koyulaşır: beyaz yazı burada 2.9:1
-       kalıyordu, bu koyu ton 6.0:1 veriyor. */
-    --nar-dugme-yazi: #2B1210;
-    color-scheme: dark;
-  }
-}
-
-:root[data-nar-tema='koyu'] {
-  --nar-zemin: #171614;
-  --nar-yuzey: #1F1E1B;
-  --nar-yuzey-2: #272521;
-  --nar-metin: #EDEAE5;
-  --nar-soluk: #A29B93;
-  --nar-kenar: #343029;
-  --nar-vurgu: #E8756C;
-  --nar-vurgu-koyu: #F0908A;
-  --nar-vurgu-zemin: #2A1E1C;
-  --nar-basari: #6FC395;
-  --nar-basari-zemin: #1B2620;
-  --nar-uyari: #D7A64A;
-  --nar-uyari-zemin: #2A2418;
-  --nar-hata: #F08079;
-  --nar-hata-zemin: #2B1C1B;
-  --nar-dugme-yazi: #2B1210;
-  color-scheme: dark;
-}
-
-.nar-kok {
-  background: var(--nar-zemin);
-  color: var(--nar-metin);
-  font: 15px/1.6 var(--nar-govde);
-  padding: 20px;
-  max-width: 720px;
-  margin: 0 auto;
-  box-sizing: border-box;
-  -webkit-font-smoothing: antialiased;
-}
-.nar-kok *, .nar-kok *::before, .nar-kok *::after { box-sizing: border-box; }
-
-.nar-baslik { font-size: 22px; font-weight: 650; letter-spacing: -0.01em;
-  margin: 0; text-wrap: balance; }
-.nar-altbaslik { font-size: 17px; font-weight: 600; margin: 0; }
-.nar-metin { margin: 0; }
-.nar-paragraf { margin: 0; max-width: 62ch; }
-.nar-etiket { font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--nar-soluk); margin: 0; }
-
-/* Rozet içeriği kadar yer kaplar. Sütun yerleşiminin içinde
-   `align-self` olmadan tam genişliğe yayılıp çubuğa dönüşüyordu. */
-.nar-rozet { display: inline-block; font-size: 12px; font-weight: 600;
-  padding: 2px 9px; border-radius: 999px; align-self: flex-start; }
-.nar-rozet-bilgi { background: var(--nar-vurgu-zemin); color: var(--nar-vurgu); }
-.nar-rozet-basari { background: var(--nar-basari-zemin); color: var(--nar-basari); }
-.nar-rozet-uyari { background: var(--nar-uyari-zemin); color: var(--nar-uyari); }
-.nar-rozet-hata { background: var(--nar-hata-zemin); color: var(--nar-hata); }
-
-.nar-bag { color: var(--nar-vurgu); text-underline-offset: 2px; }
-.nar-bag:hover { color: var(--nar-vurgu-koyu); }
-
-.nar-dugme, .nar-dugme-ikincil, .nar-dugme-tehlike {
-  font: inherit; font-weight: 550; padding: 9px 16px; min-height: 40px;
-  border-radius: var(--nar-yuvarlak); border: 1px solid transparent;
-  cursor: pointer; align-self: flex-start;
-  transition: background-color .12s, border-color .12s, transform .04s;
-}
-.nar-dugme { background: var(--nar-vurgu); color: var(--nar-dugme-yazi); }
-.nar-dugme:hover { background: var(--nar-vurgu-koyu); }
-.nar-dugme-ikincil { background: var(--nar-yuzey); color: var(--nar-metin);
-  border-color: var(--nar-kenar); }
-.nar-dugme-ikincil:hover { background: var(--nar-yuzey-2); }
-.nar-dugme-tehlike { background: var(--nar-hata-zemin); color: var(--nar-hata);
-  border-color: var(--nar-hata-zemin); }
-.nar-dugme-tehlike:hover { border-color: var(--nar-hata); }
-.nar-dugme:active, .nar-dugme-ikincil:active, .nar-dugme-tehlike:active {
-  transform: translateY(1px); }
-
-.nar-giris, .nar-coksatir, .nar-secim {
-  font: inherit; padding: 9px 11px; min-height: 40px;
-  background: var(--nar-yuzey); color: var(--nar-metin);
-  border: 1px solid var(--nar-kenar); border-radius: var(--nar-yuvarlak);
-  width: 100%; max-width: 340px;
-}
-.nar-coksatir { min-height: 84px; resize: vertical; font-family: inherit; }
-.nar-giris::placeholder, .nar-coksatir::placeholder { color: var(--nar-soluk); }
-.nar-giris:focus, .nar-coksatir:focus, .nar-secim:focus {
-  outline: none; border-color: var(--nar-vurgu);
-  box-shadow: 0 0 0 3px var(--nar-vurgu-zemin); }
-
-/* Klavyeyle gezinen herkes nerede olduğunu görmeli. */
-.nar-kok :focus-visible { outline: 2px solid var(--nar-vurgu);
-  outline-offset: 2px; }
-
-.nar-onay { display: inline-flex; align-items: center; gap: 9px;
-  cursor: pointer; user-select: none; }
-.nar-onay input { width: 18px; height: 18px; accent-color: var(--nar-vurgu);
-  cursor: pointer; margin: 0; }
-
-.nar-sutun { display: flex; flex-direction: column; gap: 12px;
-  align-items: flex-start; }
-.nar-satir { display: flex; flex-direction: row; gap: 12px;
-  align-items: center; flex-wrap: wrap; }
-.nar-esnek { display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; }
-.nar-kutu, .nar-kart { display: flex; flex-direction: column; gap: 12px;
-  background: var(--nar-yuzey); border: 1px solid var(--nar-kenar);
-  border-radius: 12px; padding: 18px; width: 100%; }
-.nar-kart-baslik { font-size: 16px; font-weight: 650; margin: 0;
-  padding-bottom: 10px; border-bottom: 1px solid var(--nar-kenar); }
-/* Satır ve esnek içindeki kutular yeri paylaşır; tek başına kutu tam
-   genişliktir. Bu kural olmadan üç kutu geniş ekranda da alt alta
-   diziliyor, `Esnek` hiç sarmıyordu. */
-.nar-satir > .nar-kutu, .nar-esnek > .nar-kutu { width: auto; flex: 1 1 140px; }
-.nar-ortala { display: flex; justify-content: center; width: 100%; }
-
-.nar-uyari { display: flex; gap: 10px; padding: 12px 14px;
-  border-radius: var(--nar-yuvarlak); font-size: 14px; width: 100%; }
-.nar-uyari-bilgi { background: var(--nar-vurgu-zemin); color: var(--nar-vurgu); }
-.nar-uyari-basari { background: var(--nar-basari-zemin); color: var(--nar-basari); }
-.nar-uyari-uyari { background: var(--nar-uyari-zemin); color: var(--nar-uyari); }
-.nar-uyari-hata { background: var(--nar-hata-zemin); color: var(--nar-hata); }
-
-.nar-liste { margin: 0; padding-left: 22px; display: flex;
-  flex-direction: column; gap: 5px; }
-
-.nar-tablo-sarmal { width: 100%; overflow-x: auto; }
-.nar-tablo { width: 100%; border-collapse: collapse; font-size: 14px;
-  font-variant-numeric: tabular-nums; }
-.nar-tablo th { text-align: left; font-weight: 600; color: var(--nar-soluk);
-  font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase;
-  padding: 8px 12px 8px 0; border-bottom: 1px solid var(--nar-kenar); }
-.nar-tablo td { padding: 9px 12px 9px 0;
-  border-bottom: 1px solid var(--nar-kenar); }
-.nar-tablo tr:last-child td { border-bottom: none; }
-
-.nar-ilerleme { width: 100%; max-width: 340px; height: 8px;
-  background: var(--nar-yuzey-2); border-radius: 999px; overflow: hidden; }
-.nar-ilerleme-dolu { height: 100%; background: var(--nar-vurgu);
-  border-radius: 999px; transition: width .2s; }
-
-.nar-sekmeler { display: flex; gap: 4px;
-  border-bottom: 1px solid var(--nar-kenar); width: 100%; overflow-x: auto; }
-.nar-sekme { font: inherit; font-weight: 550; padding: 9px 14px;
-  background: none; border: none; border-bottom: 2px solid transparent;
-  color: var(--nar-soluk); cursor: pointer; white-space: nowrap; }
-.nar-sekme:hover { color: var(--nar-metin); }
-.nar-sekme-secili { color: var(--nar-vurgu);
-  border-bottom-color: var(--nar-vurgu); }
-
-.nar-cizgi { height: 1px; background: var(--nar-kenar); width: 100%;
-  border: none; margin: 2px 0; }
-.nar-resim { max-width: 100%; height: auto;
-  border-radius: var(--nar-yuvarlak); }
-
-/* Uyum: `.mobildeGizle()`, `.masaustundeGizle()`, `.mobildeSutun()`. */
-@media (max-width: 600px) {
-  .nar-mobilde-gizli { display: none !important; }
-  .nar-mobilde-sutun { flex-direction: column; align-items: stretch; }
-  .nar-mobilde-sutun > * { width: 100%; }
-  /* Sütun modunda taban ölçüsü yüksekliğe uygulanır; kutu uzamasın. */
-  .nar-mobilde-sutun > .nar-kutu { flex-basis: auto; }
-}
-@media (min-width: 601px) {
-  .nar-masaustunde-gizli { display: none !important; }
-}
-
-@media (max-width: 480px) {
-  .nar-kok { padding: 16px; }
-  .nar-giris, .nar-coksatir, .nar-secim, .nar-ilerleme { max-width: 100%; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .nar-kok * { transition: none !important; }
-}
-"""
-
-// --- deriler --------------------------------------------------------------
-//
-// Deri, temanın üzerine gelen ikinci katmandır: rengi değil biçimi
-// değiştirir — yarıçap, boşluk, gölge ve hareket. Palet aynı kaldığı için
-// kontrast eşiği deriden deriye düşmez.
-//
-//     deriSec("yumusak")     yumuşak ve ferah
-//     deriSec("")            varsayılan
-
-let DERI_YUMUSAK = """
-:root {
-  --nar-yuvarlak: 14px;
-  --nar-gecis: .2s;
-  --nar-golge: 0 1px 2px rgba(26, 24, 21, .04),
-               0 10px 24px -14px rgba(26, 24, 21, .22);
-  --nar-golge-uzeri: 0 2px 4px rgba(26, 24, 21, .06),
-                     0 16px 32px -16px rgba(26, 24, 21, .28);
-  --nar-zemin: #FAF6F3;
-  --nar-yuzey-2: #F3EDE8;
-  --nar-kenar: #EAE3DC;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-nar-tema='acik']) {
-    --nar-zemin: #191612;
-    --nar-yuzey: #221F19;
-    --nar-yuzey-2: #2B2720;
-    --nar-kenar: #38322A;
-    /* Koyu zeminde gölge görünmez; yumuşaklık yüzeyin hafifçe
-       aydınlanmasından gelir. */
-    --nar-golge: 0 1px 0 rgba(255, 255, 255, .04) inset,
-                 0 12px 28px -18px rgba(0, 0, 0, .9);
-    --nar-golge-uzeri: 0 1px 0 rgba(255, 255, 255, .07) inset,
-                       0 18px 36px -20px rgba(0, 0, 0, 1);
-  }
-}
-
-:root[data-nar-tema='koyu'] {
-  --nar-zemin: #191612;
-  --nar-yuzey: #221F19;
-  --nar-yuzey-2: #2B2720;
-  --nar-kenar: #38322A;
-  --nar-golge: 0 1px 0 rgba(255, 255, 255, .04) inset,
-               0 12px 28px -18px rgba(0, 0, 0, .9);
-  --nar-golge-uzeri: 0 1px 0 rgba(255, 255, 255, .07) inset,
-                     0 18px 36px -20px rgba(0, 0, 0, 1);
-}
-
-/* Ferah: her şeyin arasında daha çok yer var. */
-.nar-kok { padding: 28px; }
-.nar-sutun, .nar-satir, .nar-esnek { gap: 16px; }
-
-.nar-kutu, .nar-kart {
-  border-radius: 20px; padding: 22px; gap: 14px;
-  box-shadow: var(--nar-golge);
-}
-.nar-kart-baslik { padding-bottom: 14px; }
-
-/* Düğmeler hap biçiminde ve yükseliyor; dokunma hedefi 44px. */
-.nar-dugme, .nar-dugme-ikincil, .nar-dugme-tehlike {
-  border-radius: 999px; padding: 11px 20px; min-height: 44px;
-  transition: background-color var(--nar-gecis),
-              border-color var(--nar-gecis),
-              box-shadow var(--nar-gecis),
-              transform var(--nar-gecis);
-}
-.nar-dugme { box-shadow: var(--nar-golge); }
-.nar-dugme:hover, .nar-dugme-ikincil:hover, .nar-dugme-tehlike:hover {
-  box-shadow: var(--nar-golge-uzeri); transform: translateY(-1px);
-}
-.nar-dugme:active, .nar-dugme-ikincil:active, .nar-dugme-tehlike:active {
-  transform: translateY(0); box-shadow: var(--nar-golge);
-}
-
-/* Girdiler kenarlık yerine yumuşak bir yuvada duruyor. */
-.nar-giris, .nar-coksatir, .nar-secim {
-  border-radius: 12px; padding: 11px 14px; min-height: 44px;
-  background: var(--nar-yuzey-2); border-color: transparent;
-  transition: background-color var(--nar-gecis),
-              border-color var(--nar-gecis),
-              box-shadow var(--nar-gecis);
-}
-.nar-giris:focus, .nar-coksatir:focus, .nar-secim:focus {
-  background: var(--nar-yuzey); border-color: var(--nar-vurgu);
-  box-shadow: 0 0 0 4px var(--nar-vurgu-zemin);
-}
-.nar-coksatir { min-height: 96px; }
-
-.nar-rozet { padding: 3px 11px; }
-.nar-uyari { border-radius: 16px; padding: 14px 16px; }
-
-/* Sekmeler alt çizgi yerine hap. */
-.nar-sekmeler { border-bottom: none; gap: 6px; }
-.nar-sekme {
-  border-radius: 999px; padding: 9px 16px;
-  border-bottom: none;
-  transition: background-color var(--nar-gecis), color var(--nar-gecis);
-}
-.nar-sekme:hover { background: var(--nar-yuzey-2); }
-.nar-sekme-secili {
-  background: var(--nar-vurgu-zemin); color: var(--nar-vurgu);
-  border-bottom-color: transparent;
-}
-
-.nar-ilerleme { height: 10px; }
-.nar-resim { border-radius: 18px; }
-.nar-cizgi { margin: 6px 0; }
-.nar-tablo th, .nar-tablo td { padding: 11px 14px 11px 0; }
-"""
+// Görsel dil `arayuz_stil.nar` dosyasında duruyor: STIL temel biçim,
+// DERI_YUMUSAK üstüne gelen ikinci katman. Kendi temanı istiyorsan
+// `stiliKur(kendiCssin)` çağırabilirsin.
 
 // Seçili deri; yeniden çizim onu bozmaz, deri ayrı bir stil öğesinde durur.
 var DERI_ADI = ""
@@ -665,12 +367,17 @@ fn ogeYap(g: Gorunum) -> Element = match g {
   Metin(yazi) -> yaziOgesi("div", "nar-metin", yazi)
   Paragraf(yazi) -> yaziOgesi("p", "nar-paragraf", yazi)
   Etiket(yazi) -> yaziOgesi("div", "nar-etiket", yazi)
+  Soluk(yazi) -> yaziOgesi("div", "nar-solukyazi", yazi)
   Rozet(yazi, ton) -> yaziOgesi("span", "nar-rozet nar-rozet-" + ton, yazi)
   Bag(yazi, adres) -> bagOgesi(yazi, adres)
+  Alinti(soz, kaynak) -> alintiOgesi(soz, kaynak)
+  KodBloku(kod) -> kodOgesi(kod)
 
   Dugme(etiket, islev) -> dugmeOgesi("nar-dugme", etiket, islev)
   IkincilDugme(etiket, islev) -> dugmeOgesi("nar-dugme-ikincil", etiket, islev)
+  SessizDugme(etiket, islev) -> dugmeOgesi("nar-dugme-sessiz", etiket, islev)
   TehlikeDugmesi(etiket, islev) -> dugmeOgesi("nar-dugme-tehlike", etiket, islev)
+  IkonDugme(simge, etiket, islev) -> ikonDugmesi(simge, etiket, islev)
 
   Giris(yerTutucu, deger, degisince) -> girisOgesi(yerTutucu, deger, degisince)
   CokSatir(yerTutucu, deger, degisince) ->
@@ -680,13 +387,24 @@ fn ogeYap(g: Gorunum) -> Element = match g {
   Onay(etiket, isaretli, degisince) -> onayOgesi(etiket, isaretli, degisince)
   Secim(secenekler, secili, degisince) ->
     secimOgesi(secenekler, secili, degisince)
+  Anahtar(etiket, acik, degisince) -> anahtarOgesi(etiket, acik, degisince)
+  Radyo(secenekler, secili, degisince) ->
+    radyoOgesi(secenekler, secili, degisince)
+  Kaydirici(enAz, enCok, deger, degisince) ->
+    kaydiriciOgesi(enAz, enCok, deger, degisince)
+  Alan(etiket, ipucu, ic) -> alanOgesi(etiket, ipucu, ic, false)
+  HataliAlan(etiket, hata, ic) -> alanOgesi(etiket, hata, ic, true)
 
   Sutun(cocuklar) -> kapsayici("nar-sutun", cocuklar)
   Satir(cocuklar) -> kapsayici("nar-satir", cocuklar)
+  SatirYay(cocuklar) -> kapsayici("nar-satir-yay", cocuklar)
   Esnek(cocuklar) -> kapsayici("nar-esnek", cocuklar)
+  Izgara(sutun, cocuklar) -> izgaraOgesi(sutun, cocuklar)
+  Genislik(px, ic) -> genislikOgesi(px, ic)
   Kutu(cocuklar) -> kapsayici("nar-kutu", cocuklar)
   Kart(baslik, cocuklar) -> kartOgesi(baslik, cocuklar)
   Ortala(ic) -> kapsayici("nar-ortala", [ic])
+  Ayrac(etiket) -> ayracOgesi(etiket)
 
   Uyari(ton, mesaj) -> yaziOgesi("div", "nar-uyari nar-uyari-" + ton, mesaj)
   Liste(ogeler) -> listeOgesi(ogeler)
@@ -695,6 +413,22 @@ fn ogeYap(g: Gorunum) -> Element = match g {
   Resim(adres, aciklama) -> resimOgesi(adres, aciklama)
   Sekmeler(basliklar, secili, degisince) ->
     sekmeOgesi(basliklar, secili, degisince)
+  Simge(ad) -> simgeOgesi(ad)
+  Avatar(ad, adres) -> avatarOgesi(ad, adres)
+  Istatistik(baslik, deger, degisim) ->
+    istatistikOgesi(baslik, deger, degisim)
+  Cubuklar(degerler, etiketler) -> cubukOgesi(degerler, etiketler)
+  Adimlar(adlar, simdi) -> adimOgesi(adlar, simdi)
+  BosDurum(simge, baslik, aciklama, eylem) ->
+    bosDurumOgesi(simge, baslik, aciklama, eylem)
+  Sayfalama(simdi, toplam, gidince) ->
+    sayfalamaOgesi(simdi, toplam, gidince)
+  Akordeon(basliklar, govdeler, acik, degisince) ->
+    akordeonOgesi(basliklar, govdeler, acik, degisince)
+  Menu(etiket, ogeler, secince) -> menuOgesi(etiket, ogeler, secince)
+  Ipucu(not, ic) -> ipucuOgesi(not, ic)
+  Iletisim(baslik, cocuklar, kapaninca) ->
+    iletisimOgesi(baslik, cocuklar, kapaninca)
 
   Uyarla(ic, u) -> uyarlaOge(ic, u)
   Hareketli(ad, ic) -> hareketliOge(ad, ic)
@@ -941,6 +675,510 @@ fn boslukOgesi(yukseklik: Int) -> Element {
   let e = olustur("div")
   e.stil("height", "${yukseklik}px")
   return e
+}
+
+// --- simgeler -------------------------------------------------------------
+//
+// Çizgi tabanlı, 24x24 kutuya sığan bir set. Hepsi `currentColor` kullanır:
+// simge içinde bulunduğu yazının rengini ve boyutunu alır, ayrıca renk
+// vermek gerekmez.
+
+let SIMGE_BASI = "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>"
+
+let SIMGELER: {String: String} = {
+  "ara": "<circle cx='11' cy='11' r='7'/><path d='M16.5 16.5 21 21'/>",
+  "arti": "<path d='M12 5v14M5 12h14'/>",
+  "carpi": "<path d='M6 6l12 12M18 6L6 18'/>",
+  "onay": "<path d='M4.5 12.5 9.5 17.5 19.5 6.5'/>",
+  "ok-sag": "<path d='M9 5l7 7-7 7'/>",
+  "ok-sol": "<path d='M15 5l-7 7 7 7'/>",
+  "ok-asagi": "<path d='M5 9l7 7 7-7'/>",
+  "ok-yukari": "<path d='M5 15l7-7 7 7'/>",
+  "bilgi": "<circle cx='12' cy='12' r='9'/><path d='M12 11.5v5.5'/><circle cx='12' cy='7.8' r='.9' fill='currentColor' stroke='none'/>",
+  "basari": "<circle cx='12' cy='12' r='9'/><path d='M7.8 12.3 10.8 15.3 16.4 8.9'/>",
+  "uyari": "<path d='M12 3.5 22 20.5H2Z'/><path d='M12 9.5v4.5'/><circle cx='12' cy='17.2' r='.9' fill='currentColor' stroke='none'/>",
+  "hata": "<circle cx='12' cy='12' r='9'/><path d='M8.8 8.8l6.4 6.4M15.2 8.8l-6.4 6.4'/>",
+  "kalp": "<path d='M12 20.5 4.2 12.9a4.6 4.6 0 0 1 6.5-6.5l1.3 1.3 1.3-1.3a4.6 4.6 0 0 1 6.5 6.5Z'/>",
+  "yildiz": "<path d='M12 3.5l2.7 5.8 6.3.8-4.6 4.3 1.2 6.2-5.6-3.1-5.6 3.1 1.2-6.2L3 10.1l6.3-.8Z'/>",
+  "ayar": "<circle cx='12' cy='12' r='3.2'/><path d='M12 2.5v3M12 18.5v3M21.5 12h-3M5.5 12h-3M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1M18.7 18.7l-2.1-2.1M7.4 7.4 5.3 5.3'/>",
+  "kullanici": "<circle cx='12' cy='8' r='3.8'/><path d='M4.5 20.5a7.5 7.5 0 0 1 15 0'/>",
+  "ev": "<path d='M4 10.5 12 4l8 6.5V20.5H4Z'/><path d='M9.5 20.5v-6h5v6'/>",
+  "dosya": "<path d='M6 3h8l4 4v14H6Z'/><path d='M14 3v4h4'/>",
+  "klasor": "<path d='M3 6h6l2 2.5h10V19.5H3Z'/>",
+  "cop": "<path d='M4 6.5h16'/><path d='M7.5 6.5V4h9v2.5'/><path d='M6 6.5 7 21h10l1-14.5'/>",
+  "kalem": "<path d='M4 20h4L20 8l-4-4L4 16Z'/><path d='M14.5 5.5 18.5 9.5'/>",
+  "indir": "<path d='M12 3.5v11.5'/><path d='M7.2 10.5 12 15.3l4.8-4.8'/><path d='M4 20h16'/>",
+  "yukle": "<path d='M12 15.5V4'/><path d='M7.2 8.8 12 4l4.8 4.8'/><path d='M4 20h16'/>",
+  "gunes": "<circle cx='12' cy='12' r='4.2'/><path d='M12 2v2.5M12 19.5V22M22 12h-2.5M4.5 12H2M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8M19.1 19.1l-1.8-1.8M6.7 6.7 4.9 4.9'/>",
+  "ay": "<path d='M20.5 14.6A8.6 8.6 0 1 1 9.4 3.5a7 7 0 0 0 11.1 11.1Z'/>",
+  "menu": "<path d='M4 7h16M4 12h16M4 17h16'/>",
+  "nokta": "<circle cx='6' cy='12' r='1.3' fill='currentColor' stroke='none'/><circle cx='12' cy='12' r='1.3' fill='currentColor' stroke='none'/><circle cx='18' cy='12' r='1.3' fill='currentColor' stroke='none'/>",
+  "kilit": "<rect x='4.5' y='10.5' width='15' height='10' rx='2.2'/><path d='M8 10.5V7a4 4 0 0 1 8 0v3.5'/>",
+  "posta": "<rect x='3' y='5' width='18' height='14' rx='2.2'/><path d='M3.6 6.6 12 13l8.4-6.4'/>",
+  "takvim": "<rect x='3.5' y='5.5' width='17' height='15' rx='2.2'/><path d='M3.5 10.2h17'/><path d='M8 3v4.5M16 3v4.5'/>",
+  "saat": "<circle cx='12' cy='12' r='9'/><path d='M12 6.8V12l3.6 2.2'/>",
+  "grafik": "<path d='M3 17.5 9 11l4 4 8-8.5'/><path d='M15 6.5h6v6'/>",
+  "filtre": "<path d='M3 5h18l-7 8.2V20l-4-2v-4.8Z'/>",
+  "yenile": "<path d='M20.5 12a8.5 8.5 0 1 1-2.6-6.1'/><path d='M20.5 3.5v5h-5'/>",
+  "kod": "<path d='M9 7.5 4 12l5 4.5'/><path d='M15 7.5 20 12l-5 4.5'/>",
+  "oyna": "<path d='M7.5 4.8 19 12 7.5 19.2Z'/>",
+  "dur": "<rect x='6' y='5.5' width='4' height='13' rx='1'/><rect x='14' y='5.5' width='4' height='13' rx='1'/>",
+  "bag": "<path d='M10.5 13.5a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.4 1.4'/><path d='M13.5 10.5a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.4-1.4'/>",
+  "paket": "<path d='M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5Z'/><path d='M3.5 7.5 12 12l8.5-4.5M12 12v9'/>"
+}
+
+// Simgenin SVG metnini verir; tanınmayan ad boş döner, sayfa yine çizilir.
+fn simgeKodu(ad: String) -> String {
+  if let ic = SIMGELER.get(ad) {
+    return SIMGE_BASI + ic + "</svg>"
+  }
+  return ""
+}
+
+fn simgeOgesi(ad: String) -> Element {
+  let e = sinifliOge("span", "nar-simge")
+  // Adı öznitelikte durur: yanlış yazılan bir simge boş görünür, ama
+  // ayıklarken hangisinin aranmış olduğu bellidir.
+  e.ozellikYaz("data-simge", ad)
+  e.htmlYaz(simgeKodu(ad))
+  return e
+}
+
+fn ikonDugmesi(simge: String, etiket: String, islev: () -> Void) -> Element {
+  let e = odaklanabilirIsaretle(sinifliOge("button", "nar-ikon-dugme"))
+  e.ozellikYaz("type", "button")
+  // Görünen yazısı yok; adı ekran okuyucuya ve ipucuna kalıyor.
+  e.ozellikYaz("aria-label", etiket)
+  e.ozellikYaz("title", etiket)
+  e.ekle(simgeOgesi(simge))
+  e.dinle("click", islev)
+  return e
+}
+
+// --- yazı bileşenleri -----------------------------------------------------
+
+fn alintiOgesi(soz: String, kaynak: String) -> Element {
+  let e = sinifliOge("blockquote", "nar-alinti")
+  e.ekle(yaziOgesi("p", "nar-alinti-metin", soz))
+  if kaynak != "" {
+    e.ekle(yaziOgesi("footer", "nar-alinti-kaynak", kaynak))
+  }
+  return e
+}
+
+fn kodOgesi(kod: String) -> Element {
+  let e = sinifliOge("pre", "nar-kod")
+  let ic = olustur("code")
+  // Metin olarak yazılır: kod içindeki `<` işareti etiket sanılmasın.
+  ic.metinYaz(kod)
+  e.ekle(ic)
+  return e
+}
+
+// --- girdi bileşenleri ----------------------------------------------------
+
+// Radyo düğmeleri aynı `name` ile gruplanır; her grup kendi adını alır.
+var RADYO_SAYACI = 0
+
+fn anahtarOgesi(etiket: String, acik: Bool,
+                degisince: (Bool) -> Void) -> Element {
+  let e = sinifliOge("label", "nar-anahtar")
+  let kutu = odaklanabilirIsaretle(olustur("input"))
+  kutu.ozellikYaz("type", "checkbox")
+  kutu.isaretliYaz(acik)
+  // Yuva CSS'te `input:checked + .nar-anahtar-yuva` ile boyanıyor;
+  // bu yüzden hemen girdinin ardından gelmeli.
+  e.ekle(kutu)
+  e.ekle(sinifliOge("span", "nar-anahtar-yuva"))
+  if etiket != "" {
+    e.ekle(yaziOgesi("span", "", etiket))
+  }
+  kutu.dinle("change", || {
+    degisince(kutu.isaretli())
+  })
+  return e
+}
+
+fn radyoOgesi(secenekler: [String], secili: String,
+              degisince: (String) -> Void) -> Element {
+  RADYO_SAYACI += 1
+  let grup = "nar-radyo-${RADYO_SAYACI}"
+  let e = sinifliOge("div", "nar-radyo")
+  e.ozellikYaz("role", "radiogroup")
+  for s in secenekler {
+    let satir = sinifliOge("label", "nar-radyo-oge")
+    let d = odaklanabilirIsaretle(olustur("input"))
+    d.ozellikYaz("type", "radio")
+    d.ozellikYaz("name", grup)
+    d.ozellikYaz("value", s)
+    d.isaretliYaz(s == secili)
+    d.dinle("change", || {
+      degisince(s)
+    })
+    satir.ekle(d)
+    satir.ekle(yaziOgesi("span", "", s))
+    e.ekle(satir)
+  }
+  return e
+}
+
+fn kaydiriciOgesi(enAz: Int, enCok: Int, deger: Int,
+                  degisince: (Int) -> Void) -> Element {
+  let e = sinifliOge("div", "nar-kaydirici")
+  let d = odaklanabilirIsaretle(olustur("input"))
+  d.ozellikYaz("type", "range")
+  d.ozellikYaz("min", str(enAz))
+  d.ozellikYaz("max", str(enCok))
+  d.degerYaz(str(deger))
+  let sayi = yaziOgesi("span", "nar-kaydirici-deger", str(deger))
+  d.dinle("input", || {
+    // Sayı anında güncellenir; durum yenilenmesini beklemek kaydırmayı
+    // takılıyor gibi gösteriyordu.
+    sayi.metinYaz(d.deger())
+    degisince(int(d.deger()) ?? deger)
+  })
+  e.ekle(d)
+  e.ekle(sayi)
+  return e
+}
+
+fn alanOgesi(etiket: String, ipucu: String, ic: Gorunum,
+             hatali: Bool) -> Element {
+  let e = sinifliOge("div", "nar-alan")
+  if hatali {
+    e.sinifEkle("nar-alan-hatali")
+  }
+  if etiket != "" {
+    e.ekle(yaziOgesi("label", "nar-alan-etiket", etiket))
+  }
+  e.ekle(ogeYap(ic))
+  if ipucu != "" {
+    e.ekle(yaziOgesi("p", "nar-alan-ipucu", ipucu))
+  }
+  return e
+}
+
+// --- yerleşim bileşenleri -------------------------------------------------
+
+fn izgaraOgesi(sutun: Int, cocuklar: [Gorunum]) -> Element {
+  let e = sinifliOge("div", "nar-izgara")
+  // En az bir sütun: 0 verilirse tarayıcı hiçbir şey çizmezdi.
+  let n = if sutun < 1 { 1 } else { sutun }
+  e.stil("--nar-sutun", str(n))
+  for c in cocuklar {
+    e.ekle(ogeYap(c))
+  }
+  return e
+}
+
+fn genislikOgesi(px: Int, ic: Gorunum) -> Element {
+  let e = sinifliOge("div", "nar-en")
+  e.stil("--nar-en", "${px}px")
+  e.ekle(ogeYap(ic))
+  return e
+}
+
+fn ayracOgesi(etiket: String) -> Element {
+  let e = sinifliOge("div", "nar-ayrac")
+  if etiket != "" {
+    e.ekle(yaziOgesi("span", "", etiket))
+  }
+  return e
+}
+
+// --- gösterim bileşenleri -------------------------------------------------
+
+// Resim yoksa addan baş harfler çıkarılır: "Ayşe Yılmaz" -> "AY".
+fn basHarfler(ad: String) -> String {
+  var sonuc = ""
+  for parca in ad.trim().split(" ") {
+    if parca != "" && sonuc.len() < 2 {
+      sonuc += parca.charAt(0).upperTr()
+    }
+  }
+  if sonuc == "" {
+    return "?"
+  }
+  return sonuc
+}
+
+fn avatarOgesi(ad: String, adres: String) -> Element {
+  let e = sinifliOge("span", "nar-avatar")
+  e.ozellikYaz("title", ad)
+  if adres != "" {
+    let resim = olustur("img")
+    resim.ozellikYaz("src", adres)
+    resim.ozellikYaz("alt", ad)
+    e.ekle(resim)
+  } else {
+    e.metinYaz(basHarfler(ad))
+    e.ozellikYaz("aria-label", ad)
+  }
+  return e
+}
+
+// Değişim metni kendi yönünü söyler: başında "+" varsa iyi, "-" varsa kötü.
+fn degisimSinifi(degisim: String) -> String {
+  if degisim.startsWith("+") {
+    return "nar-degisim-arti"
+  }
+  if degisim.startsWith("-") {
+    return "nar-degisim-eksi"
+  }
+  return "nar-degisim-notr"
+}
+
+fn istatistikOgesi(baslik: String, deger: String,
+                   degisim: String) -> Element {
+  let e = sinifliOge("div", "nar-istatistik")
+  e.ekle(yaziOgesi("p", "nar-istatistik-baslik", baslik))
+  e.ekle(yaziOgesi("p", "nar-istatistik-deger", deger))
+  if degisim != "" {
+    let alt = sinifliOge("p", "nar-istatistik-degisim " + degisimSinifi(degisim))
+    if degisim.startsWith("+") {
+      alt.ekle(simgeOgesi("ok-yukari"))
+    }
+    if degisim.startsWith("-") {
+      alt.ekle(simgeOgesi("ok-asagi"))
+    }
+    alt.ekle(yaziOgesi("span", "", degisim))
+    e.ekle(alt)
+  }
+  return e
+}
+
+fn cubukOgesi(degerler: [Int], etiketler: [String]) -> Element {
+  let e = sinifliOge("div", "nar-cubuklar")
+  // Ölçek en büyük değere göre; hepsi sıfırsa çubuklar dipte kalır.
+  var enBuyuk = 1
+  for d in degerler {
+    if d > enBuyuk {
+      enBuyuk = d
+    }
+  }
+  for (i, d) in degerler {
+    let sutun = sinifliOge("div", "nar-cubuk-sutun")
+    let alan = sinifliOge("div", "nar-cubuk-alan")
+    let cubuk = sinifliOge("div", "nar-cubuk")
+    let yuzde = d * 100 / enBuyuk
+    cubuk.stil("height", "${yuzde}%")
+    cubuk.ozellikYaz("title", str(d))
+    alan.ekle(cubuk)
+    sutun.ekle(alan)
+    if i < etiketler.len() {
+      sutun.ekle(yaziOgesi("span", "nar-cubuk-etiket", etiketler[i]))
+    }
+    e.ekle(sutun)
+  }
+  return e
+}
+
+fn adimOgesi(adlar: [String], simdi: Int) -> Element {
+  let e = sinifliOge("div", "nar-adimlar")
+  for (i, ad) in adlar {
+    var sinif = "nar-adim"
+    if i < simdi {
+      sinif += " nar-adim-bitti"
+    }
+    if i == simdi {
+      sinif += " nar-adim-simdi"
+    }
+    let adim = sinifliOge("div", sinif)
+    let yuvarlak = sinifliOge("div", "nar-adim-yuvarlak")
+    if i < simdi {
+      yuvarlak.ekle(simgeOgesi("onay"))
+    } else {
+      yuvarlak.metinYaz(str(i + 1))
+    }
+    adim.ekle(yuvarlak)
+    adim.ekle(yaziOgesi("div", "nar-adim-yazi", ad))
+    e.ekle(adim)
+  }
+  return e
+}
+
+fn bosDurumOgesi(simge: String, baslik: String, aciklama: String,
+                 eylem: Gorunum) -> Element {
+  let e = sinifliOge("div", "nar-bos-durum")
+  if simge != "" {
+    e.ekle(simgeOgesi(simge))
+  }
+  e.ekle(yaziOgesi("p", "nar-bos-baslik", baslik))
+  if aciklama != "" {
+    e.ekle(yaziOgesi("p", "nar-bos-aciklama", aciklama))
+  }
+  e.ekle(ogeYap(eylem))
+  return e
+}
+
+fn sayfalamaOgesi(simdi: Int, toplam: Int,
+                  gidince: (Int) -> Void) -> Element {
+  let e = sinifliOge("div", "nar-sayfalama")
+  let geri = ikonDugmesi("ok-sol", "önceki sayfa", || {
+    if simdi > 1 {
+      gidince(simdi - 1)
+    }
+  })
+  if simdi <= 1 {
+    geri.ozellikYaz("disabled", "disabled")
+  }
+  let ileri = ikonDugmesi("ok-sag", "sonraki sayfa", || {
+    if simdi < toplam {
+      gidince(simdi + 1)
+    }
+  })
+  if simdi >= toplam {
+    ileri.ozellikYaz("disabled", "disabled")
+  }
+  e.ekle(geri)
+  e.ekle(yaziOgesi("span", "nar-sayfa-no", "${simdi} / ${toplam}"))
+  e.ekle(ileri)
+  return e
+}
+
+fn akordeonOgesi(basliklar: [String], govdeler: [Gorunum], acik: Int,
+                 degisince: (Int) -> Void) -> Element {
+  let e = sinifliOge("div", "nar-akordeon")
+  for (i, baslik) in basliklar {
+    var sinif = "nar-akordeon-bolum"
+    if i == acik {
+      sinif += " nar-akordeon-acik"
+    }
+    let bolum = sinifliOge("div", sinif)
+    let basi = odaklanabilirIsaretle(sinifliOge("button", "nar-akordeon-basi"))
+    basi.ozellikYaz("type", "button")
+    // Açıksa tekrar tıklamak kapatır: -1 hiçbir bölümün açık olmadığı hâl.
+    basi.ozellikYaz("aria-expanded", if i == acik { "true" } else { "false" })
+    basi.ekle(yaziOgesi("span", "", baslik))
+    let ok = simgeOgesi("ok-sag")
+    ok.sinifEkle("nar-akordeon-ok")
+    basi.ekle(ok)
+    basi.dinle("click", || {
+      degisince(if i == acik { -1 } else { i })
+    })
+    bolum.ekle(basi)
+    if i == acik && i < govdeler.len() {
+      let govde = sinifliOge("div", "nar-akordeon-govde")
+      govde.ekle(ogeYap(govdeler[i]))
+      bolum.ekle(govde)
+    }
+    e.ekle(bolum)
+  }
+  return e
+}
+
+fn menuOgesi(etiket: String, ogeler: [String],
+             secince: (String) -> Void) -> Element {
+  let e = sinifliOge("div", "nar-menu")
+  let dugme = odaklanabilirIsaretle(sinifliOge("button", "nar-dugme-ikincil"))
+  dugme.ozellikYaz("type", "button")
+  dugme.ekle(yaziOgesi("span", "", etiket))
+  dugme.ekle(simgeOgesi("ok-asagi"))
+  let liste = sinifliOge("div", "nar-menu-liste")
+  liste.ozellikYaz("role", "menu")
+  liste.stil("display", "none")
+  dugme.dinle("click", || {
+    let acik = liste.ozellik("data-acik") ?? ""
+    if acik == "1" {
+      liste.ozellikYaz("data-acik", "")
+      liste.stil("display", "none")
+    } else {
+      liste.ozellikYaz("data-acik", "1")
+      liste.stil("display", "flex")
+    }
+  })
+  for oge in ogeler {
+    let o = sinifliOge("button", "nar-menu-oge")
+    o.ozellikYaz("type", "button")
+    o.ozellikYaz("role", "menuitem")
+    o.metinYaz(oge)
+    // `mousedown`: odak listeden çıkmadan seçim tamamlansın.
+    o.dinle("mousedown", || {
+      liste.ozellikYaz("data-acik", "")
+      liste.stil("display", "none")
+      secince(oge)
+    })
+    liste.ekle(o)
+  }
+  // Odak menüden çıkınca kapanır; dışarı tıklamak da odağı götürür.
+  e.dinle("focusout", || {
+    liste.ozellikYaz("data-acik", "")
+    liste.stil("display", "none")
+  })
+  e.ekle(dugme)
+  e.ekle(liste)
+  return e
+}
+
+fn ipucuOgesi(notu: String, ic: Gorunum) -> Element {
+  let e = sinifliOge("span", "nar-ipucu-sarmal")
+  e.ekle(ogeYap(ic))
+  let balon = yaziOgesi("span", "nar-ipucu-balon", notu)
+  balon.ozellikYaz("role", "tooltip")
+  e.ekle(balon)
+  return e
+}
+
+fn iletisimOgesi(baslik: String, cocuklar: [Gorunum],
+                 kapaninca: () -> Void) -> Element {
+  let perde = sinifliOge("div", "nar-perde")
+  let kutu = sinifliOge("div", "nar-iletisim")
+  kutu.ozellikYaz("role", "dialog")
+  kutu.ozellikYaz("aria-modal", "true")
+  let basi = sinifliOge("div", "nar-iletisim-basi")
+  basi.ekle(yaziOgesi("h2", "nar-altbaslik", baslik))
+  basi.ekle(ikonDugmesi("carpi", "kapat", kapaninca))
+  kutu.ekle(basi)
+  for c in cocuklar {
+    kutu.ekle(ogeYap(c))
+  }
+  // Perdeye tıklamak kapatır; kutunun içi tıklamayı yutar, yoksa
+  // kutudaki her tıklama pencereyi kapatırdı.
+  kutu.dinle("click", |o: Olay| {
+    o.durdur()
+  })
+  perde.dinle("click", kapaninca)
+  perde.ekle(kutu)
+  return perde
+}
+
+// --- görsel ayarlar -------------------------------------------------------
+
+// Sayfaya bir web yazı tipi bağlar ve gövde fontunun başına ekler.
+// Yazı tipi yüklenemezse sistem fontuna düşülür; sayfa yine okunur.
+fn fontKur(aile: String, adres: String) {
+  if bul("#nar-font") == none && adres != "" {
+    let bag = olustur("link")
+    bag.ozellikYaz("id", "nar-font")
+    bag.ozellikYaz("rel", "stylesheet")
+    bag.ozellikYaz("href", adres)
+    if let bas = bul("head") {
+      bas.ekle(bag)
+    }
+  }
+  // Ayrı bir stil öğesi: deri değiştiğinde font seçimi kaybolmasın.
+  var e = bul("#nar-font-stil")
+  if e == none {
+    let yeni = olustur("style")
+    yeni.ozellikYaz("id", "nar-font-stil")
+    if let bas = bul("head") {
+      bas.ekle(yeni)
+    }
+    e = bul("#nar-font-stil")
+  }
+  if e != none {
+    e!.metinYaz(":root { --nar-govde: '" + aile +
+                "', -apple-system, BlinkMacSystemFont, 'Segoe UI', " +
+                "Roboto, sans-serif; }")
+  }
+}
+
+// Kök kapsayıcının en geniş hâli. Geniş ekranlarda okunabilirlik için
+// varsayılan 820px; gösterge paneli gibi sayfalarda büyütülür.
+fn genislikKur(px: Int) {
+  if let kok = bul(".nar-kok") {
+    kok.stil("max-width", "${px}px")
+  }
 }
 
 // --- uygulama -------------------------------------------------------------

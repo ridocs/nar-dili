@@ -39,7 +39,7 @@ import oyun  # noqa: E402
 import tasarim  # noqa: E402
 from tasarim import (  # noqa: E402
     IKON_ARA, IKON_AY, IKON_BAG, IKON_CIZGI, IKON_GITHUB, IKON_GUNES,
-    IKON_KOD, IKON_KOPYA, IKON_OK, IKON_ONAY, IKON_OYNAT,
+    IKON_KOD, IKON_KOPYA, IKON_OK, IKON_ONAY, IKON_BILESEN, IKON_OYNAT,
 )
 from icerik import (  # noqa: E402
     ALT_BASLIK, BASLIK, BOLUMLER, DEPO, GIRIS, HEDEFLER, NASIL_CALISTIRILIR,
@@ -257,6 +257,11 @@ def bolum_dizini_html() -> str:
         f'<span class="ad">Deneme alanı</span>'
         f'<span class="adet">→</span></a></li>'
     )
+    ogeler.append(
+        f'<li><a href="bilesenler/">{IKON_BILESEN}'
+        f'<span class="ad">Bileşen vitrini</span>'
+        f'<span class="adet">→</span></a></li>'
+    )
     konu_sayisi = sum(len(b["konular"]) for b in BOLUMLER)
     return f"""<section class="dizin-alani">
   <div class="sinir dizin-ic">
@@ -392,6 +397,7 @@ def sayfa_uret(artifact: bool = False) -> str:
   </div>
   <div class="bar-sag">
     <a class="bar-dugme" href="deneme/">{IKON_OYNAT}<span>Dene</span></a>
+    <a class="bar-dugme" href="bilesenler/">{IKON_BILESEN}<span>Bileşenler</span></a>
     <a class="bar-dugme" href="{html.escape(DEPO)}" rel="noreferrer">
       {IKON_GITHUB}<span>Kaynak</span>
     </a>
@@ -494,6 +500,21 @@ def main() -> int:
         (deneme / "index.html").write_text(oyun.sayfa(rehber), encoding="utf-8")
         print(f"yazıldı: {deneme / 'index.html'} "
               f"(derleyici paketi {boyut // 1024} KB, {len(rehber)} rehber konusu)")
+
+        # Bileşen vitrini: arayüz kitaplığının kendi kendini anlattığı sayfa.
+        # Nar ile yazılmıştır, derleyiciden geçerek buraya çıkar.
+        vitrin = args.cikti.parent / "bilesenler"
+        vitrin.mkdir(parents=True, exist_ok=True)
+        kaynak = KOK / "ornekler" / "arayuz_galerisi.nar"
+        sonuc = subprocess.run(
+            [sys.executable, "-m", "narc", "build", str(kaynak),
+             "--target", "web", "-o", str(vitrin / "index.html")],
+            cwd=KOK, capture_output=True, text=True, encoding="utf-8",
+        )
+        if sonuc.returncode != 0:
+            print("bileşen vitrini üretilemedi:\n" + (sonuc.stderr or sonuc.stdout))
+            return 1
+        print(f"yazıldı: {vitrin / 'index.html'} (bileşen vitrini)")
     return 0
 
 

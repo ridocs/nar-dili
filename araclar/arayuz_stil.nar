@@ -1,0 +1,711 @@
+// Nar arayüz kütüphanesinin görsel dili.
+//
+// Burada yalnız metin sabitleri var; `arayuz.nar` bunları sayfaya ekler.
+// Ayrı durmasının sebebi basit: stil büyüdükçe bileşen kodunu boğuyordu.
+//
+// İki katman:
+//   STIL           renk, tipografi, boşluk, her bileşenin temel biçimi
+//   DERI_YUMUSAK   aynı paletin üstüne gelen ikinci biçim (yuvarlak, gölge)
+//
+// Renkler ölçüldü, tahmin edilmedi. Açık temada metin beyaz üstünde
+// 17.9:1, ikincil metin 9.6:1, soluk metin 5.7:1; koyu temada sırasıyla
+// 13.9:1, 8.2:1, 6.0:1. Hepsi WCAG AA'nın (4.5:1) üstünde.
+
+// --- ölçüler ---------------------------------------------------------------
+//
+// Tipografi ve boşluk birer merdiven: ara değer seçilmez, basamağa
+// çıkılır. Bu yüzden iki ayrı ekran yan yana konduğunda aynı ritmi tutar.
+
+let STIL = """
+:root {
+  /* yüzeyler — arkadan öne */
+  --nar-zemin: #FAF8F6;
+  --nar-yuzey: #FFFFFF;
+  --nar-yuzey-2: #F4F1EE;
+  --nar-yuzey-3: #EBE6E1;
+
+  /* metin — koyudan açığa */
+  --nar-metin: #191714;
+  --nar-metin-2: #4A443E;
+  --nar-soluk: #6B6560;
+
+  /* kenarlar */
+  --nar-kenar: #E5E0DA;
+  --nar-kenar-guclu: #D3CCC4;
+
+  /* nar kırmızısı ve anlam renkleri */
+  --nar-vurgu: #A3342E;
+  --nar-vurgu-koyu: #872722;
+  --nar-vurgu-zemin: #FCF2F1;
+  --nar-basari: #2F7A4F;
+  --nar-basari-zemin: #EFF7F2;
+  --nar-uyari: #8A5A00;
+  --nar-uyari-zemin: #FDF6E8;
+  --nar-hata: #B3261E;
+  --nar-hata-zemin: #FDF1F0;
+  --nar-dugme-yazi: #FFFFFF;
+
+  /* tipografi merdiveni */
+  --nar-yazi-xs: 11.5px;
+  --nar-yazi-s: 13px;
+  --nar-yazi-m: 14.5px;
+  --nar-yazi-l: 17px;
+  --nar-yazi-xl: 21px;
+  --nar-yazi-2xl: 27px;
+  --nar-yazi-3xl: 34px;
+
+  /* boşluk merdiveni */
+  --nar-b1: 4px;
+  --nar-b2: 8px;
+  --nar-b3: 12px;
+  --nar-b4: 16px;
+  --nar-b5: 24px;
+  --nar-b6: 32px;
+  --nar-b7: 48px;
+
+  /* derinlik — gölge sıcak, saf siyah değil */
+  --nar-golge-1: 0 1px 2px rgba(26, 24, 21, .05);
+  --nar-golge-2: 0 1px 2px rgba(26, 24, 21, .04),
+                 0 6px 16px -8px rgba(26, 24, 21, .16);
+  --nar-golge-3: 0 2px 4px rgba(26, 24, 21, .05),
+                 0 14px 32px -12px rgba(26, 24, 21, .22);
+
+  --nar-yuvarlak: 8px;
+  --nar-yuvarlak-s: 6px;
+  --nar-gecis: .16s;
+  --nar-genislik: 820px;
+
+  /* Web fontu yüklenmediyse sistem yazı tipi kullanılır; `fontKur()`
+     bu değişkenin başına bir aile ekler. */
+  --nar-govde: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+               'Helvetica Neue', Arial, sans-serif;
+  --nar-tek: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+             'Liberation Mono', monospace;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-nar-tema='acik']) {
+    --nar-zemin: #18160F;
+    --nar-yuzey: #221F1B;
+    --nar-yuzey-2: #2B2721;
+    --nar-yuzey-3: #363028;
+    --nar-metin: #EFECE7;
+    --nar-metin-2: #BDB6AD;
+    --nar-soluk: #A29B93;
+    --nar-kenar: #38322A;
+    --nar-kenar-guclu: #4A4238;
+    --nar-vurgu: #E8756C;
+    --nar-vurgu-koyu: #F0908A;
+    --nar-vurgu-zemin: #2A1E1C;
+    --nar-basari: #6FC395;
+    --nar-basari-zemin: #1B2620;
+    --nar-uyari: #D7A64A;
+    --nar-uyari-zemin: #2A2418;
+    --nar-hata: #F08079;
+    --nar-hata-zemin: #2B1C1B;
+    /* Zemin açıldığı için yazı koyulaşır: beyaz yazı burada 2.9:1
+       kalıyordu, bu koyu ton 6.0:1 veriyor. */
+    --nar-dugme-yazi: #2B1210;
+    /* Koyu zeminde gölge görünmez; derinlik üstten gelen ince bir
+       aydınlıkla anlatılır. */
+    --nar-golge-1: 0 1px 0 rgba(255, 255, 255, .04) inset;
+    --nar-golge-2: 0 1px 0 rgba(255, 255, 255, .05) inset,
+                   0 8px 20px -12px rgba(0, 0, 0, .8);
+    --nar-golge-3: 0 1px 0 rgba(255, 255, 255, .07) inset,
+                   0 18px 36px -16px rgba(0, 0, 0, .95);
+    color-scheme: dark;
+  }
+}
+
+:root[data-nar-tema='koyu'] {
+  --nar-zemin: #18160F;
+  --nar-yuzey: #221F1B;
+  --nar-yuzey-2: #2B2721;
+  --nar-yuzey-3: #363028;
+  --nar-metin: #EFECE7;
+  --nar-metin-2: #BDB6AD;
+  --nar-soluk: #A29B93;
+  --nar-kenar: #38322A;
+  --nar-kenar-guclu: #4A4238;
+  --nar-vurgu: #E8756C;
+  --nar-vurgu-koyu: #F0908A;
+  --nar-vurgu-zemin: #2A1E1C;
+  --nar-basari: #6FC395;
+  --nar-basari-zemin: #1B2620;
+  --nar-uyari: #D7A64A;
+  --nar-uyari-zemin: #2A2418;
+  --nar-hata: #F08079;
+  --nar-hata-zemin: #2B1C1B;
+  --nar-dugme-yazi: #2B1210;
+  --nar-golge-1: 0 1px 0 rgba(255, 255, 255, .04) inset;
+  --nar-golge-2: 0 1px 0 rgba(255, 255, 255, .05) inset,
+                 0 8px 20px -12px rgba(0, 0, 0, .8);
+  --nar-golge-3: 0 1px 0 rgba(255, 255, 255, .07) inset,
+                 0 18px 36px -16px rgba(0, 0, 0, .95);
+  color-scheme: dark;
+}
+
+/* --- kök ---------------------------------------------------------------- */
+
+.nar-kok {
+  background: var(--nar-zemin);
+  color: var(--nar-metin);
+  font: var(--nar-yazi-m)/1.6 var(--nar-govde);
+  padding-block: var(--nar-b5);
+  padding-inline: var(--nar-b5);
+  max-width: var(--nar-genislik);
+  margin: 0 auto;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.nar-kok *, .nar-kok *::before, .nar-kok *::after { box-sizing: border-box; }
+
+/* --- yazı --------------------------------------------------------------- */
+
+.nar-baslik { font-size: var(--nar-yazi-2xl); font-weight: 660;
+  letter-spacing: -0.021em; line-height: 1.22; margin: 0;
+  text-wrap: balance; }
+.nar-altbaslik { font-size: var(--nar-yazi-l); font-weight: 620;
+  letter-spacing: -0.012em; line-height: 1.35; margin: 0;
+  text-wrap: balance; }
+.nar-metin { margin: 0; }
+.nar-paragraf { margin: 0; max-width: 66ch; color: var(--nar-metin-2); }
+.nar-etiket { font-size: var(--nar-yazi-xs); font-weight: 620;
+  letter-spacing: 0.075em; text-transform: uppercase;
+  color: var(--nar-soluk); margin: 0; }
+/* Etiketin büyük harfe çevirmeyen kardeşi: açıklama satırları için. */
+.nar-solukyazi { font-size: var(--nar-yazi-s); color: var(--nar-soluk);
+  margin: 0; }
+
+/* Rozet içeriği kadar yer kaplar. Sütun yerleşiminin içinde
+   `align-self` olmadan tam genişliğe yayılıp çubuğa dönüşüyordu. */
+.nar-rozet { display: inline-flex; align-items: center; gap: var(--nar-b1);
+  font-size: var(--nar-yazi-s); font-weight: 600; line-height: 1.45;
+  padding: 2px 10px; border-radius: 999px; align-self: flex-start;
+  white-space: nowrap; }
+.nar-rozet-bilgi { background: var(--nar-vurgu-zemin); color: var(--nar-vurgu); }
+.nar-rozet-basari { background: var(--nar-basari-zemin); color: var(--nar-basari); }
+.nar-rozet-uyari { background: var(--nar-uyari-zemin); color: var(--nar-uyari); }
+.nar-rozet-hata { background: var(--nar-hata-zemin); color: var(--nar-hata); }
+.nar-rozet-notr { background: var(--nar-yuzey-2); color: var(--nar-metin-2); }
+
+.nar-bag { color: var(--nar-vurgu); text-underline-offset: 2px;
+  text-decoration-thickness: 1px; }
+.nar-bag:hover { color: var(--nar-vurgu-koyu); }
+
+.nar-alinti { margin: 0; padding-left: var(--nar-b4);
+  border-left: 2px solid var(--nar-kenar-guclu);
+  display: flex; flex-direction: column; gap: var(--nar-b2); }
+.nar-alinti-metin { font-size: var(--nar-yazi-l); line-height: 1.5;
+  letter-spacing: -0.008em; margin: 0; max-width: 58ch; }
+.nar-alinti-kaynak { font-size: var(--nar-yazi-s); color: var(--nar-soluk);
+  margin: 0; }
+
+/* --- simge -------------------------------------------------------------- */
+/* SVG'ler yazı rengini alır; boyut yazı boyutuna bağlıdır. */
+
+.nar-simge { display: inline-flex; align-items: center;
+  justify-content: center; flex: none; width: 1.15em; height: 1.15em;
+  color: inherit; }
+.nar-simge svg { width: 100%; height: 100%; display: block; }
+
+/* --- düğmeler ----------------------------------------------------------- */
+
+.nar-dugme, .nar-dugme-ikincil, .nar-dugme-sessiz, .nar-dugme-tehlike {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: var(--nar-b2);
+  font: inherit; font-weight: 560; letter-spacing: -0.006em;
+  padding: 9px 16px; min-height: 40px;
+  border-radius: var(--nar-yuvarlak); border: 1px solid transparent;
+  cursor: pointer; align-self: flex-start; white-space: nowrap;
+  transition: background-color var(--nar-gecis),
+              border-color var(--nar-gecis),
+              box-shadow var(--nar-gecis), transform .05s;
+}
+.nar-dugme { background: var(--nar-vurgu); color: var(--nar-dugme-yazi);
+  box-shadow: var(--nar-golge-1); }
+.nar-dugme:hover { background: var(--nar-vurgu-koyu); }
+.nar-dugme-ikincil { background: var(--nar-yuzey); color: var(--nar-metin);
+  border-color: var(--nar-kenar-guclu); box-shadow: var(--nar-golge-1); }
+.nar-dugme-ikincil:hover { background: var(--nar-yuzey-2); }
+.nar-dugme-sessiz { background: transparent; color: var(--nar-metin-2); }
+.nar-dugme-sessiz:hover { background: var(--nar-yuzey-2);
+  color: var(--nar-metin); }
+.nar-dugme-tehlike { background: var(--nar-hata-zemin); color: var(--nar-hata);
+  border-color: transparent; }
+.nar-dugme-tehlike:hover { border-color: var(--nar-hata); }
+.nar-dugme:active, .nar-dugme-ikincil:active,
+.nar-dugme-sessiz:active, .nar-dugme-tehlike:active { transform: translateY(1px); }
+.nar-dugme[disabled], .nar-dugme-ikincil[disabled],
+.nar-dugme-sessiz[disabled], .nar-dugme-tehlike[disabled] {
+  opacity: .5; cursor: not-allowed; }
+
+/* Yalnız simge taşıyan düğme kare olur; etiketi ekran okuyucuya kalır. */
+.nar-ikon-dugme { display: inline-flex; align-items: center;
+  justify-content: center; width: 36px; height: 36px; padding: 0;
+  font: inherit; background: transparent; color: var(--nar-metin-2);
+  border: 1px solid transparent; border-radius: var(--nar-yuvarlak-s);
+  cursor: pointer; flex: none;
+  transition: background-color var(--nar-gecis), color var(--nar-gecis); }
+.nar-ikon-dugme:hover { background: var(--nar-yuzey-2); color: var(--nar-metin); }
+
+/* --- girdi -------------------------------------------------------------- */
+
+.nar-giris, .nar-coksatir, .nar-secim {
+  font: inherit; padding: 9px 11px; min-height: 40px;
+  background: var(--nar-yuzey); color: var(--nar-metin);
+  border: 1px solid var(--nar-kenar-guclu);
+  border-radius: var(--nar-yuvarlak);
+  width: 100%; max-width: 360px;
+  transition: border-color var(--nar-gecis), box-shadow var(--nar-gecis);
+}
+.nar-coksatir { min-height: 88px; resize: vertical; font-family: inherit;
+  line-height: 1.55; }
+.nar-giris::placeholder, .nar-coksatir::placeholder { color: var(--nar-soluk); }
+.nar-giris:focus, .nar-coksatir:focus, .nar-secim:focus {
+  outline: none; border-color: var(--nar-vurgu);
+  box-shadow: 0 0 0 3px var(--nar-vurgu-zemin); }
+
+/* Klavyeyle gezinen herkes nerede olduğunu görmeli. */
+.nar-kok :focus-visible { outline: 2px solid var(--nar-vurgu);
+  outline-offset: 2px; }
+
+.nar-onay { display: inline-flex; align-items: center; gap: var(--nar-b2);
+  cursor: pointer; user-select: none; }
+.nar-onay input { width: 18px; height: 18px; accent-color: var(--nar-vurgu);
+  cursor: pointer; margin: 0; flex: none; }
+
+/* Etiketli form alanı: etiket, içerik, altında ipucu ya da hata. */
+.nar-alan { display: flex; flex-direction: column; gap: 6px; width: 100%;
+  align-items: flex-start; }
+.nar-alan-etiket { font-size: var(--nar-yazi-s); font-weight: 580;
+  color: var(--nar-metin); margin: 0; }
+.nar-alan-ipucu { font-size: var(--nar-yazi-s); color: var(--nar-soluk);
+  margin: 0; }
+.nar-alan-hatali .nar-giris, .nar-alan-hatali .nar-coksatir,
+.nar-alan-hatali .nar-secim { border-color: var(--nar-hata); }
+.nar-alan-hatali .nar-alan-ipucu { color: var(--nar-hata); }
+
+/* Anahtar: açık/kapalı. Gerçek bir onay kutusu üstüne çizilir, böylece
+   klavye ve ekran okuyucu kendiliğinden çalışır. */
+.nar-anahtar { display: inline-flex; align-items: center;
+  gap: var(--nar-b3); cursor: pointer; user-select: none; }
+.nar-anahtar input { position: absolute; opacity: 0; width: 0; height: 0; }
+.nar-anahtar-yuva { width: 40px; height: 24px; flex: none;
+  background: var(--nar-yuzey-3); border-radius: 999px;
+  position: relative;
+  transition: background-color var(--nar-gecis); }
+.nar-anahtar-yuva::after { content: ''; position: absolute;
+  top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 999px;
+  background: var(--nar-yuzey); box-shadow: var(--nar-golge-1);
+  transition: transform var(--nar-gecis); }
+.nar-anahtar input:checked + .nar-anahtar-yuva { background: var(--nar-vurgu); }
+.nar-anahtar input:checked + .nar-anahtar-yuva::after {
+  transform: translateX(16px); }
+.nar-anahtar input:focus-visible + .nar-anahtar-yuva {
+  outline: 2px solid var(--nar-vurgu); outline-offset: 2px; }
+
+.nar-radyo { display: flex; flex-direction: column; gap: var(--nar-b2);
+  align-items: flex-start; }
+.nar-radyo-oge { display: inline-flex; align-items: center;
+  gap: var(--nar-b2); cursor: pointer; user-select: none; }
+.nar-radyo-oge input { width: 18px; height: 18px; margin: 0; flex: none;
+  accent-color: var(--nar-vurgu); cursor: pointer; }
+
+.nar-kaydirici { display: flex; align-items: center; gap: var(--nar-b3);
+  width: 100%; max-width: 360px; }
+.nar-kaydirici input { flex: 1; min-width: 0; accent-color: var(--nar-vurgu);
+  height: 24px; }
+.nar-kaydirici-deger { font-size: var(--nar-yazi-s); font-weight: 580;
+  color: var(--nar-metin-2); font-variant-numeric: tabular-nums;
+  min-width: 3ch; text-align: right; }
+
+/* --- yerleşim ----------------------------------------------------------- */
+
+/* Sütun çocuklarını genişletir: içine konan kart, tablo ya da ızgara
+   kendi satırının tamamını kaplasın. İçeriği kadar yer tutması gereken
+   öğeler (düğme, rozet, anahtar) aşağıda tek tek `align-self` alır —
+   tersi yapılırsa her kart içeriği kadar daralıyor, sayfa dar bir
+   sütuna sıkışıyordu. */
+.nar-sutun { display: flex; flex-direction: column; gap: var(--nar-b3);
+  align-items: stretch; }
+.nar-sutun > .nar-onay, .nar-sutun > .nar-anahtar,
+.nar-sutun > .nar-avatar, .nar-sutun > .nar-simge,
+.nar-sutun > .nar-ikon-dugme, .nar-sutun > .nar-menu,
+.nar-sutun > .nar-ipucu-sarmal, .nar-sutun > .nar-sayfalama,
+.nar-sutun > .nar-rozet { align-self: flex-start; }
+.nar-satir { display: flex; flex-direction: row; gap: var(--nar-b3);
+  align-items: center; flex-wrap: wrap; }
+.nar-esnek { display: flex; flex-wrap: wrap; gap: var(--nar-b3);
+  align-items: stretch; }
+.nar-kutu, .nar-kart { display: flex; flex-direction: column;
+  gap: var(--nar-b3); background: var(--nar-yuzey);
+  border: 1px solid var(--nar-kenar); border-radius: 12px;
+  padding: var(--nar-b5); width: 100%; box-shadow: var(--nar-golge-1); }
+.nar-kart-baslik { font-size: var(--nar-yazi-l); font-weight: 620;
+  letter-spacing: -0.012em; margin: 0; }
+/* Satır ve esnek içindeki kutular yeri paylaşır; tek başına kutu tam
+   genişliktir. Bu kural olmadan üç kutu geniş ekranda da alt alta
+   diziliyor, `Esnek` hiç sarmıyordu. */
+.nar-satir > .nar-kutu, .nar-esnek > .nar-kutu { width: auto; flex: 1 1 160px; }
+.nar-ortala { display: flex; justify-content: center; width: 100%; }
+/* Satırın iki ucuna yaslar: solda ad, sağda değer. Dar ekranda sarar. */
+.nar-satir-yay { display: flex; flex-direction: row; align-items: center;
+  justify-content: space-between; gap: var(--nar-b3); flex-wrap: wrap;
+  width: 100%; }
+/* Genişliği sınırlanmış sarmalayıcı; ölçü `--nar-en` ile gelir. */
+.nar-en { width: 100%; max-width: var(--nar-en, 420px); }
+
+/* Izgara: sütun sayısı `--nar-sutun` ile gelir, dar ekranda teke iner. */
+.nar-izgara { display: grid; width: 100%; gap: var(--nar-b3);
+  grid-template-columns: repeat(var(--nar-sutun, 2), minmax(0, 1fr)); }
+
+.nar-ayrac { display: flex; align-items: center; gap: var(--nar-b3);
+  width: 100%; color: var(--nar-soluk); font-size: var(--nar-yazi-xs);
+  font-weight: 620; letter-spacing: 0.075em; text-transform: uppercase; }
+.nar-ayrac::before, .nar-ayrac::after { content: ''; height: 1px; flex: 1;
+  background: var(--nar-kenar); }
+
+/* --- gösterim ----------------------------------------------------------- */
+
+.nar-uyari { display: flex; gap: var(--nar-b3); padding: var(--nar-b3) var(--nar-b4);
+  border-radius: var(--nar-yuvarlak); font-size: var(--nar-yazi-m);
+  width: 100%; align-items: flex-start; line-height: 1.5; }
+.nar-uyari .nar-simge { margin-top: 2px; }
+.nar-uyari-bilgi { background: var(--nar-vurgu-zemin); color: var(--nar-vurgu); }
+.nar-uyari-basari { background: var(--nar-basari-zemin); color: var(--nar-basari); }
+.nar-uyari-uyari { background: var(--nar-uyari-zemin); color: var(--nar-uyari); }
+.nar-uyari-hata { background: var(--nar-hata-zemin); color: var(--nar-hata); }
+
+.nar-liste { margin: 0; padding-left: 22px; display: flex;
+  flex-direction: column; gap: 5px; color: var(--nar-metin-2); }
+
+.nar-tablo-sarmal { width: 100%; overflow-x: auto;
+  border: 1px solid var(--nar-kenar); border-radius: 10px;
+  background: var(--nar-yuzey); }
+.nar-tablo { width: 100%; border-collapse: collapse;
+  font-size: var(--nar-yazi-m); font-variant-numeric: tabular-nums; }
+.nar-tablo th { text-align: left; font-weight: 600; color: var(--nar-soluk);
+  font-size: var(--nar-yazi-xs); letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 10px var(--nar-b4);
+  background: var(--nar-yuzey-2); white-space: nowrap;
+  border-bottom: 1px solid var(--nar-kenar); }
+.nar-tablo td { padding: 11px var(--nar-b4);
+  border-bottom: 1px solid var(--nar-kenar); }
+.nar-tablo tbody tr:last-child td { border-bottom: none; }
+.nar-tablo tbody tr { transition: background-color var(--nar-gecis); }
+.nar-tablo tbody tr:hover { background: var(--nar-yuzey-2); }
+
+.nar-ilerleme { width: 100%; max-width: 360px; height: 8px;
+  background: var(--nar-yuzey-3); border-radius: 999px; overflow: hidden; }
+.nar-ilerleme-dolu { height: 100%; background: var(--nar-vurgu);
+  border-radius: 999px; transition: width .25s; }
+
+.nar-sekmeler { display: flex; gap: 2px;
+  border-bottom: 1px solid var(--nar-kenar); width: 100%; overflow-x: auto;
+  scrollbar-width: none; }
+.nar-sekmeler::-webkit-scrollbar { display: none; }
+.nar-sekme { font: inherit; font-weight: 560; padding: 9px 14px;
+  background: none; border: none; border-bottom: 2px solid transparent;
+  color: var(--nar-soluk); cursor: pointer; white-space: nowrap;
+  margin-bottom: -1px;
+  transition: color var(--nar-gecis), border-color var(--nar-gecis); }
+.nar-sekme:hover { color: var(--nar-metin); }
+.nar-sekme-secili { color: var(--nar-vurgu);
+  border-bottom-color: var(--nar-vurgu); }
+
+.nar-cizgi { height: 1px; background: var(--nar-kenar); width: 100%;
+  border: none; margin: 2px 0; }
+.nar-resim { max-width: 100%; height: auto; border-radius: 10px;
+  display: block; }
+
+/* Sayı kutusu: bir ölçüm, bir de nereye gittiği. */
+.nar-istatistik { display: flex; flex-direction: column; gap: 2px;
+  padding: var(--nar-b4); background: var(--nar-yuzey);
+  border: 1px solid var(--nar-kenar); border-radius: 12px;
+  width: auto; flex: 1 1 150px; box-shadow: var(--nar-golge-1); }
+.nar-istatistik-baslik { font-size: var(--nar-yazi-s); color: var(--nar-soluk);
+  margin: 0; }
+.nar-istatistik-deger { font-size: var(--nar-yazi-2xl); font-weight: 640;
+  letter-spacing: -0.025em; line-height: 1.15; margin: 0;
+  font-variant-numeric: tabular-nums; }
+.nar-istatistik-degisim { font-size: var(--nar-yazi-s); font-weight: 560;
+  margin: 0; display: inline-flex; align-items: center; gap: 3px; }
+.nar-degisim-arti { color: var(--nar-basari); }
+.nar-degisim-eksi { color: var(--nar-hata); }
+.nar-degisim-notr { color: var(--nar-soluk); }
+
+/* Adı olan herkesin bir yüzü olsun: resim yoksa baş harfler. */
+.nar-avatar { display: inline-flex; align-items: center;
+  justify-content: center; width: 36px; height: 36px; flex: none;
+  border-radius: 999px; background: var(--nar-vurgu-zemin);
+  color: var(--nar-vurgu); font-size: var(--nar-yazi-s); font-weight: 640;
+  overflow: hidden; user-select: none; }
+.nar-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Mini çubuk grafiği: değerler kendi en büyüğüne göre ölçeklenir.
+   Çubuk kendi sabit yükseklikli alanında durur — etiketle aynı kutuyu
+   paylaşsaydı flex küçültmesi uzun çubukları eziyor, ölçek bozuluyordu. */
+.nar-cubuklar { display: flex; align-items: flex-end; gap: 6px;
+  width: 100%; padding-top: var(--nar-b2); }
+.nar-cubuk-sutun { display: flex; flex-direction: column;
+  align-items: center; gap: 6px; flex: 1; min-width: 0; }
+.nar-cubuk-alan { width: 100%; height: 96px; display: flex;
+  align-items: flex-end; }
+.nar-cubuk { width: 100%; flex: none; background: var(--nar-vurgu);
+  border-radius: 4px; min-height: 2px; transition: height .3s; }
+.nar-cubuk-etiket { font-size: var(--nar-yazi-xs); color: var(--nar-soluk);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 100%; }
+
+/* Katlanır bölüm. Başlık bir düğme; ok açıkken döner. */
+.nar-akordeon { display: flex; flex-direction: column; width: 100%;
+  border: 1px solid var(--nar-kenar); border-radius: 12px;
+  background: var(--nar-yuzey); overflow: hidden; }
+.nar-akordeon-bolum + .nar-akordeon-bolum {
+  border-top: 1px solid var(--nar-kenar); }
+.nar-akordeon-basi { display: flex; align-items: center;
+  justify-content: space-between; gap: var(--nar-b3); width: 100%;
+  font: inherit; font-weight: 560; text-align: left; cursor: pointer;
+  padding: var(--nar-b3) var(--nar-b4); background: none; border: none;
+  color: var(--nar-metin);
+  transition: background-color var(--nar-gecis); }
+.nar-akordeon-basi:hover { background: var(--nar-yuzey-2); }
+.nar-akordeon-ok { transition: transform var(--nar-gecis);
+  color: var(--nar-soluk); }
+.nar-akordeon-acik .nar-akordeon-ok { transform: rotate(90deg); }
+.nar-akordeon-govde { padding: 0 var(--nar-b4) var(--nar-b4);
+  display: flex; flex-direction: column; gap: var(--nar-b3);
+  align-items: flex-start; color: var(--nar-metin-2); }
+
+/* Adımlar: nerede olduğunu ve kaç adım kaldığını gösterir. */
+.nar-adimlar { display: flex; align-items: flex-start; width: 100%;
+  gap: 0; overflow-x: auto; scrollbar-width: none; }
+.nar-adimlar::-webkit-scrollbar { display: none; }
+.nar-adim { display: flex; flex-direction: column; align-items: center;
+  gap: 6px; flex: 1; min-width: 76px; position: relative; text-align: center; }
+.nar-adim-yuvarlak { width: 28px; height: 28px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--nar-yazi-s); font-weight: 640; flex: none;
+  background: var(--nar-yuzey-2); color: var(--nar-soluk);
+  border: 1px solid var(--nar-kenar); }
+.nar-adim-yazi { font-size: var(--nar-yazi-s); color: var(--nar-soluk);
+  padding-inline: 4px; }
+.nar-adim-bitti .nar-adim-yuvarlak { background: var(--nar-basari-zemin);
+  color: var(--nar-basari); border-color: transparent; }
+.nar-adim-simdi .nar-adim-yuvarlak { background: var(--nar-vurgu);
+  color: var(--nar-dugme-yazi); border-color: transparent; }
+.nar-adim-simdi .nar-adim-yazi { color: var(--nar-metin); font-weight: 580; }
+/* Çizgi yuvarlakların ortasından geçer, ilkinin solunda durmaz. */
+.nar-adim::before { content: ''; position: absolute; top: 14px;
+  left: -50%; width: 100%; height: 1px; background: var(--nar-kenar); }
+.nar-adim:first-child::before { display: none; }
+.nar-adim-bitti::before, .nar-adim-simdi::before {
+  background: var(--nar-basari); }
+
+/* Boş durum: bir şey yokken ne yapılacağını söyler. */
+.nar-bos-durum { display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: var(--nar-b3); width: 100%;
+  padding: var(--nar-b7) var(--nar-b5); text-align: center;
+  background: var(--nar-yuzey); border: 1px dashed var(--nar-kenar-guclu);
+  border-radius: 12px; }
+.nar-bos-durum .nar-simge { width: 32px; height: 32px;
+  color: var(--nar-soluk); }
+.nar-bos-baslik { font-size: var(--nar-yazi-l); font-weight: 620;
+  margin: 0; letter-spacing: -0.012em; }
+.nar-bos-aciklama { font-size: var(--nar-yazi-m); color: var(--nar-soluk);
+  margin: 0; max-width: 44ch; }
+
+/* Kod bloğu. Uzun satır sarmaz, kendi içinde kayar. */
+.nar-kod { width: 100%; margin: 0; padding: var(--nar-b4);
+  background: var(--nar-yuzey-2); border: 1px solid var(--nar-kenar);
+  border-radius: 10px; overflow-x: auto;
+  font: var(--nar-yazi-s)/1.65 var(--nar-tek); color: var(--nar-metin);
+  tab-size: 2; }
+.nar-kod code { font: inherit; white-space: pre; }
+
+/* Sayfalama */
+.nar-sayfalama { display: flex; align-items: center; gap: var(--nar-b2);
+  flex-wrap: wrap; }
+.nar-sayfa-no { font-size: var(--nar-yazi-s); color: var(--nar-soluk);
+  font-variant-numeric: tabular-nums; padding-inline: var(--nar-b2); }
+
+/* Açılır menü. Perde yok: dışarı tıklanınca kapanır. */
+.nar-menu { position: relative; display: inline-flex; }
+.nar-menu-liste { position: absolute; top: calc(100% + 6px); left: 0;
+  z-index: 30; min-width: 180px; padding: var(--nar-b1);
+  background: var(--nar-yuzey); border: 1px solid var(--nar-kenar);
+  border-radius: 10px; box-shadow: var(--nar-golge-3);
+  display: flex; flex-direction: column; }
+.nar-menu-oge { font: inherit; text-align: left; padding: 8px 10px;
+  background: none; border: none; border-radius: var(--nar-yuvarlak-s);
+  color: var(--nar-metin); cursor: pointer; white-space: nowrap;
+  transition: background-color var(--nar-gecis); }
+.nar-menu-oge:hover { background: var(--nar-yuzey-2); }
+
+/* İletişim kutusu: sayfanın üstünde, ortada. */
+.nar-perde { position: fixed; inset: 0; z-index: 40;
+  background: rgba(26, 24, 21, .38);
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--nar-b4); }
+.nar-iletisim { width: 100%; max-width: 440px; max-height: 84vh;
+  overflow-y: auto; background: var(--nar-yuzey);
+  border: 1px solid var(--nar-kenar); border-radius: 14px;
+  box-shadow: var(--nar-golge-3); padding: var(--nar-b5);
+  display: flex; flex-direction: column; gap: var(--nar-b3);
+  align-items: flex-start; }
+.nar-iletisim-basi { display: flex; align-items: flex-start;
+  justify-content: space-between; gap: var(--nar-b3); width: 100%; }
+
+/* İpucu: üstüne gelince görünen küçük not. */
+.nar-ipucu-sarmal { position: relative; display: inline-flex; }
+.nar-ipucu-balon { position: absolute; bottom: calc(100% + 8px); left: 50%;
+  transform: translateX(-50%); z-index: 35;
+  background: var(--nar-metin); color: var(--nar-zemin);
+  font-size: var(--nar-yazi-s); line-height: 1.4;
+  padding: 6px 10px; border-radius: var(--nar-yuvarlak-s);
+  white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity var(--nar-gecis); }
+.nar-ipucu-sarmal:hover .nar-ipucu-balon,
+.nar-ipucu-sarmal:focus-within .nar-ipucu-balon { opacity: 1; }
+
+/* --- uyum --------------------------------------------------------------- */
+/* `.mobildeGizle()`, `.masaustundeGizle()`, `.mobildeSutun()` */
+
+@media (max-width: 600px) {
+  .nar-mobilde-gizli { display: none !important; }
+  .nar-mobilde-sutun { flex-direction: column; align-items: stretch; }
+  .nar-mobilde-sutun > * { width: 100%; }
+  /* Sütun modunda taban ölçüsü yüksekliğe uygulanır; kutu uzamasın. */
+  .nar-mobilde-sutun > .nar-kutu { flex-basis: auto; }
+  /* Izgara dar ekranda tek sütun: iki sütun 400px'te okunmuyor. */
+  .nar-izgara { grid-template-columns: minmax(0, 1fr); }
+}
+@media (min-width: 601px) {
+  .nar-masaustunde-gizli { display: none !important; }
+}
+
+@media (max-width: 480px) {
+  .nar-kok { padding-inline: var(--nar-b4); }
+  .nar-giris, .nar-coksatir, .nar-secim, .nar-ilerleme,
+  .nar-kaydirici { max-width: 100%; }
+  .nar-baslik { font-size: var(--nar-yazi-xl); }
+  .nar-istatistik-deger { font-size: var(--nar-yazi-xl); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nar-kok *, .nar-kok *::before, .nar-kok *::after {
+    transition: none !important; animation: none !important; }
+}
+"""
+
+// --- yumuşak deri ----------------------------------------------------------
+//
+// Deri rengi değil biçimi değiştirir: yarıçap, boşluk, gölge ve hareket.
+// Palet aynı kaldığı için kontrast eşiği deriden deriye düşmez.
+
+let DERI_YUMUSAK = """
+:root {
+  --nar-yuvarlak: 14px;
+  --nar-yuvarlak-s: 10px;
+  --nar-gecis: .22s;
+  --nar-zemin: #FAF6F3;
+  --nar-yuzey-2: #F3EDE8;
+  --nar-yuzey-3: #EAE2DA;
+  --nar-kenar: #EAE3DC;
+  --nar-kenar-guclu: #DCD3CA;
+  --nar-golge-2: 0 1px 2px rgba(26, 24, 21, .04),
+                 0 10px 24px -14px rgba(26, 24, 21, .22);
+  --nar-golge-3: 0 2px 4px rgba(26, 24, 21, .06),
+                 0 18px 38px -16px rgba(26, 24, 21, .3);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-nar-tema='acik']) {
+    --nar-zemin: #191612;
+    --nar-yuzey: #221F19;
+    --nar-yuzey-2: #2B2720;
+    --nar-yuzey-3: #363027;
+    --nar-kenar: #38322A;
+    --nar-kenar-guclu: #4A4136;
+  }
+}
+
+:root[data-nar-tema='koyu'] {
+  --nar-zemin: #191612;
+  --nar-yuzey: #221F19;
+  --nar-yuzey-2: #2B2720;
+  --nar-yuzey-3: #363027;
+  --nar-kenar: #38322A;
+  --nar-kenar-guclu: #4A4136;
+}
+
+/* Ferah: her şeyin arasında daha çok yer var. */
+.nar-kok { padding-block: var(--nar-b6); padding-inline: var(--nar-b6); }
+.nar-sutun, .nar-satir, .nar-esnek, .nar-izgara,
+.nar-satir-yay { gap: var(--nar-b4); }
+
+.nar-kutu, .nar-kart, .nar-istatistik {
+  border-radius: 20px; padding: var(--nar-b5); gap: var(--nar-b4);
+  box-shadow: var(--nar-golge-2); border-color: transparent;
+}
+.nar-tablo-sarmal, .nar-akordeon, .nar-bos-durum { border-radius: 18px; }
+.nar-tablo-sarmal, .nar-akordeon { box-shadow: var(--nar-golge-2);
+  border-color: transparent; }
+.nar-kod { border-radius: 16px; border-color: transparent; }
+
+/* Düğmeler hap biçiminde ve yükseliyor; dokunma hedefi 44px. */
+.nar-dugme, .nar-dugme-ikincil, .nar-dugme-sessiz, .nar-dugme-tehlike {
+  border-radius: 999px; padding: 11px 20px; min-height: 44px;
+  transition: background-color var(--nar-gecis),
+              border-color var(--nar-gecis),
+              box-shadow var(--nar-gecis), transform var(--nar-gecis);
+}
+.nar-dugme { box-shadow: var(--nar-golge-2); }
+.nar-dugme:hover, .nar-dugme-ikincil:hover, .nar-dugme-tehlike:hover {
+  box-shadow: var(--nar-golge-3); transform: translateY(-1px);
+}
+.nar-dugme:active, .nar-dugme-ikincil:active, .nar-dugme-tehlike:active {
+  transform: translateY(0); box-shadow: var(--nar-golge-2);
+}
+.nar-ikon-dugme { border-radius: 999px; width: 40px; height: 40px; }
+
+/* Girdiler kenarlık yerine yumuşak bir yuvada duruyor. */
+.nar-giris, .nar-coksatir, .nar-secim {
+  border-radius: 12px; padding: 11px 14px; min-height: 44px;
+  background: var(--nar-yuzey-2); border-color: transparent;
+}
+.nar-giris:focus, .nar-coksatir:focus, .nar-secim:focus {
+  background: var(--nar-yuzey); border-color: var(--nar-vurgu);
+  box-shadow: 0 0 0 4px var(--nar-vurgu-zemin);
+}
+.nar-coksatir { min-height: 96px; }
+
+.nar-rozet { padding: 3px 12px; }
+.nar-uyari { border-radius: 16px; padding: var(--nar-b4); }
+.nar-iletisim { border-radius: 24px; padding: var(--nar-b6); }
+.nar-menu-liste { border-radius: 16px; padding: 6px; }
+.nar-menu-oge { border-radius: 10px; }
+
+/* Sekmeler alt çizgi yerine hap. */
+.nar-sekmeler { border-bottom: none; gap: 6px; }
+.nar-sekme {
+  border-radius: 999px; padding: 9px 16px; border-bottom: none;
+  margin-bottom: 0;
+  transition: background-color var(--nar-gecis), color var(--nar-gecis);
+}
+.nar-sekme:hover { background: var(--nar-yuzey-2); }
+.nar-sekme-secili {
+  background: var(--nar-vurgu-zemin); color: var(--nar-vurgu);
+  border-bottom-color: transparent;
+}
+
+.nar-ilerleme { height: 10px; }
+.nar-resim { border-radius: 18px; }
+.nar-cizgi { margin: 6px 0; }
+.nar-tablo th, .nar-tablo td { padding: 12px var(--nar-b5); }
+.nar-cubuk { border-radius: 6px; }
+.nar-avatar { width: 40px; height: 40px; }
+"""

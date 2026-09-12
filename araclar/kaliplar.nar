@@ -1,0 +1,263 @@
+// Hazır ekranlar — Nar arayüz kitaplığıyla kurulmuş tasarımlar.
+//
+// Bileşenler tuğla, kalıplar duvardır: bir giriş ekranı, bir gösterge
+// paneli ya da bir fiyat tablosu her projede yeniden çizilir. Burada bir
+// kez çizildiler; sen yalnız içeriği verirsin.
+//
+//     girisEkrani("Hoş geldin", "Giriş yap", |eposta, parola| { ... }, || { })
+//     gostergePaneli("Bu hafta", olcumler, degerler, etiketler, hareketler)
+//
+// Kalıpların çoğu saf: aynı veriyle aynı görünümü verir. Form taşıyanlar
+// (giriş ekranı, ayar listesi) yazılanı kendi içinde tutar; çağıran yer
+// yalnız sonucu alır. Bu yüzden bir sayfada aynı formdan bir tane olmalı.
+//
+// Bir kütüphanedir: `main` içermez.
+
+import "arayuz.nar"
+
+// --- veri taşıyıcıları ----------------------------------------------------
+//
+// Kalıplara liste hâlinde veri geçmek için küçük yapılar. Kurucuları
+// küçük harfle yazıldı: `olcum("Ziyaret", "8.412", "+12%")`.
+
+struct Olcum {
+  var baslik: String
+  var deger: String
+  var degisim: String
+}
+
+fn olcum(baslik: String, deger: String, degisim: String) -> Olcum =
+  Olcum { baslik: baslik, deger: deger, degisim: degisim }
+
+struct Hareket {
+  var kisi: String
+  var ne: String
+  var ne_zaman: String
+}
+
+fn hareket(kisi: String, ne: String, neZaman: String) -> Hareket =
+  Hareket { kisi: kisi, ne: ne, ne_zaman: neZaman }
+
+struct Paket {
+  var ad: String
+  var fiyat: String
+  var donem: String
+  var maddeler: [String]
+  var one_cikan: Bool
+  var dugme: String
+}
+
+fn paket(ad: String, fiyat: String, donem: String, maddeler: [String],
+         oneCikan: Bool, dugme: String) -> Paket =
+  Paket { ad: ad, fiyat: fiyat, donem: donem, maddeler: maddeler,
+  one_cikan: oneCikan, dugme: dugme }
+
+struct Ozellik {
+  var simge: String
+  var baslik: String
+  var aciklama: String
+}
+
+fn ozellik(simge: String, baslik: String, aciklama: String) -> Ozellik =
+  Ozellik { simge: simge, baslik: baslik, aciklama: aciklama }
+
+struct Ayar {
+  var ad: String
+  var aciklama: String
+  var acik: Bool
+}
+
+fn ayar(ad: String, aciklama: String, acik: Bool) -> Ayar =
+  Ayar { ad: ad, aciklama: aciklama, acik: acik }
+
+struct Soru {
+  var soru: String
+  var cevap: String
+}
+
+fn soru(soru: String, cevap: String) -> Soru =
+  Soru { soru: soru, cevap: cevap }
+
+// --- giriş ekranı ---------------------------------------------------------
+//
+// Yazılan e-posta ve parola burada durur; "Giriş yap" tıklanınca ikisi
+// birden `girince`ye verilir. Böylece çağıran taraf her tuş vuruşu için
+// durum tutmak zorunda kalmaz.
+
+var GIRIS_EPOSTA = ""
+var GIRIS_PAROLA = ""
+
+fn girisEkrani(baslik: String, altbaslik: String,
+               girince: (String, String) -> Void,
+               kaydolunca: () -> Void) -> Gorunum = Ortala(Genislik(420, Kutu([
+  Sutun([
+    Baslik(baslik),
+    Paragraf(altbaslik)
+  ]),
+  Bosluk(4),
+  Alan("E-posta", "", Giris("ornek@site.com", GIRIS_EPOSTA, |v| {
+    GIRIS_EPOSTA = v
+  })),
+  Alan("Parola", "En az sekiz karakter.",
+       Giris("••••••••", GIRIS_PAROLA, |v| {
+        GIRIS_PAROLA = v
+      })),
+      Bosluk(4),
+      Dugme("Giriş yap", || {
+        girince(GIRIS_EPOSTA, GIRIS_PAROLA)
+      }),
+      Ayrac("ya da"),
+      Satir([
+        Metin("Hesabın yok mu?"),
+        SessizDugme("Kaydol", kaydolunca)
+      ])
+    ])))
+
+// --- gösterge paneli ------------------------------------------------------
+
+fn hareketSatiri(h: Hareket) -> Gorunum = SatirYay([
+  Satir([
+    Avatar(h.kisi, ""),
+    Sutun([
+      Metin(h.kisi),
+      Soluk(h.ne)
+    ])
+  ]),
+  Soluk(h.ne_zaman)
+])
+
+fn gostergePaneli(baslik: String, olcumler: [Olcum], degerler: [Int],
+                  etiketler: [String], hareketler: [Hareket]) -> Gorunum {
+  var kutular: [Gorunum] = []
+  for o in olcumler {
+    kutular.push(Istatistik(o.baslik, o.deger, o.degisim))
+  }
+  var satirlar: [Gorunum] = []
+  for h in hareketler {
+    satirlar.push(hareketSatiri(h))
+  }
+  return Sutun([
+    Satir([
+      AltBaslik(baslik),
+      Rozet("canlı", TON_BASARI)
+    ]),
+    Esnek(kutular),
+    Kart("Günlere göre", [
+      Cubuklar(degerler, etiketler)
+    ]),
+    Kart("Son hareketler", satirlar)
+  ])
+}
+
+// --- fiyat kartları -------------------------------------------------------
+
+fn fiyatKarti(p: Paket, secince: (String) -> Void) -> Gorunum {
+  var ic: [Gorunum] = []
+  if p.one_cikan {
+    ic.push(Rozet("en çok seçilen", TON_BILGI))
+  }
+  ic.push(AltBaslik(p.ad))
+  ic.push(Satir([
+    Baslik(p.fiyat),
+    Etiket(p.donem)
+  ]))
+  ic.push(Cizgi)
+  for m in p.maddeler {
+    ic.push(Satir([Simge("onay"), Metin(m)]))
+  }
+  ic.push(Bosluk(4))
+  // Öne çıkan paketin düğmesi birincil; ötekiler sessiz kalır ki göz
+  // nereye bakacağını bilsin.
+  if p.one_cikan {
+    ic.push(Dugme(p.dugme, || { secince(p.ad) }))
+  } else {
+    ic.push(IkincilDugme(p.dugme, || { secince(p.ad) }))
+  }
+  return Kutu(ic)
+}
+
+fn fiyatKartlari(paketler: [Paket], secince: (String) -> Void) -> Gorunum {
+  var kartlar: [Gorunum] = []
+  for p in paketler {
+    kartlar.push(fiyatKarti(p, secince))
+  }
+  return Esnek(kartlar)
+}
+
+// --- özellik ızgarası -----------------------------------------------------
+
+fn ozellikKutusu(o: Ozellik) -> Gorunum = Kutu([
+  Simge(o.simge),
+  AltBaslik(o.baslik),
+  Paragraf(o.aciklama)
+])
+
+fn ozellikIzgarasi(ozellikler: [Ozellik]) -> Gorunum {
+  var kutular: [Gorunum] = []
+  for o in ozellikler {
+    kutular.push(ozellikKutusu(o))
+  }
+  return Izgara(2, kutular)
+}
+
+// --- ayar listesi ---------------------------------------------------------
+
+fn ayarSatiri(a: Ayar, degisince: (String, Bool) -> Void) -> Gorunum = SatirYay([
+  Sutun([
+    Metin(a.ad),
+    Soluk(a.aciklama)
+  ]),
+  Anahtar("", a.acik, |v| {
+    degisince(a.ad, v)
+  })
+])
+
+fn ayarListesi(baslik: String, ayarlar: [Ayar],
+               degisince: (String, Bool) -> Void) -> Gorunum {
+  var satirlar: [Gorunum] = []
+  for (i, a) in ayarlar {
+    if i > 0 {
+      satirlar.push(Cizgi)
+    }
+    satirlar.push(ayarSatiri(a, degisince))
+  }
+  return Kart(baslik, satirlar)
+}
+
+// --- profil kartı ---------------------------------------------------------
+
+fn profilKarti(ad: String, rol: String, resim: String, etiketler: [String],
+               mesajlayinca: () -> Void,
+               takipEdince: () -> Void) -> Gorunum {
+  var rozetler: [Gorunum] = []
+  for e in etiketler {
+    rozetler.push(Rozet(e, "notr"))
+  }
+  return Kutu([
+    Satir([
+      Avatar(ad, resim),
+      Sutun([
+        Metin(ad),
+        Soluk(rol)
+      ])
+    ]),
+    Satir(rozetler),
+    Satir([
+      Dugme("Mesaj", mesajlayinca),
+      IkincilDugme("Takip et", takipEdince)
+    ])
+  ])
+}
+
+// --- sık sorulanlar -------------------------------------------------------
+
+fn sikSorulanlar(sorular: [Soru], acik: Int,
+                 degisince: (Int) -> Void) -> Gorunum {
+  var basliklar: [String] = []
+  var govdeler: [Gorunum] = []
+  for s in sorular {
+    basliklar.push(s.soru)
+    govdeler.push(Paragraf(s.cevap))
+  }
+  return Akordeon(basliklar, govdeler, acik, degisince)
+}

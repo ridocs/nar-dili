@@ -1,23 +1,43 @@
-// Arayüz kütüphanesinin bütün bileşenleri bir arada.
+// Nar arayüz kitaplığının vitrini: her bileşen, birkaç örnek ve yanında
+// onu üreten Nar kodu.
 //
-// Hem örnek hem göz denetimi: bir bileşen bozulduğunda burada görünür.
+// Hem belge hem göz denetimi: bir bileşen bozulduğunda burada görünür.
 //
 //     nar build ornekler/arayuz_galerisi.nar --target web -o cikti/galeri.html
 //     nar build ornekler/arayuz_galerisi.nar --target ghb
 
 import "../araclar/arayuz.nar"
+import "../araclar/kaliplar.nar"
 
 struct Durum {
   var sekme: Int
+  // canlı örneklerin durumu
   var ad: String
   var not: String
   var yas: Int
   var abone: Bool
   var sehir: String
   var ilerleme: Int
+  var anahtar: Bool
+  var radyo: String
+  var kaydirici: Int
+  var akordeon: Int
+  var sayfa: Int
+  var iletisim: Bool
+  var menuSecimi: String
+  var adim: Int
+  var icSekme: Int
+  // görsel ayarlar
+  var koyu: Bool
+  var yumusak: Bool
 }
 
 var uygulama: Uygulama<Durum>? = none
+
+// Çizilmekte olan durum. İlk çizim `uygulamaBaslat`ın içinde olur; o an
+// `uygulama` değişkenine henüz atama yapılmamıştır, bu yüzden bölümler
+// durumu uygulamadan değil buradan okur.
+var SON_DURUM: Durum? = none
 
 fn guncelle(yeni: Durum) {
   if uygulama != none {
@@ -25,266 +45,557 @@ fn guncelle(yeni: Durum) {
   }
 }
 
-fn d() -> Durum = uygulama!.durum
+fn d() -> Durum = SON_DURUM!
 
-// --- sekmeler -------------------------------------------------------------
+// --- bölüm kalıbı ---------------------------------------------------------
+//
+// Her bileşen aynı düzende sunulur: adı, ne işe yaradığı, canlı örnek ve
+// onu üreten kod. Kodun görünmesi önemli — vitrin aynı zamanda belgedir.
 
-fn yaziBolumu() -> Gorunum = Sutun([
-  Kart("Yazı", [
-    Baslik("Başlık"),
-    AltBaslik("Alt başlık"),
-    Metin("Düz metin satırı."),
-    Paragraf("Paragraf uzun metin içindir; okunabilir kalsın diye " +
-      "genişliği yaklaşık 62 karakterle sınırlanır. Bu satırın nerede " +
-      "kırıldığına bakarak ölçüyü görebilirsin."),
-    Etiket("küçük etiket"),
+fn bolum(baslik: String, aciklama: String, gosterim: Gorunum,
+         kod: String) -> Gorunum = Sutun([
+  Bosluk(8),
+  AltBaslik(baslik),
+  Paragraf(aciklama),
+  Kutu([gosterim]),
+  KodBloku(kod)
+])
+
+// --- 0. temel -------------------------------------------------------------
+
+fn temelBolumu() -> Gorunum = Sutun([
+  bolum("Yazı", "Başlıktan dipnota kadar altı kademe. Paragraf 66 karakterde kırılır; bu ölçü okumayı kolaylaştırır.",
+    Sutun([
+      Baslik("Nar ile arayüz"),
+      AltBaslik("Alt başlık"),
+      Metin("Düz metin satırı."),
+      Paragraf("Paragraf uzun metin içindir. Genişliği sınırlanır, rengi biraz yumuşatılır; göz satır sonunu ararken yorulmasın."),
+      Etiket("küçük etiket")
+    ]),
+    "Baslik(\"Nar ile arayüz\")\nAltBaslik(\"Alt başlık\")\nMetin(\"Düz metin satırı.\")\nParagraf(\"Paragraf uzun metin içindir...\")\nEtiket(\"küçük etiket\")"),
+
+  bolum("Rozet", "Kısa durum etiketi. Beş ton: bilgi, başarı, uyarı, hata ve nötr.",
     Satir([
       Rozet("bilgi", TON_BILGI),
       Rozet("başarı", TON_BASARI),
       Rozet("uyarı", TON_UYARI),
-      Rozet("hata", TON_HATA)
+      Rozet("hata", TON_HATA),
+      Rozet("nötr", "notr"),
+      Rozet("v0.1", "notr")
     ]),
-    Bag("Bir bağlantı", "https://github.com/ridocs/nar-dili")
-  ]),
-  Kart("Uyarılar", [
-    Uyari(TON_BILGI, "Bilgi: kaydedilmemiş değişiklikler var."),
-    Uyari(TON_BASARI, "Başarı: dosya kaydedildi."),
-    Uyari(TON_UYARI, "Uyarı: disk alanı azalıyor."),
-    Uyari(TON_HATA, "Hata: sunucuya ulaşılamadı.")
-  ])
-])
+    "Rozet(\"bilgi\", TON_BILGI)\nRozet(\"başarı\", TON_BASARI)\nRozet(\"nötr\", \"notr\")"),
 
-fn girdiBolumu() -> Gorunum = Kart("Girdi", [
-  Etiket("ad"),
-  Giris("adını yaz...", d().ad, |v| {
-    let g = d()
-    g.ad = v
-    guncelle(g)
-  }),
+  bolum("Simge", "Otuz sekiz çizgi simge. İçinde bulunduğu yazının rengini ve boyutunu alır; ayrıca renk vermek gerekmez.",
+    Sutun([
+      Satir([
+        Simge("ara"), Simge("arti"), Simge("carpi"), Simge("onay"),
+        Simge("bilgi"), Simge("basari"), Simge("uyari"), Simge("hata"),
+        Simge("kalp"), Simge("yildiz"), Simge("ayar"), Simge("kullanici")
+      ]),
+      Satir([
+        Simge("ev"), Simge("dosya"), Simge("klasor"), Simge("cop"),
+        Simge("kalem"), Simge("indir"), Simge("yukle"), Simge("gunes"),
+        Simge("ay"), Simge("menu"), Simge("nokta"), Simge("kilit")
+      ]),
+      Satir([
+        Simge("posta"), Simge("takvim"), Simge("saat"), Simge("grafik"),
+        Simge("filtre"), Simge("yenile"), Simge("kod"), Simge("oyna"),
+        Simge("dur"), Simge("bag"), Simge("paket"), Simge("ok-sag")
+      ])
+    ]),
+    "Simge(\"ara\")\nSimge(\"yildiz\")\n\n// Yazının içinde de kullanılır:\nSatir([Simge(\"saat\"), Metin(\"3 dakika önce\")])"),
 
-  Etiket("not"),
-  CokSatir("birkaç satır...", d().not, |v| {
-    let g = d()
-    g.not = v
-    guncelle(g)
-  }),
-
-  Etiket("yaş"),
-  SayiGirisi("0", d().yas, |v| {
-    let g = d()
-    g.yas = v
-    guncelle(g)
-  }),
-
-  Etiket("şehir"),
-  Secim(["İstanbul", "Ankara", "İzmir", "Trabzon"], d().sehir, |v| {
-    let g = d()
-    g.sehir = v
-    guncelle(g)
-  }),
-
-  Onay("Haber bültenine abone ol", d().abone, |v| {
-    let g = d()
-    g.abone = v
-    guncelle(g)
-  }),
-
-  Cizgi,
-  Metin("Girilen: ${d().ad} · ${d().yas} · ${d().sehir} · " +
-    (if d().abone { "abone" } else { "abone değil" })),
-  Metin("Not: " + (if d().not == "" { "(boş)" } else { d().not }))
-])
-
-fn veriBolumu() -> Gorunum = Sutun([
-  Kart("Tablo", [
-    Tablo(
-      ["Dil", "Yıl", "Satır"],
-      [
-        ["Nar", "2026", "7400"],
-        ["Python", "1991", "—"],
-        ["Go", "2009", "—"]
-      ]
-    )
-  ]),
-  Kart("Liste", [
-    Liste([
-      "Tek kaynaktan dört hedef",
-      "Kendi sanal makinesi",
-      "Türkçe hata mesajları"
-    ])
-  ]),
-  Kart("İlerleme", [
-    Metin("%${d().ilerleme}"),
-    Ilerleme(d().ilerleme),
+  bolum("Avatar", "Resim varsa resim, yoksa addan çıkarılan baş harfler.",
     Satir([
-      IkincilDugme("−10", || {
+      Avatar("Ayşe Yılmaz", ""),
+      Avatar("Mehmet", ""),
+      Avatar("Zeynep Kara Demir", ""),
+      Metin("Ayşe Yılmaz"),
+      Rozet("yönetici", "notr")
+    ]),
+    "Avatar(\"Ayşe Yılmaz\", \"\")        // baş harfler: AY\nAvatar(\"Ayşe\", \"/resim/ayse.jpg\")  // resim"),
+
+  bolum("Bağlantı ve alıntı", "Dış bağlantılar yeni sekmede açılır ve `rel=noopener` alır.",
+    Sutun([
+      Bag("Nar deposu", "https://github.com/ridocs/nar-dili"),
+      Alinti("Bir dilin gücü, yazdığın şeyin ne kadarını sildiğinle ölçülür.",
+             "Nar rehberi")
+    ]),
+    "Bag(\"Nar deposu\", \"https://github.com/ridocs/nar-dili\")\nAlinti(\"Bir dilin gücü...\", \"Nar rehberi\")"),
+
+  bolum("Düğmeler", "Dört ağırlık: birincil eylem, ikincil, sessiz ve tehlikeli. Bir ekranda tek birincil düğme olsun.",
+    Sutun([
+      Satir([
+        Dugme("Kaydet", || { }),
+        IkincilDugme("Vazgeç", || { }),
+        SessizDugme("Daha sonra", || { }),
+        TehlikeDugmesi("Sil", || { })
+      ]),
+      Satir([
+        IkonDugme("kalem", "düzenle", || { }),
+        IkonDugme("cop", "sil", || { }),
+        IkonDugme("indir", "indir", || { }),
+        IkonDugme("nokta", "daha fazla", || { })
+      ])
+    ]),
+    "Dugme(\"Kaydet\", || { kaydet() })\nIkincilDugme(\"Vazgeç\", || { kapat() })\nSessizDugme(\"Daha sonra\", || { ertele() })\nTehlikeDugmesi(\"Sil\", || { sil() })\nIkonDugme(\"cop\", \"sil\", || { sil() })"),
+
+  bolum("Kod bloğu", "Uzun satır sarmaz, kendi içinde kayar.",
+    KodBloku("fn topla(a: Int, b: Int) -> Int {\n  return a + b\n}"),
+    "KodBloku(\"fn selam(ad: String) -> String { ... }\")")
+])
+
+// --- 1. girdi -------------------------------------------------------------
+
+fn girdiBolumu() -> Gorunum = Sutun([
+  bolum("Metin girdisi", "Tek satır, çok satır ve sayı. Her biri yazdıkça haber verir.",
+    Sutun([
+      Alan("Ad", "Görünen adın.", Giris("adını yaz...", d().ad, |v| {
         let g = d()
-        g.ilerleme -= 10
+        g.ad = v
+        guncelle(g)
+      })),
+      Alan("Not", "Birkaç cümle yeter.", CokSatir("not bırak...", d().not, |v| {
+        let g = d()
+        g.not = v
+        guncelle(g)
+      })),
+      Alan("Yaş", "", SayiGirisi("yaş", d().yas, |v| {
+        let g = d()
+        g.yas = v
+        guncelle(g)
+      })),
+      Metin("girilen: ${d().ad} · ${d().yas}")
+    ]),
+    "Alan(\"Ad\", \"Görünen adın.\", Giris(\"adını yaz...\", durum.ad, |v| {\n  durum.ad = v\n}))"),
+
+  bolum("Alan ve hata", "Etiket, girdi ve altında ipucu. Hatalıysa aynı yer kırmızıya döner.",
+    Sutun([
+      Alan("E-posta", "Kimseyle paylaşılmaz.",
+           Giris("ornek@site.com", "", |v| { })),
+      HataliAlan("E-posta", "Bu adres geçerli görünmüyor.",
+                 Giris("ornek@site.com", "ornek@", |v| { }))
+    ]),
+    "Alan(\"E-posta\", \"Kimseyle paylaşılmaz.\", Giris(...))\nHataliAlan(\"E-posta\", \"Bu adres geçerli görünmüyor.\", Giris(...))"),
+
+  bolum("Seçim", "Onay kutusu, anahtar, radyo ve açılır liste. Anahtar anında etki eden ayarlar için, onay kutusu kaydedilecek formlar için.",
+    Sutun([
+      Onay("Haberleri gönder", d().abone, |v| {
+        let g = d()
+        g.abone = v
         guncelle(g)
       }),
-      Dugme("+10", || {
+      Anahtar("Koyu tema", d().anahtar, |v| {
         let g = d()
-        g.ilerleme += 10
+        g.anahtar = v
         guncelle(g)
-      })
-    ])
-  ])
+      }),
+      Ayrac("radyo"),
+      Radyo(["Günlük", "Haftalık", "Aylık"], d().radyo, |v| {
+        let g = d()
+        g.radyo = v
+        guncelle(g)
+      }),
+      Ayrac("açılır liste"),
+      Secim(["İstanbul", "Ankara", "İzmir", "Mardin"], d().sehir, |v| {
+        let g = d()
+        g.sehir = v
+        guncelle(g)
+      }),
+      Metin("seçilen: ${d().radyo} · ${d().sehir}")
+    ]),
+    "Onay(\"Haberleri gönder\", durum.abone, |v| { durum.abone = v })\nAnahtar(\"Koyu tema\", durum.koyu, |v| { durum.koyu = v })\nRadyo([\"Günlük\", \"Haftalık\"], durum.sik, |v| { durum.sik = v })\nSecim([\"İstanbul\", \"Ankara\"], durum.sehir, |v| { durum.sehir = v })"),
+
+  bolum("Kaydırıcı", "Aralıktan bir sayı. Değer sürüklerken anında görünür.",
+    Sutun([
+      Kaydirici(0, 100, d().kaydirici, |v| {
+        let g = d()
+        g.kaydirici = v
+        guncelle(g)
+      }),
+      Ilerleme(d().kaydirici)
+    ]),
+    "Kaydirici(0, 100, durum.ses, |v| { durum.ses = v })\nIlerleme(durum.ses)")
 ])
 
-fn dugmeBolumu() -> Gorunum = Sutun([
-  Kart("Düğmeler", [
-    Satir([
-      Dugme("Birincil", || { }),
-      IkincilDugme("İkincil", || { }),
-      TehlikeDugmesi("Sil", || { })
+// --- 2. yerleşim ----------------------------------------------------------
+
+fn kutucuk(yazi: String) -> Gorunum = Kutu([Metin(yazi)])
+
+fn yerlesimBolumu() -> Gorunum = Sutun([
+  bolum("Sütun, satır, esnek", "Sütun alt alta, satır yan yana dizer. Esnek yan yana dizer ama yer kalmayınca alt satıra taşar.",
+    Sutun([
+      Etiket("satır"),
+      Satir([kutucuk("bir"), kutucuk("iki"), kutucuk("üç")]),
+      Etiket("esnek"),
+      Esnek([kutucuk("bir"), kutucuk("iki"), kutucuk("üç"), kutucuk("dört"),
+             kutucuk("beş"), kutucuk("altı")])
     ]),
-    Paragraf("Düğmeler klavyeyle de gezilebilir: Tab ile odaklan, " +
-      "odak halkası görünür.")
-  ]),
-  Kart("Tema", [
-    Paragraf("Varsayılan olarak işletim sisteminin temasını izler."),
-    Satir([
-      IkincilDugme("Açık", || { temaSec("acik") }),
-      IkincilDugme("Koyu", || { temaSec("koyu") }),
-      IkincilDugme("Sistemi izle", || { temaSec("") })
-    ])
-  ]),
-  Kart("Deri", [
-    Paragraf("Deri rengi değil biçimi değiştirir: yarıçap, boşluk, gölge " +
-      "ve hareket. Palet aynı kaldığı için kontrast eşiği düşmez."),
-    Satir([
-      IkincilDugme("Varsayılan", || { deriSec("") }),
-      Dugme("Yumuşak", || { deriSec("yumusak") })
-    ])
-  ]),
-  Kart("Uyum", [
-    Paragraf("Pencereyi 600px altına daralt: satır sütuna döner, " +
-      "rozetlerden biri gizlenir, metin değişir. Her şey görünümün " +
-      "üstünde bir metot; medya sorgusu yazılmaz."),
-    Satir([
-      Kutu([Metin("bir")]),
-      Kutu([Metin("iki")]),
-      Kutu([Metin("üç")])
-    ]).mobildeSutun(),
-    Satir([
-      Rozet("yalnız geniş ekranda", TON_BILGI).mobildeGizle(),
-      Rozet("yalnız dar ekranda", TON_UYARI).masaustundeGizle()
+    "Satir([Kutu([Metin(\"bir\")]), Kutu([Metin(\"iki\")])])\nEsnek([...])   // yer kalmayınca alt satıra taşar"),
+
+  bolum("Izgara", "Eşit sütunlar. Dar ekranda kendiliğinden tek sütuna iner.",
+    Izgara(3, [
+      kutucuk("1"), kutucuk("2"), kutucuk("3"),
+      kutucuk("4"), kutucuk("5"), kutucuk("6")
     ]),
-    Metin("Geniş ekran: yan yana.").mobil(Metin("Dar ekran: alt alta."))
-  ]),
-  Kart("Yerleşim", [
-    Etiket("esnek — dar ekranda alt satıra iner"),
+    "Izgara(3, [\n  Kutu([Metin(\"1\")]),\n  Kutu([Metin(\"2\")]),\n  Kutu([Metin(\"3\")])\n])"),
+
+  bolum("Kart ve kutu", "Kart başlıklıdır, kutu başlıksız. İkisi de içindekileri alt alta dizer.",
+    Satir([
+      Kart("Başlıklı kart", [Metin("İçerik burada.")]),
+      Kutu([AltBaslik("Kutu"), Metin("Başlığını kendin koyarsın.")])
+    ]),
+    "Kart(\"Başlıklı kart\", [Metin(\"İçerik burada.\")])\nKutu([Metin(\"Başlıksız.\")])"),
+
+  bolum("Ayırıcılar", "Etiketli ayraç, düz çizgi ve boşluk.",
+    Sutun([
+      Metin("üstteki"),
+      Ayrac("ya da"),
+      Metin("alttaki"),
+      Cizgi,
+      Metin("çizgiden sonra")
+    ]),
+    "Ayrac(\"ya da\")\nCizgi\nBosluk(24)"),
+
+  bolum("Mobil uyum", "Her görünüm kendi mobil davranışını taşır. Pencereyi daraltarak dene: satır sütuna döner, rozet kaybolur.",
+    Sutun([
+      Satir([kutucuk("sol"), kutucuk("orta"), kutucuk("sağ")]).mobildeSutun(),
+      Satir([
+        Metin("Bu rozet dar ekranda gizlenir:"),
+        Rozet("yalnız geniş", TON_BILGI).mobildeGizle()
+      ]),
+      Tablo(["Ad", "Rol"], [["Ayşe", "yönetici"], ["Mehmet", "üye"]]).mobil(Liste(["Ayşe — yönetici", "Mehmet — üye"]))
+    ]),
+    "Satir([...]).mobildeSutun()\nRozet(\"yalnız geniş\", TON_BILGI).mobildeGizle()\nTablo(basliklar, satirlar).mobil(Liste([...]))")
+])
+
+// --- 3. veri --------------------------------------------------------------
+
+fn veriBolumu() -> Gorunum = Sutun([
+  bolum("İstatistik", "Bir ölçüm ve nereye gittiği. Değişimin başındaki işaret rengi belirler.",
     Esnek([
-      Kutu([Metin("bir")]),
-      Kutu([Metin("iki")]),
-      Kutu([Metin("üç")])
+      Istatistik("Günlük indirme", "12.480", "+18%"),
+      Istatistik("Açık hata", "7", "-3"),
+      Istatistik("Ortalama süre", "240 ms", "0%")
     ]),
-    Bosluk(4),
-    Etiket("ortalanmış"),
-    Ortala(Rozet("ortada", TON_BILGI))
-  ])
-])
+    "Istatistik(\"Günlük indirme\", \"12.480\", \"+18%\")\nIstatistik(\"Açık hata\", \"7\", \"-3\")"),
 
-fn hareketBolumu() -> Gorunum = Sutun([
-  Kart("Giriş hareketleri", [
-    Paragraf("Her hareket öğe ilk kez göründüğünde bir kez oynar. Durum " +
-      "değiştiğinde ağaç yeniden çizilir ama hareket tekrarlanmaz; " +
-      "yoksa her tuşta bütün ekran yeniden süzülürdü."),
-    Hareketli(SOLUKLAN, Rozet("soluklan", TON_BILGI)),
-    Hareketli(YUKSEL, Rozet("yuksel", TON_BILGI)),
-    Hareketli(BUYU, Rozet("buyu", TON_BILGI)),
-    Hareketli(KAY_SAGDAN, Rozet("kay-sagdan", TON_BILGI)),
-    Hareketli(KAY_SOLDAN, Rozet("kay-soldan", TON_BILGI)),
-    Cizgi,
-    Dugme("Yeniden oynat", || {
-      hareketDefteriniSil()
-      guncelle(d())
-    })
-  ]),
-  Kart("Sıralı giriş", [
-    Paragraf("Liste öğeleri birbiri ardına girer; gecikme kademenin " +
-      "adım süresinden hesaplanır."),
-    Sirali([
-      Metin("birinci satır"),
-      Metin("ikinci satır"),
-      Metin("üçüncü satır"),
-      Metin("dördüncü satır")
-    ])
-  ]),
-  Kart("Dikkat çekmek", [
-    Paragraf("Bir kez oynar ve öğeyi bıraktığı yerde bırakır."),
-    Satir([
-      Hareketli(NABIZ, Rozet("kaydedildi", TON_BASARI)),
-      Hareketli(SARSIL, Rozet("kaydedilemedi", TON_HATA))
-    ])
-  ]),
-  Kart("Yükleniyor", [
-    Paragraf("Süreklilik yalnız burada. Dekoratif öğede sonsuz döngü yok."),
-    Iskelet(3),
-    Bosluk(6),
-    Donuyor("Veri geliyor…")
-  ]),
-  Kart("Yoğunluk", [
-    Paragraf("Kademeyi bir kez seç, sonra o kademede kal. Seçtikten " +
-      "sonra Yeniden oynat'a bas."),
-    Satir([
-      IkincilDugme("Sakin", || { kademeSec(KADEME_SAKIN) }),
-      IkincilDugme("Ölçülü", || { kademeSec(KADEME_OLCULU) }),
-      IkincilDugme("Belirgin", || { kademeSec(KADEME_BELIRGIN) })
-    ])
-  ])
-])
+  bolum("Çubuklar", "Küçük bir grafik. Değerler kendi en büyüğüne göre ölçeklenir.",
+    Cubuklar([12, 19, 8, 24, 17, 28, 22],
+             ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]),
+    "Cubuklar([12, 19, 8, 24, 17, 28, 22],\n         [\"Pzt\", \"Sal\", \"Çar\", \"Per\", \"Cum\", \"Cmt\", \"Paz\"])"),
 
-// --- görünüm --------------------------------------------------------------
+  bolum("Tablo", "Başlık satırı sabit biçimde; sayılar hizalı.",
+    Tablo(["Paket", "Sürüm", "Boyut"], [
+      ["narc", "0.1.0", "312 KB"],
+      ["arayuz", "0.1.0", "89 KB"],
+      ["hareket", "0.1.0", "12 KB"]
+    ]),
+    "Tablo([\"Paket\", \"Sürüm\", \"Boyut\"], [\n  [\"narc\", \"0.1.0\", \"312 KB\"],\n  [\"arayuz\", \"0.1.0\", \"89 KB\"]\n])"),
 
-fn ciz(g: Durum) -> Gorunum {
-  var icerik = Bos
-  if g.sekme == 0 {
-    icerik = yaziBolumu()
-  }
-  if g.sekme == 1 {
-    icerik = girdiBolumu()
-  }
-  if g.sekme == 2 {
-    icerik = veriBolumu()
-  }
-  if g.sekme == 3 {
-    icerik = dugmeBolumu()
-  }
-  if g.sekme == 4 {
-    icerik = hareketBolumu()
-  }
+  bolum("Liste ve ilerleme", "Madde listesi ve yüzde çubuğu.",
+    Sutun([
+      Liste(["Derleyici", "Arayüz kitaplığı", "Paket yöneticisi"]),
+      Ilerleme(72),
+      Metin("%72 tamam")
+    ]),
+    "Liste([\"Derleyici\", \"Arayüz kitaplığı\"])\nIlerleme(72)"),
 
-  return Sutun([
-    Baslik("Nar arayüz galerisi"),
-    Paragraf("Kütüphanedeki bütün bileşenler. Hepsi Nar ile yazıldı."),
-    Sekmeler(["Yazı", "Girdi", "Veri", "Düğme", "Hareket"], g.sekme, |i| {
-      let y = d()
-      y.sekme = i
-      // Yeni sekmenin içeriği gerçekten ilk kez görünüyor; defteri
-      // silmezsek konum anahtarları eski sekmeden kalır.
-      hareketDefteriniSil()
-      guncelle(y)
+  bolum("Adımlar", "Nerede olduğunu ve kaç adım kaldığını gösterir. Düğmelerle dene.",
+    Sutun([
+      Adimlar(["Hesap", "Ödeme", "Onay", "Bitti"], d().adim),
+      Satir([
+        IkincilDugme("Geri", || {
+          let g = d()
+          if g.adim > 0 {
+            g.adim -= 1
+          }
+          guncelle(g)
+        }),
+        Dugme("İleri", || {
+          let g = d()
+          if g.adim < 3 {
+            g.adim += 1
+          }
+          guncelle(g)
+        })
+      ])
+    ]),
+    "Adimlar([\"Hesap\", \"Ödeme\", \"Onay\", \"Bitti\"], durum.adim)"),
+
+  bolum("Sayfalama", "Uzun listeleri böler. Uçlarda düğmeler kendiliğinden kapanır.",
+    Sayfalama(d().sayfa, 8, |n| {
+      let g = d()
+      g.sayfa = n
+      guncelle(g)
     }),
-    Bosluk(4),
-    icerik
+    "Sayfalama(durum.sayfa, 8, |n| { durum.sayfa = n })")
+])
+
+// --- 4. geri bildirim -----------------------------------------------------
+
+fn bildirimBolumu() -> Gorunum = Sutun([
+  bolum("Uyarı", "Dört ton. Simgeyle birlikte kullanmak mesajı hızlı okutur.",
+    Sutun([
+      Uyari(TON_BILGI, "Kaydedilmemiş değişiklikler var."),
+      Uyari(TON_BASARI, "Dosya kaydedildi."),
+      Uyari(TON_UYARI, "Disk alanı azalıyor."),
+      Uyari(TON_HATA, "Sunucuya ulaşılamadı.")
+    ]),
+    "Uyari(TON_BILGI, \"Kaydedilmemiş değişiklikler var.\")\nUyari(TON_HATA, \"Sunucuya ulaşılamadı.\")"),
+
+  bolum("Boş durum", "Hiçbir şey yokken ne yapılacağını söyler. Boş bir liste bırakmak kullanıcıyı yolda bırakır.",
+    BosDurum("klasor", "Henüz proje yok",
+             "İlk projeni oluştur; şablonlardan biriyle başlayabilirsin.",
+             Dugme("Yeni proje", || { })),
+    "BosDurum(\"klasor\", \"Henüz proje yok\",\n         \"İlk projeni oluştur...\",\n         Dugme(\"Yeni proje\", || { yeni() }))"),
+
+  bolum("Akordeon", "Uzun içeriği katlar. Açık bölüme tekrar tıklamak kapatır.",
+    Akordeon(
+      ["Nar nedir?", "Nasıl kurulur?", "Hangi hedefler var?"],
+      [
+        Paragraf("Türkçe hata mesajları olan, kendi derleyicisiyle gelen küçük bir dil."),
+        Paragraf("Depoyu indir, `python -m narc run dosya.nar` yaz. Başka bir şey gerekmez."),
+        Paragraf("js, web, masaüstü, mobil, ghb, exe ve narb.")
+      ],
+      d().akordeon,
+      |i| {
+      let g = d()
+      g.akordeon = i
+      guncelle(g)
+    }),
+  "Akordeon([\"Soru 1\", \"Soru 2\"], [Paragraf(\"...\"), Paragraf(\"...\")],\n         durum.acik, |i| { durum.acik = i })"),
+
+bolum("Menü ve ipucu", "Açılır menü odak dışına çıkınca kapanır. İpucu üstüne gelince görünür.",
+  Satir([
+    Menu("İşlemler", ["Yeniden adlandır", "Çoğalt", "Dışa aktar", "Sil"], |s| {
+      let g = d()
+      g.menuSecimi = s
+      guncelle(g)
+    }),
+    Ipucu("Değişiklikleri kaydeder", Dugme("Kaydet", || { })),
+    Metin(if d().menuSecimi == "" { "menüden seç" } else { "seçilen: ${d().menuSecimi}" })
+  ]),
+  "Menu(\"İşlemler\", [\"Çoğalt\", \"Sil\"], |s| { uygula(s) })\nIpucu(\"Değişiklikleri kaydeder\", Dugme(\"Kaydet\", || { kaydet() }))"),
+
+bolum("İletişim kutusu", "Sayfanın üstünde, ortada. Perdeye tıklamak ya da çarpı kapatır.",
+  Sutun([
+    Dugme("Kutuyu aç", || {
+      let g = d()
+      g.iletisim = true
+      guncelle(g)
+    }),
+    if d().iletisim {
+    Iletisim("Projeyi sil", [
+      Paragraf("Bu işlem geri alınamaz. Proje ve içindeki 24 dosya silinir."),
+      Satir([
+        TehlikeDugmesi("Evet, sil", || {
+          let g = d()
+          g.iletisim = false
+          guncelle(g)
+        }),
+        IkincilDugme("Vazgeç", || {
+          let g = d()
+          g.iletisim = false
+          guncelle(g)
+        })
+      ])
+    ], || {
+      let g = d()
+      g.iletisim = false
+      guncelle(g)
+    })
+  } else {
+    Bos
+  }
+]),
+"if durum.acik {\n  Iletisim(\"Projeyi sil\", [Paragraf(\"...\")], || { durum.acik = false })\n} else {\n  Bos\n}"),
+
+bolum("Sekmeler", "Aynı yerde birden çok görünüm.",
+Sutun([
+  Sekmeler(["Genel", "Güvenlik", "Bildirim"], d().icSekme, |i| {
+    let g = d()
+    g.icSekme = i
+    guncelle(g)
+  }),
+  Kutu([Metin(["Genel ayarlar burada.", "Parola ve oturumlar.",
+               "E-posta tercihleri."][d().icSekme])])
+]),
+"Sekmeler([\"Genel\", \"Güvenlik\"], durum.sekme, |i| { durum.sekme = i })"),
+
+bolum("Yükleniyor", "İskelet içerik gelmeden yerini tutar; halka kısa işler için.",
+Sutun([
+  Iskelet(3),
+  Donuyor("derleniyor…")
+]),
+"Iskelet(3)\nDonuyor(\"derleniyor…\")")
+])
+
+// --- 5. kalıplar ----------------------------------------------------------
+
+fn kalipBolumu() -> Gorunum = Sutun([
+  Uyari(TON_BILGI, "Kalıplar hazır ekranlardır: bileşenlerden kurulmuş, tek satırla çağrılan tasarımlar. Hepsi `araclar/kaliplar.nar` içinde."),
+
+  bolum("Giriş ekranı", "Ortalanmış kart, alanlar, birincil eylem ve alternatif yol.",
+    girisEkrani("Nar'a hoş geldin", "Devam etmek için giriş yap",
+                |e, p| { }, || { }),
+    "girisEkrani(\"Nar'a hoş geldin\", \"Devam etmek için giriş yap\",\n            |eposta, parola| { girisYap(eposta, parola) },\n            || { kaydolSayfasi() })"),
+
+  bolum("Gösterge paneli", "Dört ölçüm, bir grafik ve son hareketler.",
+    gostergePaneli("Bu hafta",
+      [olcum("Ziyaret", "8.412", "+12%"), olcum("Yeni üye", "312", "+4%"),
+       olcum("Hata", "9", "-22%"), olcum("Süre", "1.2 sn", "0%")],
+      [18, 24, 16, 30, 27, 34, 29],
+      ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"],
+      [hareket("Ayşe Yılmaz", "yeni sürüm yayınladı", "2 dk"),
+       hareket("Mehmet Kaya", "bir hata kapattı", "18 dk"),
+       hareket("Zeynep Ak", "belgeyi güncelledi", "1 sa")]),
+    "gostergePaneli(\"Bu hafta\", olcumler, degerler, etiketler, hareketler)"),
+
+  bolum("Fiyat kartları", "Üç seçenek; ortadaki öne çıkar.",
+    fiyatKartlari([
+      paket("Açık kaynak", "0₺", "her zaman", ["Sınırsız proje", "Topluluk desteği"], false, "Başla"),
+      paket("Takım", "240₺", "aylık", ["Sınırsız proje", "Öncelikli destek", "Özel paketler"], true, "Takımı kur"),
+      paket("Kurumsal", "Görüşelim", "", ["Kurulum desteği", "Eğitim", "SLA"], false, "İletişime geç")
+    ], |ad| { }),
+    "fiyatKartlari([\n  paket(\"Takım\", \"240₺\", \"aylık\", [\"...\"], true, \"Takımı kur\")\n], |ad| { sec(ad) })"),
+
+  bolum("Özellik ızgarası", "Simge, başlık, bir cümle. Tanıtım sayfalarının omurgası.",
+    ozellikIzgarasi([
+      ozellik("kod", "Türkçe hatalar", "Derleyici ne olduğunu Türkçe söyler, satırı gösterir."),
+      ozellik("paket", "Tek dosya", "Programın tek bir .exe olarak çıkar; kurulum istemez."),
+      ozellik("grafik", "Ölçülü tasarım", "Renkler ve kontrastlar hesaplanır, tahmin edilmez."),
+      ozellik("yenile", "Hızlı döngü", "Kaydet, sayfa kendini yeniler.")
+    ]),
+    "ozellikIzgarasi([\n  ozellik(\"kod\", \"Türkçe hatalar\", \"Derleyici ne olduğunu Türkçe söyler.\")\n])"),
+
+  bolum("Ayarlar listesi", "Her satırda bir ayar: adı, açıklaması ve anahtarı.",
+    ayarListesi("Bildirimler", [
+      ayar("E-posta", "Haftalık özet gönderilsin.", true),
+      ayar("Masaüstü", "Derleme bitince haber ver.", false),
+      ayar("Ses", "Hata olduğunda kısa bir ses çal.", false)
+    ], |ad, acik| { }),
+    "ayarListesi(\"Bildirimler\", [\n  ayar(\"E-posta\", \"Haftalık özet gönderilsin.\", true)\n], |ad, acik| { degistir(ad, acik) })"),
+
+  bolum("Profil kartı", "Avatar, ad, rol ve iki eylem.",
+    Esnek([
+      profilKarti("Ayşe Yılmaz", "Derleyici ekibi", "",
+                  ["142 katkı", "8 paket"], || { }, || { }),
+      profilKarti("Mehmet Kaya", "Arayüz", "",
+                  ["63 katkı", "2 paket"], || { }, || { })
+    ]),
+    "profilKarti(\"Ayşe Yılmaz\", \"Derleyici ekibi\", \"\",\n            [\"142 katkı\", \"8 paket\"], || { mesaj() }, || { takip() })"),
+
+  bolum("Sık sorulanlar", "Katlanır soru listesi; açık olan bir tane.",
+    sikSorulanlar([
+      soru("Nar hangi platformlarda çalışır?",
+           "Windows, macOS ve Linux. Tarayıcı için ayrı bir hedef var."),
+      soru("Başka bir dile bağımlı mı?",
+           "Derleyici Python ile yazıldı; ürettiği program bağımsız çalışır."),
+      soru("Paket yöneticisi var mı?",
+           "Henüz yok, yol haritasında.")
+    ], d().akordeon, |i| {
+      let g = d()
+      g.akordeon = i
+      guncelle(g)
+    }),
+    "sikSorulanlar([soru(\"Soru?\", \"Cevap.\")], durum.acik, |i| { durum.acik = i })")
+])
+
+// --- çatı -----------------------------------------------------------------
+
+let SEKMELER = ["Temel", "Girdi", "Yerleşim", "Veri", "Geri bildirim", "Kalıplar"]
+
+fn govdeBolumu() -> Gorunum {
+  if d().sekme == 1 {
+    return girdiBolumu()
+  }
+  if d().sekme == 2 {
+    return yerlesimBolumu()
+  }
+  if d().sekme == 3 {
+    return veriBolumu()
+  }
+  if d().sekme == 4 {
+    return bildirimBolumu()
+  }
+  if d().sekme == 5 {
+    return kalipBolumu()
+  }
+  return temelBolumu()
+}
+
+fn ciz(durum: Durum) -> Gorunum {
+  SON_DURUM = durum
+  return Sutun([
+  Satir([
+    Sutun([
+      Satir([Baslik("Nar arayüz kitaplığı"), Rozet("v0.1", "notr")]),
+      Paragraf("Elli bileşen, altı hazır kalıp. Hepsi Nar ile yazıldı; " +
+        "aşağıdaki her örneğin altında onu üreten kod duruyor.")
+    ]),
+    Sutun([
+      Anahtar("Koyu", durum.koyu, |v| {
+        let g = d()
+        g.koyu = v
+        guncelle(g)
+        temaSec(if v { "koyu" } else { "acik" })
+      }),
+      Anahtar("Yumuşak", durum.yumusak, |v| {
+        let g = d()
+        g.yumusak = v
+        guncelle(g)
+        deriSec(if v { "yumusak" } else { "" })
+      })
+    ]).mobildeGizle()
+  ]).mobildeSutun(),
+  Bosluk(4),
+  Sekmeler(SEKMELER, durum.sekme, |i| {
+    let g = d()
+    g.sekme = i
+    guncelle(g)
+  }),
+  Bosluk(4),
+  govdeBolumu(),
+  Bosluk(16),
+  Cizgi,
+  Satir([
+    Metin("Nar arayüz kitaplığı"),
+    Bag("kaynak", "https://github.com/ridocs/nar-dili")
+  ])
   ])
 }
 
 fn main() {
+  // Bu bir sayfa programı; Node ile çalıştırılırsa çizecek bir yer yok.
   if bul("#uygulama") == none {
     print("Bu program tarayıcıda çalıştırılmalı.")
     print("Derle:  nar build ornekler/arayuz_galerisi.nar --target web")
     return
   }
 
-  uygulama = uygulamaBaslat("#uygulama", Durum {
+  let baslangic = Durum {
     sekme: 0,
     ad: "",
     not: "",
-    yas: 30,
-    abone: false,
-    sehir: "İstanbul",
-    ilerleme: 40
-  }, ciz)
+    yas: 28,
+    abone: true,
+    sehir: "Mardin",
+    ilerleme: 62,
+    anahtar: false,
+    radyo: "Haftalık",
+    kaydirici: 40,
+    akordeon: 0,
+    sayfa: 1,
+    iletisim: false,
+    menuSecimi: "",
+    adim: 1,
+    icSekme: 0,
+    koyu: false,
+    yumusak: true
+  }
+  deriSec("yumusak")
+  // Vitrin geniş: yan yana üç kart 820px'e sığmıyor.
+  uygulama = uygulamaBaslat("#uygulama", baslangic, ciz)
+  genislikKur(1080)
 }
