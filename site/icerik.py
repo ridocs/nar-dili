@@ -2033,6 +2033,63 @@ fn main() {
 }''',
                 "calistirma": False,
             },
+            {
+                "id": "arayuz-iskelet",
+                "baslik": "Sayfa iskeleti: üst şerit, açılış, dip",
+                "aciklama": """
+Buraya kadarki bileşenler sayfanın <em>içini</em> kuruyordu. Bir siteyi
+ayakta tutan dört parça ise her yerde aynıdır: üstte gezinti şeridi,
+altında açılış, ortada bölümler, en altta dip.
+<p>Bootstrap buna navbar, Foundation top bar, MUI app bar der; hepsi aynı
+işi yapar. Nar'da dördü de birer görünüm: <code>Gezinti</code>,
+<code>Kahraman</code>, <code>Bolum</code>, <code>AltBilgi</code>. Hepsi
+durumsuzdur — hangi bağlantının etkin olduğunu uygulama söyler, bileşen
+kendi içinde saklamaz.</p>
+<p>Aralarına boşluk girmesin diye <code>Yigin</code> kullanılır:
+<code>Sutun</code> öğeler arasına boşluk koyar, <code>Yigin</code>
+koymaz.</p>
+<p>Dar ekranda üst şerit kendiliğinden menüye iner. Bunun için ayrı bir
+kod yazmazsın: iki hâl de her zaman çizilir, hangisinin görüneceğine CSS
+karar verir.</p>
+""",
+                "kod": '''import "araclar/arayuz.nar"
+
+var uygulama: Uygulama<Int>? = none
+
+fn git(i: Int) {
+  if uygulama != none {
+    uygulama!.degistir(i)
+  }
+}
+
+fn ciz(sayfa: Int) -> Gorunum = Yigin([
+  Gezinti("Kavurma", ["Menü", "Hakkında", "İletişim"], sayfa,
+          |i| { git(i) },
+          Dugme("Sipariş ver", || { })),
+
+  Kahraman("Günlük kavurma", "Sabah taze kavrulur",
+           "Siparişin aynı gün yola çıkar.",
+           [Dugme("Menüye bak", || { git(0) }),
+            IkincilDugme("Nasıl çalışır?", || { git(1) })]),
+
+  Bolum("Neden biz?", "Üç sebep.",
+    Izgara(3, [
+      Kart("Taze", [Metin("Kavurma günü kargolanır.")]),
+      Kart("Şeffaf", [Metin("Çekirdeğin geldiği yeri yazıyoruz.")]),
+      Kart("Esnek", [Metin("Öğütümü sen seçersin.")])
+    ])),
+
+  AltBilgi(["Kavurma", "Kurum"], [
+    [Bag("Menü", "#"), Bag("Abonelik", "#")],
+    [Bag("Hakkında", "#"), Bag("İletişim", "#")]
+  ], "© 2026 Kavurma · Mardin")
+])
+
+fn main() {
+  uygulama = uygulamaBaslat("#uygulama", 0, ciz)
+}''',
+                "calistirma": False,
+            },
         ],
     },
 

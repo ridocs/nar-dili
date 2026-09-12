@@ -53,6 +53,7 @@ enum Gorunum {
   SessizDugme(String, () -> Void)             // kenarlıksız, ikinci derece
   TehlikeDugmesi(String, () -> Void)
   IkonDugme(String, String, () -> Void)       // simge, erişim etiketi, tıklayınca
+  DugmeGrubu([String], Int, (Int) -> Void)    // bitişik seçenekler, seçili
 
   // girdi
   Giris(String, String, (String) -> Void)     // yer tutucu, değer, değişince
@@ -63,6 +64,7 @@ enum Gorunum {
   Anahtar(String, Bool, (Bool) -> Void)       // açık/kapalı düğmesi
   Radyo([String], String, (String) -> Void)   // tek seçim
   Kaydirici(Int, Int, Int, (Int) -> Void)     // en az, en çok, değer, değişince
+  Yildiz(Int, Int, (Int) -> Void)             // değer, en çok, değişince
   Alan(String, String, Gorunum)               // etiket, ipucu, girdi
   HataliAlan(String, String, Gorunum)         // etiket, hata mesajı, girdi
 
@@ -71,12 +73,24 @@ enum Gorunum {
   Satir([Gorunum])
   SatirYay([Gorunum])                         // iki uca yaslanmış satır
   Esnek([Gorunum])                            // sarmalı satır
+  Yigin([Gorunum])                            // boşluksuz sütun: bitişik dursunlar
   Izgara(Int, [Gorunum])                      // kaç sütun, öğeler
   Genislik(Int, Gorunum)                      // en fazla bu kadar geniş
   Kutu([Gorunum])
   Kart(String, [Gorunum])                     // başlıklı kart
   Ortala(Gorunum)
   Ayrac(String)                               // etiketli ayırıcı çizgi
+
+  // sayfa iskeleti
+  //
+  // Bir sitenin tekrar eden dört parçası. Bunlar olmadan kitaplık yalnız
+  // sayfanın *içini* kurabiliyordu; artık sayfanın kendisini de kuruyor.
+  Gezinti(String, [String], Int, (Int) -> Void, Gorunum)
+  // marka, bağlar, etkin, seçince, sağdaki
+  Kahraman(String, String, String, [Gorunum])  // üst etiket, başlık, açıklama, eylemler
+  Bolum(String, String, Gorunum)              // başlık, açıklama, içerik
+  AltBilgi([String], [[Gorunum]], String)     // sütun başlıkları, sütunlar, alt not
+  Kirinti([String], (Int) -> Void)            // yol parçaları, tıklayınca
 
   // gösterim
   Uyari(String, String)                       // ton, mesaj
@@ -97,6 +111,21 @@ enum Gorunum {
   Menu(String, [String], (String) -> Void)    // etiket, öğeler, seçince
   Ipucu(String, Gorunum)                      // üstüne gelince çıkan not
   Iletisim(String, [Gorunum], () -> Void)     // başlık, içerik, kapanınca
+  YanPanel(String, [Gorunum], Bool, () -> Void)  // başlık, içerik, açık mı, kapanınca
+  Katla(String, Gorunum, Bool, () -> Void)    // tek başlıklı açılır bölüm
+  Bildirim(String, String, () -> Void)        // ton, mesaj, kapanınca
+  ListeGrubu([Gorunum])                       // çizgiyle ayrılmış satırlar
+  Ortam(Gorunum, Gorunum)                     // yan (avatar/simge) + gövde
+  Zaman([String], [String])                   // zamanlar, olaylar
+  Kaydirak([Gorunum], Int, (Int) -> Void)     // tek tek gezilen öğeler
+
+  // belge
+  //
+  // Bir bileşeni üç yüzüyle birden gösterir: canlı hâli, onu yazan Nar
+  // kodu ve o kodun ürettiği HTML. Üçüncüsü ayrı bir seri hâle
+  // getiriciden değil, az önce kurulan ağacın kendisinden okunur —
+  // bu yüzden ekrandakinden farklı olamaz.
+  Ornek(String, String, Gorunum)              // ad, Nar kaynağı, canlı hâli
 
   // uyum: `.mobil()`, `.mobildeSutun()` gibi metotlar bunu üretir
   Uyarla(Gorunum, Uyarlama)
@@ -381,6 +410,8 @@ fn ogeYap(g: Gorunum) -> Element = match g {
   SessizDugme(etiket, islev) -> dugmeOgesi("nar-dugme-sessiz", etiket, islev)
   TehlikeDugmesi(etiket, islev) -> dugmeOgesi("nar-dugme-tehlike", etiket, islev)
   IkonDugme(simge, etiket, islev) -> ikonDugmesi(simge, etiket, islev)
+  DugmeGrubu(secenekler, secili, degisince) ->
+    dugmeGrubuOgesi(secenekler, secili, degisince)
 
   Giris(yerTutucu, deger, degisince) -> girisOgesi(yerTutucu, deger, degisince)
   CokSatir(yerTutucu, deger, degisince) ->
@@ -395,6 +426,7 @@ fn ogeYap(g: Gorunum) -> Element = match g {
     radyoOgesi(secenekler, secili, degisince)
   Kaydirici(enAz, enCok, deger, degisince) ->
     kaydiriciOgesi(enAz, enCok, deger, degisince)
+  Yildiz(deger, enCok, degisince) -> yildizOgesi(deger, enCok, degisince)
   Alan(etiket, ipucu, ic) -> alanOgesi(etiket, ipucu, ic, false)
   HataliAlan(etiket, hata, ic) -> alanOgesi(etiket, hata, ic, true)
 
@@ -402,12 +434,22 @@ fn ogeYap(g: Gorunum) -> Element = match g {
   Satir(cocuklar) -> kapsayici("nar-satir", cocuklar)
   SatirYay(cocuklar) -> kapsayici("nar-satir-yay", cocuklar)
   Esnek(cocuklar) -> kapsayici("nar-esnek", cocuklar)
+  Yigin(cocuklar) -> kapsayici("nar-yigin", cocuklar)
   Izgara(sutun, cocuklar) -> izgaraOgesi(sutun, cocuklar)
   Genislik(px, ic) -> genislikOgesi(px, ic)
   Kutu(cocuklar) -> kapsayici("nar-kutu", cocuklar)
   Kart(baslik, cocuklar) -> kartOgesi(baslik, cocuklar)
   Ortala(ic) -> kapsayici("nar-ortala", [ic])
   Ayrac(etiket) -> ayracOgesi(etiket)
+
+  Gezinti(marka, baglar, etkin, secince, sag) ->
+    gezintiOgesi(marka, baglar, etkin, secince, sag)
+  Kahraman(etiket, baslik, aciklama, eylemler) ->
+    kahramanOgesi(etiket, baslik, aciklama, eylemler)
+  Bolum(baslik, aciklama, ic) -> bolumOgesi(baslik, aciklama, ic)
+  AltBilgi(basliklar, sutunlar, not) ->
+    altBilgiOgesi(basliklar, sutunlar, not)
+  Kirinti(yol, tiklayinca) -> kirintiOgesi(yol, tiklayinca)
 
   Uyari(ton, mesaj) -> yaziOgesi("div", "nar-uyari nar-uyari-" + ton, mesaj)
   Liste(ogeler) -> listeOgesi(ogeler)
@@ -433,6 +475,15 @@ fn ogeYap(g: Gorunum) -> Element = match g {
   Ipucu(not, ic) -> ipucuOgesi(not, ic)
   Iletisim(baslik, cocuklar, kapaninca) ->
     iletisimOgesi(baslik, cocuklar, kapaninca)
+  YanPanel(baslik, cocuklar, acik, kapaninca) ->
+    yanPanelOgesi(baslik, cocuklar, acik, kapaninca)
+  Katla(baslik, ic, acik, degisince) -> katlaOgesi(baslik, ic, acik, degisince)
+  Bildirim(ton, mesaj, kapaninca) -> bildirimOgesi(ton, mesaj, kapaninca)
+  ListeGrubu(satirlar) -> listeGrubuOgesi(satirlar)
+  Ortam(yan, govde) -> ortamOgesi(yan, govde)
+  Zaman(zamanlar, olaylar) -> zamanOgesi(zamanlar, olaylar)
+  Kaydirak(ogeler, simdi, gidince) -> kaydirakOgesi(ogeler, simdi, gidince)
+  Ornek(ad, kaynak, ic) -> ornekOgesi(ad, kaynak, ic)
 
   Uyarla(ic, u) -> uyarlaOge(ic, u)
   Hareketli(ad, ic) -> hareketliOge(ad, ic)
@@ -1141,6 +1192,394 @@ fn iletisimOgesi(baslik: String, cocuklar: [Gorunum],
   perde.dinle("click", kapaninca)
   perde.ekle(kutu)
   return perde
+}
+
+// --- sayfa iskeleti -------------------------------------------------------
+//
+// Bootstrap'ın navbar'ı, Foundation'ın top bar'ı, MUI'nin app bar'ı,
+// Tailwind bloklarının hero/footer'ı — hepsi aynı dört parçayı çözer:
+// üst şerit, açılış, bölüm, dip. Burada da dördü var; hepsi durumsuz,
+// yani hangi bağlantının etkin olduğunu uygulama söyler.
+
+fn gezintiOgesi(marka: String, baglar: [String], etkin: Int,
+                secince: (Int) -> Void, sag: Gorunum) -> Element {
+  let e = sinifliOge("header", "nar-gezinti")
+  let ic = sinifliOge("div", "nar-gezinti-ic")
+  ic.ekle(yaziOgesi("span", "nar-marka", marka))
+
+  let sira = sinifliOge("nav", "nar-gezinti-baglar")
+  for (i, ad) in baglar {
+    var sinif = "nar-gezinti-bag"
+    if i == etkin {
+      sinif += " nar-gezinti-etkin"
+    }
+    let d = odaklanabilirIsaretle(sinifliOge("button", sinif))
+    d.ozellikYaz("type", "button")
+    d.metinYaz(ad)
+    d.dinle("click", || {
+      secince(i)
+    })
+    sira.ekle(d)
+  }
+  ic.ekle(sira)
+
+  // Dar ekranda bağlantı şeridi yerine aynı bağları veren bir menü çıkar.
+  // İkisi de her zaman basılır; hangisinin göründüğünü CSS seçer.
+  let menu = menuOgesi("Menü", baglar, |ad| {
+    let i = baglar.indexOf(ad)
+    if i >= 0 {
+      secince(i)
+    }
+  })
+  menu.sinifEkle("nar-yalniz-dar")
+  ic.ekle(menu)
+
+  ic.ekle(ogeYap(sag))
+  e.ekle(ic)
+  return e
+}
+
+fn kahramanOgesi(etiket: String, baslik: String, aciklama: String,
+                 eylemler: [Gorunum]) -> Element {
+  let e = sinifliOge("section", "nar-kahraman")
+  let ic = sinifliOge("div", "nar-kahraman-ic")
+  if etiket != "" {
+    ic.ekle(yaziOgesi("span", "nar-kahraman-etiket", etiket))
+  }
+  ic.ekle(yaziOgesi("h1", "nar-kahraman-baslik", baslik))
+  if aciklama != "" {
+    ic.ekle(yaziOgesi("p", "nar-kahraman-yazi", aciklama))
+  }
+  if eylemler.len() > 0 {
+    let sira = sinifliOge("div", "nar-kahraman-eylem")
+    for g in eylemler {
+      sira.ekle(ogeYap(g))
+    }
+    ic.ekle(sira)
+  }
+  e.ekle(ic)
+  return e
+}
+
+fn bolumOgesi(baslik: String, aciklama: String, ic: Gorunum) -> Element {
+  let e = sinifliOge("section", "nar-bolum")
+  if baslik != "" || aciklama != "" {
+    let bas = sinifliOge("div", "nar-bolum-basi")
+    if baslik != "" {
+      bas.ekle(yaziOgesi("h2", "nar-bolum-baslik", baslik))
+    }
+    if aciklama != "" {
+      bas.ekle(yaziOgesi("p", "nar-bolum-yazi", aciklama))
+    }
+    e.ekle(bas)
+  }
+  e.ekle(ogeYap(ic))
+  return e
+}
+
+fn altBilgiOgesi(basliklar: [String], sutunlar: [[Gorunum]],
+                 not: String) -> Element {
+  let e = sinifliOge("footer", "nar-altbilgi")
+  let ust = sinifliOge("div", "nar-altbilgi-ust")
+  for (i, b) in basliklar {
+    let s = sinifliOge("div", "nar-altbilgi-sutun")
+    s.ekle(yaziOgesi("span", "nar-altbilgi-baslik", b))
+    if i < sutunlar.len() {
+      for g in sutunlar[i] {
+        s.ekle(ogeYap(g))
+      }
+    }
+    ust.ekle(s)
+  }
+  e.ekle(ust)
+  if not != "" {
+    e.ekle(sinifliOge("div", "nar-cizgi"))
+    e.ekle(yaziOgesi("div", "nar-altbilgi-not", not))
+  }
+  return e
+}
+
+fn kirintiOgesi(yol: [String], tiklayinca: (Int) -> Void) -> Element {
+  let e = sinifliOge("nav", "nar-kirinti")
+  e.ozellikYaz("aria-label", "yol")
+  let son = yol.len() - 1
+  for (i, ad) in yol {
+    if i > 0 {
+      let ok = simgeOgesi("ok-sag")
+      ok.sinifEkle("nar-kirinti-ayrac")
+      e.ekle(ok)
+    }
+    if i == son {
+      // Bulunduğumuz yer bağlantı değil: tıklanacak bir yer yok.
+      let simdi = yaziOgesi("span", "nar-kirinti-son", ad)
+      simdi.ozellikYaz("aria-current", "page")
+      e.ekle(simdi)
+    } else {
+      let d = odaklanabilirIsaretle(sinifliOge("button", "nar-kirinti-bag"))
+      d.ozellikYaz("type", "button")
+      d.metinYaz(ad)
+      d.dinle("click", || {
+        tiklayinca(i)
+      })
+      e.ekle(d)
+    }
+  }
+  return e
+}
+
+// --- gruplar ve geri bildirim ---------------------------------------------
+
+fn dugmeGrubuOgesi(secenekler: [String], secili: Int,
+                   degisince: (Int) -> Void) -> Element {
+  let e = sinifliOge("div", "nar-dugme-grubu")
+  e.ozellikYaz("role", "group")
+  for (i, ad) in secenekler {
+    var sinif = "nar-grup-dugmesi"
+    if i == secili {
+      sinif += " nar-grup-secili"
+    }
+    let d = odaklanabilirIsaretle(sinifliOge("button", sinif))
+    d.ozellikYaz("type", "button")
+    d.ozellikYaz("aria-pressed", if i == secili { "true" } else { "false" })
+    d.metinYaz(ad)
+    d.dinle("click", || {
+      degisince(i)
+    })
+    e.ekle(d)
+  }
+  return e
+}
+
+fn yildizOgesi(deger: Int, enCok: Int, degisince: (Int) -> Void) -> Element {
+  let e = sinifliOge("div", "nar-yildiz")
+  e.ozellikYaz("role", "radiogroup")
+  for i in 1..=enCok {
+    var sinif = "nar-yildiz-tek"
+    if i <= deger {
+      sinif += " nar-yildiz-dolu"
+    }
+    let d = odaklanabilirIsaretle(sinifliOge("button", sinif))
+    d.ozellikYaz("type", "button")
+    d.ozellikYaz("aria-label", "${i} yıldız")
+    d.ekle(simgeOgesi("yildiz"))
+    // Seçili yıldıza tekrar basmak puanı sıfırlar.
+    d.dinle("click", || {
+      degisince(if i == deger { 0 } else { i })
+    })
+    e.ekle(d)
+  }
+  return e
+}
+
+fn bildirimOgesi(ton: String, mesaj: String,
+                 kapaninca: () -> Void) -> Element {
+  let e = sinifliOge("div", "nar-bildirim nar-bildirim-" + ton)
+  e.ozellikYaz("role", "status")
+  e.ekle(simgeOgesi(ton))
+  e.ekle(yaziOgesi("span", "nar-bildirim-yazi", mesaj))
+  e.ekle(ikonDugmesi("carpi", "bildirimi kapat", kapaninca))
+  return e
+}
+
+fn yanPanelOgesi(baslik: String, cocuklar: [Gorunum], acik: Bool,
+                 kapaninca: () -> Void) -> Element {
+  if !acik {
+    return olustur("span")
+  }
+  let perde = sinifliOge("div", "nar-perde nar-perde-yan")
+  let panel = sinifliOge("aside", "nar-yanpanel")
+  panel.ozellikYaz("role", "dialog")
+  let basi = sinifliOge("div", "nar-yanpanel-basi")
+  basi.ekle(yaziOgesi("h2", "nar-altbaslik", baslik))
+  basi.ekle(ikonDugmesi("carpi", "paneli kapat", kapaninca))
+  panel.ekle(basi)
+  let govde = sinifliOge("div", "nar-yanpanel-govde")
+  for c in cocuklar {
+    govde.ekle(ogeYap(c))
+  }
+  panel.ekle(govde)
+  panel.dinle("click", |o: Olay| {
+    o.durdur()
+  })
+  perde.dinle("click", kapaninca)
+  perde.ekle(panel)
+  return perde
+}
+
+fn katlaOgesi(baslik: String, ic: Gorunum, acik: Bool,
+              degisince: () -> Void) -> Element {
+  var sinif = "nar-katla"
+  if acik {
+    sinif += " nar-katla-acik"
+  }
+  let e = sinifliOge("div", sinif)
+  let basi = odaklanabilirIsaretle(sinifliOge("button", "nar-katla-basi"))
+  basi.ozellikYaz("type", "button")
+  basi.ozellikYaz("aria-expanded", if acik { "true" } else { "false" })
+  basi.ekle(yaziOgesi("span", "", baslik))
+  let ok = simgeOgesi("ok-sag")
+  ok.sinifEkle("nar-katla-ok")
+  basi.ekle(ok)
+  basi.dinle("click", degisince)
+  e.ekle(basi)
+  if acik {
+    let govde = sinifliOge("div", "nar-katla-govde")
+    govde.ekle(ogeYap(ic))
+    e.ekle(govde)
+  }
+  return e
+}
+
+fn listeGrubuOgesi(satirlar: [Gorunum]) -> Element {
+  let e = sinifliOge("div", "nar-liste-grubu")
+  for g in satirlar {
+    let s = sinifliOge("div", "nar-liste-grubu-satir")
+    s.ekle(ogeYap(g))
+    e.ekle(s)
+  }
+  return e
+}
+
+fn ortamOgesi(yan: Gorunum, govde: Gorunum) -> Element {
+  let e = sinifliOge("div", "nar-ortam")
+  let y = sinifliOge("div", "nar-ortam-yan")
+  y.ekle(ogeYap(yan))
+  let g = sinifliOge("div", "nar-ortam-govde")
+  g.ekle(ogeYap(govde))
+  e.ekle(y)
+  e.ekle(g)
+  return e
+}
+
+fn zamanOgesi(zamanlar: [String], olaylar: [String]) -> Element {
+  let e = sinifliOge("ol", "nar-zaman")
+  for (i, o) in olaylar {
+    let li = sinifliOge("li", "nar-zaman-oge")
+    li.ekle(sinifliOge("span", "nar-zaman-nokta"))
+    let ic = sinifliOge("div", "nar-zaman-ic")
+    if i < zamanlar.len() {
+      ic.ekle(yaziOgesi("span", "nar-zaman-etiket", zamanlar[i]))
+    }
+    ic.ekle(yaziOgesi("span", "nar-zaman-yazi", o))
+    li.ekle(ic)
+    e.ekle(li)
+  }
+  return e
+}
+
+fn kaydirakOgesi(ogeler: [Gorunum], simdi: Int,
+                 gidince: (Int) -> Void) -> Element {
+  let e = sinifliOge("div", "nar-kaydirak")
+  let toplam = ogeler.len()
+  let pencere = sinifliOge("div", "nar-kaydirak-pencere")
+  if simdi >= 0 && simdi < toplam {
+    pencere.ekle(ogeYap(ogeler[simdi]))
+  }
+  e.ekle(pencere)
+
+  let alt = sinifliOge("div", "nar-kaydirak-alt")
+  // Uçlarda sarmalar: son öğeden ileri gitmek başa döner.
+  alt.ekle(ikonDugmesi("ok-sol", "önceki öğe", || {
+    gidince(if simdi <= 0 { toplam - 1 } else { simdi - 1 })
+  }))
+  let noktalar = sinifliOge("div", "nar-kaydirak-noktalar")
+  for i in 0..toplam {
+    var sinif = "nar-kaydirak-nokta"
+    if i == simdi {
+      sinif += " nar-kaydirak-etkin"
+    }
+    let n = odaklanabilirIsaretle(sinifliOge("button", sinif))
+    n.ozellikYaz("type", "button")
+    n.ozellikYaz("aria-label", "${i + 1}. öğe")
+    n.dinle("click", || {
+      gidince(i)
+    })
+    noktalar.ekle(n)
+  }
+  alt.ekle(noktalar)
+  alt.ekle(ikonDugmesi("ok-sag", "sonraki öğe", || {
+    gidince(if simdi >= toplam - 1 { 0 } else { simdi + 1 })
+  }))
+  e.ekle(alt)
+  return e
+}
+
+// --- vitrin kartı ---------------------------------------------------------
+//
+// Bir bileşeni üç yüzüyle gösterir. Üçüncü yüz — üretilen HTML — ikinci
+// bir seri hâle getiriciden gelmiyor: az önce kurulan ağacın `innerHTML`i
+// okunuyor. Böylece "kodun ürettiği HTML" ile "ekranda duran şey" ayrışamaz.
+
+fn ornekOgesi(ad: String, kaynak: String, ic: Gorunum) -> Element {
+  let e = sinifliOge("section", "nar-ornek")
+  if ad != "" {
+    e.ekle(yaziOgesi("div", "nar-ornek-ad", ad))
+  }
+  let onizleme = sinifliOge("div", "nar-onizleme")
+  onizleme.ekle(ogeYap(ic))
+  e.ekle(onizleme)
+
+  let panolar = sinifliOge("div", "nar-ornek-panolar")
+  panolar.ekle(ornekPanosu("Nar", kaynak))
+  panolar.ekle(ornekPanosu("üretilen HTML", htmlBicimle(onizleme.html())))
+  e.ekle(panolar)
+  return e
+}
+
+fn ornekPanosu(etiket: String, metin: String) -> Element {
+  let p = sinifliOge("div", "nar-ornek-pano")
+  p.ekle(yaziOgesi("span", "nar-ornek-etiket", etiket))
+  p.ekle(kodOgesi(metin))
+  return p
+}
+
+// İçeriği olmayan etiketler: bunlar derinliği artırmaz.
+let BOS_ETIKETLER = ["input", "img", "br", "hr", "source", "meta", "link",
+                     "path", "circle", "rect", "line", "polyline", "polygon",
+                     "ellipse", "use"]
+
+fn etiketAdi(parca: String) -> String = parca.split(" ")[0].split(">")[0]
+
+// Tek satır HTML'i okunur hâle getirir. Tam bir ayrıştırıcı değil: girdisi
+// kendi ürettiğimiz HTML olduğu için etiketlerin dengeli olduğuna
+// güvenilebilir. Yazısı olan bir etiket kapanışıyla aynı satırda kalır —
+// `<span>yazı</span>` üç satıra bölünmez.
+fn htmlBicimle(html: String) -> String {
+  var satirlar: [String] = []
+  var derinlik = 0
+  var bekleyen = ""
+  for parca in html.split("<") {
+    if parca == "" {
+      continue
+    }
+    let etiket = "<" + parca
+    if parca.startsWith("/") {
+      if derinlik > 0 {
+        derinlik -= 1
+      }
+      if bekleyen != "" {
+        satirlar.push(bekleyen + etiket)
+        bekleyen = ""
+      } else {
+        satirlar.push("  ".repeat(derinlik) + etiket)
+      }
+      continue
+    }
+    if bekleyen != "" {
+      satirlar.push(bekleyen)
+    }
+    bekleyen = "  ".repeat(derinlik) + etiket
+    if parca.endsWith("/>") || BOS_ETIKETLER.contains(etiketAdi(parca)) {
+      satirlar.push(bekleyen)
+      bekleyen = ""
+    } else {
+      derinlik += 1
+    }
+  }
+  if bekleyen != "" {
+    satirlar.push(bekleyen)
+  }
+  return satirlar.join("\n")
 }
 
 // --- takvim ---------------------------------------------------------------

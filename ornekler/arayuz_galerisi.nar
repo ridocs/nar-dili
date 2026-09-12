@@ -27,6 +27,13 @@ struct Durum {
   var menuSecimi: String
   var adim: Int
   var icSekme: Int
+  var gezinti: Int
+  var dugmeGrubu: Int
+  var yildiz: Int
+  var kaydirak: Int
+  var katla: Bool
+  var bildirim: Bool
+  var yanPanel: Bool
   // görsel ayarlar
   var koyu: Bool
   var yumusak: Bool
@@ -50,16 +57,76 @@ fn d() -> Durum = SON_DURUM!
 
 // --- bölüm kalıbı ---------------------------------------------------------
 //
-// Her bileşen aynı düzende sunulur: adı, ne işe yaradığı, canlı örnek ve
-// onu üreten kod. Kodun görünmesi önemli — vitrin aynı zamanda belgedir.
+// Her bileşen aynı düzende sunulur: adı, ne işe yaradığı, canlı örnek,
+// onu üreten Nar kodu ve o kodun ürettiği HTML. Üçü bir arada durmalı —
+// vitrin aynı zamanda belgedir, ve HTML'i görmeden CSS'i yazılmaz.
+//
+// Üçüncü yüzü `Ornek` kendisi okur: çizdiği ağacın `innerHTML`i. Yani
+// gösterilen HTML ile ekranda duran şey ayrışamaz.
 
 fn bolum(baslik: String, aciklama: String, gosterim: Gorunum,
          kod: String) -> Gorunum = Sutun([
   Bosluk(8),
   AltBaslik(baslik),
   Paragraf(aciklama),
-  Kutu([gosterim]),
-  KodBloku(kod)
+  Ornek("", kod, gosterim)
+])
+
+// --- 1. sayfa iskeleti ----------------------------------------------------
+//
+// Bootstrap navbar, Foundation top bar, MUI app bar, Tailwind hero/footer
+// blokları — hepsi aynı dört parçayı çözüyor. Burada da dördü var ve
+// dördü de durumsuz: hangi bağın etkin olduğunu uygulama söyler.
+
+fn sayfaBolumu() -> Gorunum = Sutun([
+  bolum("Üst şerit", "Marka, bağlantılar, sağda bir eylem. Dar ekranda bağ şeridi yerine menü çıkar; ikisi de her zaman basılır, hangisinin görüneceğine CSS karar verir.",
+    Gezinti("Nar", ["Ürün", "Belgeler", "Fiyat", "Blog"], d().gezinti, |i| {
+      let g = d()
+      g.gezinti = i
+      guncelle(g)
+    }, Dugme("Başla", || { })),
+    "Gezinti(\"Nar\", [\"Ürün\", \"Belgeler\", \"Fiyat\"], durum.sayfa,\n  |i| { durum.sayfa = i },\n  Dugme(\"Başla\", || { basla() }))"),
+
+  bolum("Açılış", "Üst etiket, başlık, açıklama, eylemler. Başlık 22 karakterde kırılır: açılış başlığı okunacak değil, görülecek bir şeydir.",
+    Kahraman("Yeni · v0.1", "Arayüzü dille yaz, CSS ile değil",
+      "Görünüm ağacı bildirimseldir: ne istediğini yazarsın, HTML ve CSS ondan çıkar.",
+      [Dugme("Başla", || { }), IkincilDugme("Belgeler", || { })]),
+    "Kahraman(\"Yeni · v0.1\", \"Arayüzü dille yaz, CSS ile değil\",\n  \"Görünüm ağacı bildirimseldir...\",\n  [Dugme(\"Başla\", || { }), IkincilDugme(\"Belgeler\", || { })])"),
+
+  bolum("Bölüm", "Başlık, açıklama ve içerik. Tanıtım sayfasının omurgası: aynı ritimle tekrar eden blok.",
+    Bolum("Neden Nar?", "Üç cümlelik gerekçe, altında üç kart.",
+      Izgara(3, [
+        Kart("Az kod", [Metin("Aynı ekran, üçte bir satır.")]),
+        Kart("Tek dil", [Metin("Arayüz, sunucu ve araçlar aynı yerde.")]),
+        Kart("Ölçülü", [Metin("Kontrastlar tahmin edilmedi, ölçüldü.")])
+      ])),
+    "Bolum(\"Neden Nar?\", \"Üç cümlelik gerekçe.\",\n  Izgara(3, [Kart(\"Az kod\", [...]), ...]))"),
+
+  bolum("Dip", "Sütunlara ayrılmış bağlantılar, altında tek satır not. Sütun sayısını ekran genişliği belirler.",
+    AltBilgi(["Ürün", "Kaynak", "Kurum"], [
+      [Bag("Belgeler", "#"), Bag("Bileşenler", "#"), Bag("Fiyat", "#")],
+      [Bag("GitHub", "#"), Bag("Sürüm notları", "#")],
+      [Bag("Hakkında", "#"), Bag("İletişim", "#")]
+    ], "© 2026 Nar · MIT"),
+    "AltBilgi([\"Ürün\", \"Kaynak\"], [\n  [Bag(\"Belgeler\", \"#\"), Bag(\"Bileşenler\", \"#\")],\n  [Bag(\"GitHub\", \"#\")]\n], \"© 2026 Nar · MIT\")"),
+
+  bolum("Yol", "Nerede olduğunu gösterir. Son parça bağlantı değil — zaten oradasın.",
+    Kirinti(["Belgeler", "Arayüz", "Bileşenler"], |i| {
+      let g = d()
+      g.gezinti = i
+      guncelle(g)
+    }),
+    "Kirinti([\"Belgeler\", \"Arayüz\", \"Bileşenler\"], |i| { git(i) })"),
+
+  bolum("Dördü bir arada", "`Yigin` boşluk bırakmaz; parçalar bitişir ve ortaya sayfanın kendisi çıkar. Kitaplık artık sayfanın içini değil, sayfayı kuruyor.",
+    Yigin([
+      Gezinti("Kavurma", ["Menü", "Hakkında"], 0, |i| { },
+        SessizDugme("Giriş", || { })),
+      Kahraman("", "Sabah taze kavrulur", "Günlük kavurma, aynı gün kargo.",
+        [Dugme("Sipariş ver", || { })]),
+      AltBilgi(["Kavurma"], [[Bag("İletişim", "#")]], "© 2026")
+    ]),
+    "Yigin([\n  Gezinti(\"Kavurma\", [\"Menü\", \"Hakkında\"], 0, |i| { git(i) },\n    SessizDugme(\"Giriş\", || { })),\n  Kahraman(\"\", \"Sabah taze kavrulur\", \"Günlük kavurma.\",\n    [Dugme(\"Sipariş ver\", || { })]),\n  AltBilgi([\"Kavurma\"], [[Bag(\"İletişim\", \"#\")]], \"© 2026\")\n])")
 ])
 
 // --- 0. temel -------------------------------------------------------------
@@ -140,6 +207,14 @@ fn temelBolumu() -> Gorunum = Sutun([
       ])
     ]),
     "Dugme(\"Kaydet\", || { kaydet() })\nIkincilDugme(\"Vazgeç\", || { kapat() })\nSessizDugme(\"Daha sonra\", || { ertele() })\nTehlikeDugmesi(\"Sil\", || { sil() })\nIkonDugme(\"cop\", \"sil\", || { sil() })"),
+
+  bolum("Düğme grubu", "Birbirini dışlayan birkaç seçenek. Sekmeden farkı: sayfayı değiştirmez, aynı şeyin görünümünü değiştirir.",
+    DugmeGrubu(["Gün", "Hafta", "Ay"], d().dugmeGrubu, |i| {
+      let g = d()
+      g.dugmeGrubu = i
+      guncelle(g)
+    }),
+    "DugmeGrubu([\"Gün\", \"Hafta\", \"Ay\"], durum.aralik,\n           |i| { durum.aralik = i })"),
 
   bolum("Kod bloğu", "Uzun satır sarmaz, kendi içinde kayar.",
     KodBloku("fn topla(a: Int, b: Int) -> Int {\n  return a + b\n}"),
@@ -224,7 +299,18 @@ fn girdiBolumu() -> Gorunum = Sutun([
       }),
       Ilerleme(d().kaydirici)
     ]),
-    "Kaydirici(0, 100, durum.ses, |v| { durum.ses = v })\nIlerleme(durum.ses)")
+    "Kaydirici(0, 100, durum.ses, |v| { durum.ses = v })\nIlerleme(durum.ses)"),
+
+  bolum("Yıldız", "Puan verir. Seçili yıldıza tekrar basmak puanı sıfırlar — vazgeçmenin yolu olmalı.",
+    Satir([
+      Yildiz(d().yildiz, 5, |v| {
+        let g = d()
+        g.yildiz = v
+        guncelle(g)
+      }),
+      Soluk(if d().yildiz == 0 { "puan yok" } else { "${d().yildiz} / 5" })
+    ]),
+    "Yildiz(durum.puan, 5, |v| { durum.puan = v })")
 ])
 
 // --- 2. yerleşim ----------------------------------------------------------
@@ -275,7 +361,36 @@ fn yerlesimBolumu() -> Gorunum = Sutun([
       ]),
       Tablo(["Ad", "Rol"], [["Ayşe", "yönetici"], ["Mehmet", "üye"]]).mobil(Liste(["Ayşe — yönetici", "Mehmet — üye"]))
     ]),
-    "Satir([...]).mobildeSutun()\nRozet(\"yalnız geniş\", TON_BILGI).mobildeGizle()\nTablo(basliklar, satirlar).mobil(Liste([...]))")
+    "Satir([...]).mobildeSutun()\nRozet(\"yalnız geniş\", TON_BILGI).mobildeGizle()\nTablo(basliklar, satirlar).mobil(Liste([...]))"),
+
+  bolum("Liste grubu", "Çizgiyle ayrılmış satırlar. `Liste` düz metin alır, bu her satıra istediğin görünümü koydurur.",
+    ListeGrubu([
+      SatirYay([Metin("Yayın anahtarı"), Rozet("etkin", TON_BASARI)]),
+      SatirYay([Metin("Yedekleme"), Rozet("duraklatıldı", TON_UYARI)]),
+      SatirYay([Metin("İki adımlı doğrulama"), SessizDugme("Aç", || { })])
+    ]),
+    "ListeGrubu([\n  SatirYay([Metin(\"Yayın anahtarı\"), Rozet(\"etkin\", TON_BASARI)]),\n  SatirYay([Metin(\"Yedekleme\"), Rozet(\"duraklatıldı\", TON_UYARI)])\n])"),
+
+  bolum("Ortam", "Solda simge ya da avatar, sağda gövde. Yorum, bildirim ve akış satırlarının ortak iskeleti.",
+    Sutun([
+      Ortam(Avatar("Ayşe Yılmaz", ""), Sutun([
+        Satir([Metin("Ayşe Yılmaz"), Soluk("2 dk")]),
+        Metin("Takvim bileşenini denedim, aralık seçimi tam istediğim gibi.")
+      ])),
+      Ortam(Simge("paket"), Sutun([
+        Metin("narc 0.1.0 yayımlandı"),
+        Soluk("Boru işleci ve dilim erişimi eklendi.")
+      ]))
+    ]),
+    "Ortam(Avatar(\"Ayşe Yılmaz\", \"\"), Sutun([\n  Satir([Metin(\"Ayşe Yılmaz\"), Soluk(\"2 dk\")]),\n  Metin(\"Takvim bileşenini denedim.\")\n]))"),
+
+  bolum("Yığın", "Boşluksuz sütun. `Sutun` öğeler arasına boşluk koyar; sayfa iskeleti parçaları bitişmek zorunda olduğu için bu var.",
+    Yigin([
+      Uyari(TON_BILGI, "Üstteki"),
+      Uyari(TON_BASARI, "Ortadaki"),
+      Uyari(TON_UYARI, "Alttaki")
+    ]),
+    "Yigin([Gezinti(...), Kahraman(...), AltBilgi(...)])")
 ])
 
 // --- 3. veri --------------------------------------------------------------
@@ -338,7 +453,25 @@ fn veriBolumu() -> Gorunum = Sutun([
       g.sayfa = n
       guncelle(g)
     }),
-    "Sayfalama(durum.sayfa, 8, |n| { durum.sayfa = n })")
+    "Sayfalama(durum.sayfa, 8, |n| { durum.sayfa = n })"),
+
+  bolum("Zaman çizgisi", "Sırası olan olaylar. Noktalar arasındaki çizgi CSS'ten gelir, öğe başına ek işaret yok.",
+    Zaman(["09:12", "09:40", "11:05", "14:22"],
+          ["Depo klonlandı", "Derleme başarılı — 441 test geçti",
+           "Sürüm etiketlendi: v0.1.0", "Yayına alındı"]),
+    "Zaman([\"09:12\", \"09:40\"],\n      [\"Depo klonlandı\", \"Derleme başarılı\"])"),
+
+  bolum("Kaydırak", "Tek tek gezilen öğeler. Uçlarda sarmalar: son öğeden ileri gitmek başa döner.",
+    Kaydirak([
+      Kart("Takvim", [Metin("Giriş ve çıkış tarihi seçtiren aralık takvimi.")]),
+      Kart("Tablo", [Metin("Dar ekranda listeye dönebilen veri tablosu.")]),
+      Kart("Takım", [Metin("Bildirimsel görünüm ağacı, tek yönlü veri akışı.")])
+    ], d().kaydirak, |i| {
+      let g = d()
+      g.kaydirak = i
+      guncelle(g)
+    }),
+    "Kaydirak([Kart(\"Takvim\", [...]), Kart(\"Tablo\", [...])],\n         durum.simdi, |i| { durum.simdi = i })")
 ])
 
 // --- 4. geri bildirim -----------------------------------------------------
@@ -437,7 +570,58 @@ Sutun([
   Iskelet(3),
   Donuyor("derleniyor…")
 ]),
-"Iskelet(3)\nDonuyor(\"derleniyor…\")")
+"Iskelet(3)\nDonuyor(\"derleniyor…\")"),
+
+  bolum("Katla", "Tek başlıklı açılır bölüm. Akordeon birkaç bölümü birbirine bağlar, bu tek başına durur.",
+    Katla("Gelişmiş ayarlar", Sutun([
+      Onay("Kaynak haritası üret", true, |v| { }),
+      Onay("Uyarıları hata say", false, |v| { })
+    ]), d().katla, || {
+      let g = d()
+      g.katla = !g.katla
+      guncelle(g)
+    }),
+    "Katla(\"Gelişmiş ayarlar\", Sutun([...]), durum.acik,\n      || { durum.acik = !durum.acik })"),
+
+  bolum("Bildirim", "Sayfanın akışında değil, köşesinde durur. İşin bittiğini söyler ve kendini kapattırır.",
+    Sutun([
+      Dugme("Bildirimi göster", || {
+        let g = d()
+        g.bildirim = true
+        guncelle(g)
+      }),
+      if d().bildirim {
+      Bildirim(TON_BASARI, "Proje yayına alındı.", || {
+        let g = d()
+        g.bildirim = false
+        guncelle(g)
+      })
+    } else { Bos }
+  ]),
+  "Bildirim(TON_BASARI, \"Proje yayına alındı.\",\n         || { durum.bildirim = false })"),
+
+bolum("Yan panel", "Kenardan giren pencere. İletişim kutusu ortada durur ve odağı tek bir karara toplar; yan panel yan yardımcı içindir.",
+  Sutun([
+    Dugme("Paneli aç", || {
+      let g = d()
+      g.yanPanel = true
+      guncelle(g)
+    }),
+    YanPanel("Filtreler", [
+      Onay("Yalnız açık kayıtlar", true, |v| { }),
+      Secim(["Tümü", "Bana atanan", "Bana bildirilen"], "Tümü", |v| { }),
+      Dugme("Uygula", || {
+        let g = d()
+        g.yanPanel = false
+        guncelle(g)
+      })
+    ], d().yanPanel, || {
+      let g = d()
+      g.yanPanel = false
+      guncelle(g)
+    })
+  ]),
+  "YanPanel(\"Filtreler\", [Onay(...), Secim(...)], durum.acik,\n         || { durum.acik = false })")
 ])
 
 // --- 5. kalıplar ----------------------------------------------------------
@@ -508,30 +692,40 @@ fn kalipBolumu() -> Gorunum = Sutun([
       g.akordeon = i
       guncelle(g)
     }),
-    "sikSorulanlar([soru(\"Soru?\", \"Cevap.\")], durum.acik, |i| { durum.acik = i })")
+    "sikSorulanlar([soru(\"Soru?\", \"Cevap.\")], durum.acik, |i| { durum.acik = i })"),
+
+  bolum("Tanıtım sayfası", "Dört iskelet parçası tek çağrıda. Değişen yalnız içerik; üst şerit, açılış, bölümler ve dip yerli yerinde durur. Dipteki bağlar üst şeritteki bağların aynısı — iki liste ayrışamaz.",
+    tanitimSayfasi("Nar", ["Ürün", "Belgeler", "Fiyat"], d().gezinti, |i| {
+      let g = d()
+      g.gezinti = i
+      guncelle(g)
+    },
+    Kahraman("Açık kaynak", "Arayüzü dille yaz, CSS ile değil",
+      "Yetmiş altı bileşen, tek bir görünüm ağacı, iki hedef.",
+      [Dugme("Başla", || { })]),
+    [Bolum("Neden Nar?", "Üç sebep, üç kutu.",
+       ozellikIzgarasi([
+         ozellik("kod", "Az kod", "Aynı ekran, üçte bir satır."),
+         ozellik("paket", "Tek dil", "Arayüz, sunucu ve araçlar bir arada."),
+         ozellik("grafik", "Ölçülü", "Kontrastlar ölçüldü, tahmin edilmedi.")
+       ]))],
+    "© 2026 Nar · MIT"),
+    "tanitimSayfasi(\"Nar\", [\"Ürün\", \"Belgeler\"], durum.sayfa,\n               |i| { durum.sayfa = i },\n               Kahraman(\"Açık kaynak\", \"Arayüzü dille yaz\", \"...\", [...]),\n               [Bolum(\"Neden Nar?\", \"\", ozellikIzgarasi(ozellikler))],\n               \"© 2026 Nar · MIT\")")
 ])
 
 // --- çatı -----------------------------------------------------------------
 
-let SEKMELER = ["Temel", "Girdi", "Yerleşim", "Veri", "Geri bildirim", "Kalıplar"]
+let SEKMELER = ["Temel", "Sayfa", "Girdi", "Yerleşim", "Veri",
+                "Geri bildirim", "Kalıplar"]
 
-fn govdeBolumu() -> Gorunum {
-  if d().sekme == 1 {
-    return girdiBolumu()
-  }
-  if d().sekme == 2 {
-    return yerlesimBolumu()
-  }
-  if d().sekme == 3 {
-    return veriBolumu()
-  }
-  if d().sekme == 4 {
-    return bildirimBolumu()
-  }
-  if d().sekme == 5 {
-    return kalipBolumu()
-  }
-  return temelBolumu()
+fn govdeBolumu() -> Gorunum = match d().sekme {
+  1 -> sayfaBolumu()
+  2 -> girdiBolumu()
+  3 -> yerlesimBolumu()
+  4 -> veriBolumu()
+  5 -> bildirimBolumu()
+  6 -> kalipBolumu()
+  _ -> temelBolumu()
 }
 
 fn ciz(durum: Durum) -> Gorunum {
@@ -540,8 +734,9 @@ fn ciz(durum: Durum) -> Gorunum {
   Satir([
     Sutun([
       Satir([Baslik("Nar arayüz kitaplığı"), Rozet("v0.1", "notr")]),
-      Paragraf("Elli bileşen, altı hazır kalıp. Hepsi Nar ile yazıldı; " +
-        "aşağıdaki her örneğin altında onu üreten kod duruyor.")
+      Paragraf("Yetmiş altı bileşen, yedi hazır kalıp. Hepsi Nar ile " +
+        "yazıldı; her örneğin altında hem onu yazan Nar kodu, hem o " +
+        "kodun ürettiği HTML duruyor.")
     ]),
     Sutun([
       Anahtar("Koyu", durum.koyu, |v| {
@@ -600,6 +795,13 @@ fn main() {
     menuSecimi: "",
     adim: 1,
     icSekme: 0,
+    gezinti: 1,
+    dugmeGrubu: 1,
+    yildiz: 4,
+    kaydirak: 0,
+    katla: true,
+    bildirim: false,
+    yanPanel: false,
     koyu: false,
     yumusak: true,
     takvim: takvimDurumu()

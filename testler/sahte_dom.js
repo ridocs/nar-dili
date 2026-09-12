@@ -7,6 +7,11 @@
 // Testin sonunda ağaç `$dom.metin(kok)` ile düz metne çevrilip karşılaştırılır;
 // olaylar `$dom.tikla(dugme)` ile tetiklenir.
 
+// İçeriği olmayan etiketler: kapanış etiketi yazılmaz.
+const BOS_ETIKETLER = new Set([
+  "input", "img", "br", "hr", "source", "meta", "link",
+]);
+
 class SahteOge {
   constructor(etiket) {
     this.tagName = etiket.toUpperCase();
@@ -48,7 +53,38 @@ class SahteOge {
 
   set textContent(v) {
     this.childNodes = [];
+    this._ham = undefined;
     this._metin = String(v);
+  }
+
+  // `Ornek` bileşeni çizdiği ağacın HTML'ini okuyup gösteriyor; o yolun
+  // test edilebilmesi için sahte ağacın da HTML'e dönebilmesi gerekiyor.
+  // Öznitelik sırası gerçek tarayıcıdaki gibi: önce class, sonra
+  // eklenme sırasına göre diğerleri.
+  get outerHTML() {
+    const ad = this.tagName.toLowerCase();
+    let bas = `<${ad}`;
+    if (this.siniflar.size) bas += ` class="${[...this.siniflar].join(" ")}"`;
+    for (const [k, v] of Object.entries(this.ozellikler)) {
+      bas += ` ${k}="${String(v).replace(/"/g, "&quot;")}"`;
+    }
+    if (BOS_ETIKETLER.has(ad)) return `${bas}>`;
+    return `${bas}>${this.innerHTML}</${ad}>`;
+  }
+
+  get innerHTML() {
+    if (this.childNodes.length === 0) return this._ham !== undefined
+      ? this._ham
+      : this._metin.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    return this.childNodes.map((c) => c.outerHTML).join("");
+  }
+
+  // `htmlYaz` ham HTML basar (simgeler böyle çiziliyor); metin gibi
+  // kaçırılmamalı.
+  set innerHTML(v) {
+    this.childNodes = [];
+    this._metin = "";
+    this._ham = String(v);
   }
 
   appendChild(c) {
@@ -250,7 +286,14 @@ globalThis.$dom = {
   },
   tikla(oge) {
     if (oge === null) throw new Error("tıklanacak öğe bulunamadı");
-    oge.tetikle("click", { target: oge });
+    // Gerçek olayın taşıdığı iki yordam: bileşenler `durdur()` ve
+    // `engelle()` çağırıyor, olay nesnesi onlarsız gelirse test değil
+    // kütüphane çöker.
+    oge.tetikle("click", {
+      target: oge,
+      stopPropagation() {},
+      preventDefault() {},
+    });
   },
   yaz(giris, metin) {
     // Gerçek yazma önce alana odaklanır ve imleci metnin sonuna koyar;

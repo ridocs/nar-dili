@@ -263,3 +263,36 @@ fn sikSorulanlar(sorular: [Soru], acik: Int,
   }
   return Akordeon(basliklar, govdeler, acik, degisince)
 }
+
+// --- tanıtım sayfası ------------------------------------------------------
+//
+// Bir ürün sayfasının değişmeyen dört parçası: üst şerit, açılış, bölümler
+// ve dip. Değişen yalnız içerik, o da dışarıdan geliyor.
+//
+//     tanitimSayfasi("Nar", ["Ürün", "Belgeler"], durum.sayfa,
+//                    |i| { durum.sayfa = i },
+//                    Kahraman("", "Arayüzü dille yaz", "...", [...]),
+//                    [Bolum("Neden?", "", ozellikIzgarasi(ozellikler))],
+//                    "© 2026 Nar · MIT")
+//
+// Sağdaki eylem isteğe bağlı; verilmezse üst şerit yalnız bağları taşır.
+
+fn tanitimSayfasi(marka: String, baglar: [String], etkin: Int,
+                  secince: (Int) -> Void, acilis: Gorunum,
+                  bolumler: [Gorunum], dipNotu: String,
+                  sag: Gorunum = Bos) -> Gorunum {
+  var ic: [Gorunum] = [Gezinti(marka, baglar, etkin, secince, sag), acilis]
+  for b in bolumler {
+    ic.push(b)
+  }
+  // Dip, üst şeritteki bağların aynısını taşır: bir sayfada gidilecek
+  // yerler iki ayrı listede sayılmaz, ikisi ayrışır.
+  var dipBaglar: [Gorunum] = []
+  for (i, ad) in baglar {
+    dipBaglar.push(SessizDugme(ad, || {
+      secince(i)
+    }))
+  }
+  ic.push(AltBilgi([marka], [dipBaglar], dipNotu))
+  return Yigin(ic)
+}
