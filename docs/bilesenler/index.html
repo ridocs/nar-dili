@@ -268,6 +268,17 @@ function $mapGet(m, k) {
   return m.has(k) ? m.get(k) : null;
 }
 
+// Sabit genişliğe getirir; dolgu metni birden çok karakterse kırpılır.
+function $metinDoldur(s, genislik, dolgu, sola) {
+  if (!dolgu) dolgu = " ";
+  const uzunluk = [...s].length;
+  if (uzunluk >= genislik) return s;
+  let ek = "";
+  while ([...ek].length < genislik - uzunluk) ek += dolgu;
+  ek = [...ek].slice(0, genislik - uzunluk).join("");
+  return sola ? ek + s : s + ek;
+}
+
 // --- metin metotları -------------------------------------------------------
 function $strSlice(s, a, b) {
   return $karakterDizisi(s).slice(a, b).join("");
@@ -1051,7 +1062,7 @@ function kisaTarihMetni(t) {
 }
 
 function ikiHane(n) {
-  return ((n < 10) ? ("0" + $fmt(n, "Int", false)) : $fmt(n, "Int", false));
+  return $metinDoldur($fmt(n, "Int", false), 2, "0", true);
 }
 
 function isoTarih(t) {

@@ -50,6 +50,9 @@ STRING_METHODS = {
     "charAt": "$strGet({0}, {1})",
     "indexOf": "$strIndexOf({0}, {1})",
     "repeat": "$strRepeat({0}, {1})",
+    "ters": "$metinTers({0})",
+    "solaDoldur": "$metinDoldur({0}, {1}, {2}, true)",
+    "sagaDoldur": "$metinDoldur({0}, {1}, {2}, false)",
     "kodu": "$karakterKodu({0})",
 }
 
@@ -70,6 +73,11 @@ LIST_METHODS = {
     "join": "{0}.join({1})",
     # Lambda gerektirmeyen kolay işlemler
     "benzersiz": "$listBenzersiz({0})",
+    "sirala": "$listSirala({0}, {1})",
+    "ters": "$listTers({0})",
+    "duzlestir": "$listDuzlestir({0})",
+    "eslestir": "$listEslestir({0}, {1})",
+    "eslestir": "$listEslestir({0}, {1})",
     "say": "$listSay({0}, {1})",
     "toplam": "$listToplam({0})",
     "carpim": "$listCarpim({0})",

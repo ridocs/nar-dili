@@ -137,7 +137,7 @@ fn kisaTarihMetni(t: Int) -> String {
 }
 
 // "2026-09-12" — sıralanabilir, makine okuyabilir biçim.
-fn ikiHane(n: Int) -> String = if n < 10 { "0" + str(n) } else { str(n) }
+fn ikiHane(n: Int) -> String = str(n).solaDoldur(2, "0")
 
 fn isoTarih(t: Int) -> String {
   if t == 0 {

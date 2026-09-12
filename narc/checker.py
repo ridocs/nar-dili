@@ -2509,6 +2509,10 @@ def builtin_method(base: Type, name: str) -> FnT | None:
             "kodu": FnT((), INT),
             "indexOf": FnT((STRING,), INT),
             "repeat": FnT((INT,), STRING),
+            "ters": FnT((), STRING),
+            # Sabit genişliğe getirmek için: "7".solaDoldur(3, "0") -> "007"
+            "solaDoldur": FnT((INT, STRING), STRING),
+            "sagaDoldur": FnT((INT, STRING), STRING),
         }
         return table.get(name)
 
@@ -2527,6 +2531,17 @@ def builtin_method(base: Type, name: str) -> FnT | None:
             "slice": FnT((INT, INT), ListT(t)),
             "reverse": FnT((), ListT(t)),
             "sort": FnT((), ListT(t)),
+            # Kendi ölçütünle sıralama: karşılaştırıcı a<b ise negatif,
+            # a>b ise pozitif döndürür.
+            "sirala": FnT((FnT((t, t), INT),), ListT(t)),
+            # [[1, 2], [3]] -> [1, 2, 3] (bir kat)
+            "duzlestir": FnT((), ListT(ANY)),
+            # İki listeyi çiftler: [1,2] + ["a","b"] -> [(1,"a"), (2,"b")]
+            # Argüman `Any`: liste tipleri değişmez olduğu için `[Any]`
+            # yazmak `[String]` geçmeyi engellerdi. Çiftin ilk öğesi
+            # tipini korur, ikincisi `Any` kalır.
+            "eslestir": FnT((ANY,), ListT(TupleT((t, ANY)))),
+            "ters": FnT((), ListT(t)),
             "first": FnT((), OptT(t) if not isinstance(t, OptT) else t),
             "last": FnT((), OptT(t) if not isinstance(t, OptT) else t),
             "map": FnT((FnT((t,), ANY),), ListT(ANY)),

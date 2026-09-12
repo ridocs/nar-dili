@@ -2343,6 +2343,9 @@ REFERANS = [
             ("charAt(i)", "i numaralı harf"),
             ("indexOf(parca)", "Kaçıncı sırada geçiyor (yoksa -1)"),
             ("repeat(n)", "n kez tekrarlar"),
+            ("ters()", "Ters çevirir"),
+            ("solaDoldur(n, dolgu)", "Sabit genişliğe getirir: \"7\" → \"007\""),
+            ("sagaDoldur(n, dolgu)", "Sağdan doldurarak genişletir"),
         ],
     },
     {
@@ -2364,6 +2367,10 @@ REFERANS = [
             ("reduce(f, baslangic)", "Hepsini tek değere indirger"),
             ("benzersiz()", "Tekrar edenleri atar"),
             ("say(x)", "x kaç kez geçiyor"),
+            ("sirala(|a, b| a - b)", "Kendi ölçütünle sıralar"),
+            ("ters()", "Ters çevrilmiş kopyası"),
+            ("duzlestir()", "İç içe listeyi bir kat açar"),
+            ("eslestir(b)", "İki listeyi çiftler: [(a, b), …]"),
         ],
     },
     {

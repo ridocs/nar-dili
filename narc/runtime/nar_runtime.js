@@ -368,6 +368,51 @@ function $listTekler(list) {
   return list.filter((x) => x % 2 !== 0);
 }
 
+// Kendi ölçütünle sıralar. Kaynağı bozmaz: kopya üstünde çalışır,
+// çünkü Nar'da `sort` da kopya döndürüyor.
+function $listSirala(list, karsilastir) {
+  return list.slice().sort((a, b) => karsilastir(a, b));
+}
+
+// Bir kat düzleştirir: [[1, 2], [3]] -> [1, 2, 3]
+function $listDuzlestir(list) {
+  const out = [];
+  for (const x of list) {
+    if (Array.isArray(x)) out.push(...x);
+    else out.push(x);
+  }
+  return out;
+}
+
+// İki listeyi çiftler; kısa olan bitince durur.
+function $listEslestir(a, b) {
+  const n = Math.min(a.length, b.length);
+  const out = [];
+  for (let i = 0; i < n; i++) out.push([a[i], b[i]]);
+  return out;
+}
+
+function $listTers(list) {
+  return list.slice().reverse();
+}
+
+// Metni ters çevirir. Kod noktalarına göre: `[...s]` yüzeysel çiftleri
+// bölmez, `split("")` bölerdi.
+function $metinTers(s) {
+  return [...s].reverse().join("");
+}
+
+// Sabit genişliğe getirir; dolgu metni birden çok karakterse kırpılır.
+function $metinDoldur(s, genislik, dolgu, sola) {
+  if (!dolgu) dolgu = " ";
+  const uzunluk = [...s].length;
+  if (uzunluk >= genislik) return s;
+  let ek = "";
+  while ([...ek].length < genislik - uzunluk) ek += dolgu;
+  ek = [...ek].slice(0, genislik - uzunluk).join("");
+  return sola ? ek + s : s + ek;
+}
+
 function $listBenzersiz(list) {
   const out = [];
   for (const x of list) if (!$listContains(out, x)) out.push(x);

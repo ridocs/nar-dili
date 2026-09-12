@@ -133,6 +133,30 @@ def _m_ortalama(vm, a):
     return float(sum(l)) / len(l)
 
 
+def _m_sirala(vm, a):
+    """Kendi ölçütüyle sıralama; karşılaştırıcı Nar işlevi."""
+    import functools
+    liste, karsilastir = a[0], a[1]
+    return sorted(liste, key=functools.cmp_to_key(
+        lambda x, y: vm.cagir(karsilastir, [x, y])))
+
+
+def _m_ters(vm, a):
+    d = a[0]
+    if isinstance(d, str):
+        return d[::-1]
+    return list(reversed(d))
+
+
+def _m_doldur(vm, a, sola: bool):
+    s, genislik = a[0], a[1]
+    dolgu = a[2] if len(a) > 2 and a[2] else " "
+    if len(s) >= genislik:
+        return s
+    ek = (dolgu * genislik)[:genislik - len(s)]
+    return ek + s if sola else s + ek
+
+
 LISTE_METOTLARI = {
     "m_push": _m_push,
     "m_pop": _m_pop,
@@ -148,6 +172,12 @@ LISTE_METOTLARI = {
     "m_reduce": _m_reduce,
     # Lambda gerektirmeyen kolay işlemler
     "m_benzersiz": lambda vm, a: list(dict.fromkeys(a[0])),
+    "m_sirala": lambda vm, a: _m_sirala(vm, a),
+    "m_duzlestir": lambda vm, a: [
+        i for x in a[0] for i in (x if isinstance(x, list) else [x])],
+    "m_eslestir": lambda vm, a: [
+        [x, y] for x, y in zip(a[0], a[1])],
+    "m_ters": _m_ters,
     "m_say": lambda vm, a: a[0].count(a[1]),
     "m_toplam": lambda vm, a: sum(_sayisal_liste(vm, a[0], "toplam")),
     "m_carpim": lambda vm, a: math.prod(_sayisal_liste(vm, a[0], "carpim")),
@@ -280,6 +310,8 @@ EK_YERLESIKLER = {
     "m_slice": _ortak_slice,
     "m_charAt": _m_charAt,
     "m_len": _ortak_len,
+    "m_solaDoldur": lambda vm, a: _m_doldur(vm, a, True),
+    "m_sagaDoldur": lambda vm, a: _m_doldur(vm, a, False),
     "m_contains": _ortak_contains,
     "m_indexOf": _ortak_indexOf,
     # üretici içi
