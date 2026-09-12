@@ -921,14 +921,10 @@ fn avatarOgesi(ad: String, adres: String) -> Element {
 }
 
 // Değişim metni kendi yönünü söyler: başında "+" varsa iyi, "-" varsa kötü.
-fn degisimSinifi(degisim: String) -> String {
-  if degisim.startsWith("+") {
-    return "nar-degisim-arti"
-  }
-  if degisim.startsWith("-") {
-    return "nar-degisim-eksi"
-  }
-  return "nar-degisim-notr"
+fn degisimSinifi(degisim: String) -> String = match degisim {
+  d if d.startsWith("+") -> "nar-degisim-arti"
+  d if d.startsWith("-") -> "nar-degisim-eksi"
+  _ -> "nar-degisim-notr"
 }
 
 fn istatistikOgesi(baslik: String, deger: String,

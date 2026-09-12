@@ -478,7 +478,7 @@ class BytecodeUretici:
         son_atlamalar = []
         for kol in s.arms:
             self.kapsam.blok_ac()
-            atla_yeri = self._desen_kosulu(kol.pattern, konu_indis)
+            atlama_yerleri = self._kol_kosulu(kol, konu_indis)
             if isinstance(kol.body, A.Block):
                 self.blok(kol.body)
             elif isinstance(kol.body, A.Stmt):
@@ -487,12 +487,27 @@ class BytecodeUretici:
                 self.ifade(kol.body)
                 self.yaz(K.AT)
             son_atlamalar.append(self.yaz(K.ATLA, 0))
-            if atla_yeri is not None:
-                self.islev.yamala(atla_yeri, self.su_an())
+            for yer in atlama_yerleri:
+                self.islev.yamala(yer, self.su_an())
             self.kapsam.blok_kapat()
 
         for yer in son_atlamalar:
             self.islev.yamala(yer, self.su_an())
+
+    def _kol_kosulu(self, kol, konu_indis: int) -> list[int]:
+        """Desen ve (varsa) koşul; uymazsa atlanacak yerlerin listesi.
+
+        Koşul desenden sonra değerlendirilir: desenin bağladığı adlar o
+        sırada kapsamda olur.
+        """
+        yerler = []
+        atla = self._desen_kosulu(kol.pattern, konu_indis)
+        if atla is not None:
+            yerler.append(atla)
+        if getattr(kol, "guard", None) is not None:
+            self.ifade(kol.guard)
+            yerler.append(self.yaz(K.ATLA_YANLIS, 0))
+        return yerler
 
     def _desen_kosulu(self, desen: A.Pattern, konu_indis: int) -> int | None:
         """Deseni sınar; uymuyorsa atlanacak yeri döndürür.
@@ -520,6 +535,21 @@ class BytecodeUretici:
             self.ifade(desen.value)
             self.yaz(K.ESIT)
             return self.yaz(K.ATLA_YANLIS, 0)
+
+        if isinstance(desen, A.RangePat):
+            # Alt sınır tutmazsa hemen atla; tutuyorsa üst sınıra bak.
+            self.yaz(K.YEREL_OKU, konu_indis)
+            self.ifade(desen.low)
+            self.yaz(K.BUYUK_ESIT)
+            alt_atla = self.yaz(K.ATLA_YANLIS, 0)
+            self.yaz(K.YEREL_OKU, konu_indis)
+            self.ifade(desen.high)
+            self.yaz(K.KUCUK_ESIT if desen.inclusive else K.KUCUK)
+            ust_atla = self.yaz(K.ATLA_YANLIS, 0)
+            # İki sınavdan biri düşerse aynı yere gidilir; alt sınavın
+            # atlamasını üst sınavınkine bağlıyoruz.
+            self.islev.yamala(alt_atla, self.su_an())
+            return ust_atla
 
         if isinstance(desen, A.EnumPat):
             self.yaz(K.YEREL_OKU, konu_indis)
@@ -898,14 +928,14 @@ class BytecodeUretici:
         son_atlamalar = []
         for kol in e.arms:
             self.kapsam.blok_ac()
-            atla_yeri = self._desen_kosulu(kol.pattern, konu_indis)
+            atlama_yerleri = self._kol_kosulu(kol, konu_indis)
             if isinstance(kol.body, A.Block):
                 self._blok_ifadesi(A.BlockExpr(kol.body.span, kol.body))
             else:
                 self.ifade(kol.body)
             son_atlamalar.append(self.yaz(K.ATLA, 0))
-            if atla_yeri is not None:
-                self.islev.yamala(atla_yeri, self.su_an())
+            for yer in atlama_yerleri:
+                self.islev.yamala(yer, self.su_an())
             self.kapsam.blok_kapat()
 
         # Hiçbir dal uymazsa (tip denetleyici buna izin vermez) none.

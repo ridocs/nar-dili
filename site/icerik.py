@@ -894,6 +894,64 @@ fn main() {
 }''',
             },
             {
+                "id": "kosullu-kol",
+                "baslik": "Koşullu kol ve aralık — if zincirini kısaltmak",
+                "aciklama": """
+Bir <code>match</code> kolu yalnız desene değil, bir koşula da bakabilir:
+<code>desen if koşul -&gt;</code>. Desenin bağladığı ad koşulun içinde
+kullanılabilir.
+<p>Sayı ve metin aralıkları da desen olur: <code>1..=9</code> ikisini de
+içine alır, <code>0..3</code> üst ucu dışarıda bırakır.</p>
+<p><strong>Neden önemli:</strong> peş peşe <code>if</code> yazmak yerine
+bütün durumlar tek yerde, alt alta durur. Derleyici de bir durumu
+atladığını söyleyebilir — koşullu kol tek başına match'i tamamlamış
+saymaz, çünkü koşul tutmayabilir.</p>
+""",
+                "kod": '''fn siniflandir(n: Int) -> String = match n {
+  x if x < 0 -> "eksi"
+  0 -> "sıfır"
+  1..=9 -> "tek haneli"
+  10..=99 -> "iki haneli"
+  _ -> "daha büyük"
+}
+
+fn main() {
+  for n in [-3, 0, 7, 42, 1000] {
+    print(str(n) + " -> " + siniflandir(n))
+  }
+}''',
+            },
+            {
+                "id": "varsayilan-arguman",
+                "baslik": "Varsayılan değer ve ad ile argüman",
+                "aciklama": """
+Bir parametreye varsayılan verirsen çağıran onu yazmayabilir. Argümanı
+adıyla da verebilirsin; o zaman sıra önemli olmaz.
+<p>Aynısı <code>struct</code> alanları için de geçerli: varsayılanı olan
+alan kurulurken yazılmayabilir. Sekiz alanlı bir yapıyı kurmak için
+sekizini birden yazmak gerekmez.</p>
+<p><strong>Kural:</strong> varsayılanı olmayan parametre, varsayılanı
+olanlardan sonra gelemez — gelirse çağrıda ona ulaşılamazdı.</p>
+""",
+                "kod": '''struct Kutu {
+  var yazi: String
+  var genislik: Int = 20
+  var cerceve: Bool = true
+}
+
+fn bicim(metin: String, once: String = "[", sonra: String = "]") -> String =
+  once + metin + sonra
+
+fn main() {
+  print(bicim("selam"))
+  print(bicim("selam", sonra: ">"))
+  print(bicim(sonra: ">", once: "<", metin: "selam"))
+
+  let k = Kutu { yazi: "not" }
+  print(k.yazi + " " + str(k.genislik) + " " + str(k.cerceve))
+}''',
+            },
+            {
                 "id": "match",
                 "baslik": "match — seçeneklere göre davranmak",
                 "aciklama": """

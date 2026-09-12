@@ -770,6 +770,7 @@ struct Cozumleyici {
         return self.deyimD(k, SMatch(konu, kollar))
       }
       let desen = self.desenCozumle()
+      let kosul = self.kolKosuluCozumle()
       let okKonumu = self.konum()
       self.bekle("->", "desenden sonra '->'")
       var govde = GIfade(self.ifadeD(okKonumu, IBos))
@@ -778,7 +779,7 @@ struct Cozumleyici {
       } else {
         govde = GDeyim(self.deyimCozumle())
       }
-      kollar.push(Kol { konum: okKonumu, desen: desen, govde: govde })
+      kollar.push(Kol { konum: okKonumu, desen: desen, govde: govde, kosul: kosul })
       self.satirSonlariniAtla()
     }
     self.bekle("}", "'}'")
@@ -789,6 +790,28 @@ struct Cozumleyici {
   }
 
   // --- desenler -----------------------------------------------------------
+
+  // Sabit desenden sonra `..` ya da `..=` gelirse aralıktır.
+  // `desen if koşul ->` — desen tutsa bile koşul yanlışsa kol atlanır.
+  fn kolKosuluCozumle() -> IfadeD? {
+    if !self.suradaMi("if") {
+      return none
+    }
+    self.ilerle()
+    return self.kosulCozumle()
+  }
+
+  fn aralikDeseni(alt: IfadeD) -> Desen {
+    if !self.suradaMi("..") && !self.suradaMi("..=") {
+      return DDeger(alt)
+    }
+    let kapsayan = self.suradaMi("..=")
+    self.ilerle()
+    if self.suradaMi("-") {
+      return DAralik(alt, self.tekliCozumle(), kapsayan)
+    }
+    return DAralik(alt, self.temelIfadeCozumle(), kapsayan)
+  }
 
   fn desenCozumle() -> DesenD {
     let t = self.simdiki()
@@ -803,11 +826,11 @@ struct Cozumleyici {
 
     if t.tur == "int" || t.tur == "float" || t.tur == "string" ||
       t.tur == "true" || t.tur == "false" || t.tur == "none" {
-      return self.desenD(k, DDeger(self.temelIfadeCozumle()))
+      return self.desenD(k, self.aralikDeseni(self.temelIfadeCozumle()))
     }
 
     if t.tur == "-" && (self.bakIleri(1).tur == "int" || self.bakIleri(1).tur == "float") {
-      return self.desenD(k, DDeger(self.tekliCozumle()))
+      return self.desenD(k, self.aralikDeseni(self.tekliCozumle()))
     }
 
     // `.Varyant` — enum adı bağlamdan çıkarılır
@@ -1249,10 +1272,12 @@ struct Cozumleyici {
         return self.ifadeD(k, IMatch(konu, kollar))
       }
       let desen = self.desenCozumle()
+      let kosul = self.kolKosuluCozumle()
       let okKonumu = self.konum()
       self.bekle("->", "desenden sonra '->'")
       kollar.push(Kol {
-        konum: okKonumu, desen: desen, govde: GIfade(self.kolDegeriCozumle())
+        konum: okKonumu, desen: desen, govde: GIfade(self.kolDegeriCozumle()),
+        kosul: kosul
       })
       self.satirSonlariniAtla()
     }
@@ -1550,13 +1575,15 @@ fn blokKonumuTasi(b: Blok, k: Konum) -> Blok = Blok {
 fn kolKonumuTasi(c: Kol, k: Konum) -> Kol = Kol {
   konum: k,
   desen: desenKonumuTasi(c.desen, k),
-  govde: govdeKonumuTasi(c.govde, k)
+  govde: govdeKonumuTasi(c.govde, k),
+  kosul: if c.kosul == none { none } else { konumuTasi(c.kosul!, k) }
 }
 
 fn desenKonumuTasi(d: DesenD, k: Konum) -> DesenD = DesenD {
   konum: k,
   ic: match d.ic {
     DDeger(e) -> DDeger(konumuTasi(e, k))
+    DAralik(a, u, kapsayan) -> DAralik(konumuTasi(a, k), konumuTasi(u, k), kapsayan)
     DVaryant(enumAdi, varyant, altlar) -> DVaryant(
       enumAdi, varyant, altlar.map(|a| desenKonumuTasi(a, k)))
     _ -> d.ic

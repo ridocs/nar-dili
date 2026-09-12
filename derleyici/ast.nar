@@ -122,6 +122,7 @@ enum Desen {
   DJoker                                 // _
   DBaglama(String)                       // ad
   DDeger(IfadeD)                         // 3, "a", none
+  DAralik(IfadeD, IfadeD, Bool)          // 1..=9 (son dahil mi)
   DVaryant(String?, String, [DesenD])    // Enum.Varyant(alt...)
 }
 
@@ -129,6 +130,7 @@ struct Kol {
   konum: Konum
   desen: DesenD
   govde: Govde
+  kosul: IfadeD? = none      // `desen if koşul ->`
 }
 
 // --- deyimler -------------------------------------------------------------
@@ -410,6 +412,7 @@ fn yazDesen(d: Desen) -> String = match d {
   DJoker -> dugum("joker", [])
   DBaglama(ad) -> dugum("baglama", [tirnakla(ad)])
   DDeger(e) -> dugum("deger", [yazIfadeD(e)])
+  DAralik(alt, ust, kapsayan) -> dugum("aralik", [yazIfadeD(alt), yazIfadeD(ust), mantik(kapsayan)])
   DVaryant(enumAdi, varyant, altlar) -> dugum("varyant", [
     if enumAdi == none { "-" } else { tirnakla(enumAdi!) },
     tirnakla(varyant),
@@ -418,7 +421,7 @@ fn yazDesen(d: Desen) -> String = match d {
 }
 
 fn yazKol(k: Kol) -> String =
-  konumla(dugum("kol", [yazDesenD(k.desen), yazGovde(k.govde)]), k.konum)
+  konumla(dugum("kol", [yazDesenD(k.desen), yazGovde(k.govde), yazIfadeOps(k.kosul)]), k.konum)
 
 // --- deyim yazımı ---------------------------------------------------------
 

@@ -733,7 +733,7 @@ class Uygulama {
       console.log(`arayüz: '${this.kokSecici}' bulunamadı`);
       return;
     }
-    const alan = $unwrap(kok, "1440:19");
+    const alan = $unwrap(kok, "1439:19");
     const odak = odagiOku();
     odakSayaciniSifirla();
     hareketSayaciniSifirla();
@@ -940,23 +940,19 @@ function tarihGun(t) {
 }
 
 function artikYilMi(yil) {
-  if (($imod(yil, 400) === 0)) {
-    return true;
-  }
-  if (($imod(yil, 100) === 0)) {
-    return false;
-  }
-  return ($imod(yil, 4) === 0);
+  return (($m3) => {
+      if (($imod($m3, 400) === 0)) { const y = $m3; return true; }
+      if (($imod($m3, 100) === 0)) { const y = $m3; return false; }
+      return ($imod(yil, 4) === 0);
+    })(yil);
 }
 
 function ayGunSayisi(yil, ay) {
-  if (((ay < 1) || (ay > 12))) {
-    return 0;
-  }
-  if (((ay === 2) && artikYilMi(yil))) {
-    return 29;
-  }
-  return $listGet(AY_GUNLERI, (ay - 1));
+  return (($m4) => {
+      if ($eq($m4, 2) && (artikYilMi(yil))) { return 29; }
+      if (($m4 >= 1 && $m4 <= 12)) { return $listGet(AY_GUNLERI, (ay - 1)); }
+      return 0;
+    })(ay);
 }
 
 function gunNumarasi(yil, ay, gun) {
@@ -1027,17 +1023,17 @@ function oncekiAyi(ay) {
 }
 
 function ayAdi(ay) {
-  if (((ay < 1) || (ay > 12))) {
-    return "";
-  }
-  return $listGet(AY_ADLARI, (ay - 1));
+  return (($m5) => {
+      if (($m5 >= 1 && $m5 <= 12)) { return $listGet(AY_ADLARI, (ay - 1)); }
+      return "";
+    })(ay);
 }
 
 function ayKisaAdi(ay) {
-  if (((ay < 1) || (ay > 12))) {
-    return "";
-  }
-  return $listGet(AY_KISA, (ay - 1));
+  return (($m6) => {
+      if (($m6 >= 1 && $m6 <= 12)) { return $listGet(AY_KISA, (ay - 1)); }
+      return "";
+    })(ay);
 }
 
 function tarihMetni(t) {
@@ -1217,69 +1213,69 @@ function siraliOge(ogeler) {
 }
 
 function ogeYap(g) {
-  return (($m3) => {
-      if ($m3.$tag === "Baslik") { const yazi = $m3.$values[0]; return yaziOgesi("h2", "nar-baslik", yazi); }
-      if ($m3.$tag === "AltBaslik") { const yazi = $m3.$values[0]; return yaziOgesi("h3", "nar-altbaslik", yazi); }
-      if ($m3.$tag === "Metin") { const yazi = $m3.$values[0]; return yaziOgesi("div", "nar-metin", yazi); }
-      if ($m3.$tag === "Paragraf") { const yazi = $m3.$values[0]; return yaziOgesi("p", "nar-paragraf", yazi); }
-      if ($m3.$tag === "Etiket") { const yazi = $m3.$values[0]; return yaziOgesi("div", "nar-etiket", yazi); }
-      if ($m3.$tag === "Soluk") { const yazi = $m3.$values[0]; return yaziOgesi("div", "nar-solukyazi", yazi); }
-      if ($m3.$tag === "Rozet") { const yazi = $m3.$values[0]; const ton = $m3.$values[1]; return yaziOgesi("span", ("nar-rozet nar-rozet-" + ton), yazi); }
-      if ($m3.$tag === "Bag") { const yazi = $m3.$values[0]; const adres = $m3.$values[1]; return bagOgesi(yazi, adres); }
-      if ($m3.$tag === "Alinti") { const soz = $m3.$values[0]; const kaynak = $m3.$values[1]; return alintiOgesi(soz, kaynak); }
-      if ($m3.$tag === "KodBloku") { const kod = $m3.$values[0]; return kodOgesi(kod); }
-      if ($m3.$tag === "Dugme") { const etiket = $m3.$values[0]; const islev = $m3.$values[1]; return dugmeOgesi("nar-dugme", etiket, islev); }
-      if ($m3.$tag === "IkincilDugme") { const etiket = $m3.$values[0]; const islev = $m3.$values[1]; return dugmeOgesi("nar-dugme-ikincil", etiket, islev); }
-      if ($m3.$tag === "SessizDugme") { const etiket = $m3.$values[0]; const islev = $m3.$values[1]; return dugmeOgesi("nar-dugme-sessiz", etiket, islev); }
-      if ($m3.$tag === "TehlikeDugmesi") { const etiket = $m3.$values[0]; const islev = $m3.$values[1]; return dugmeOgesi("nar-dugme-tehlike", etiket, islev); }
-      if ($m3.$tag === "IkonDugme") { const simge = $m3.$values[0]; const etiket = $m3.$values[1]; const islev = $m3.$values[2]; return ikonDugmesi(simge, etiket, islev); }
-      if ($m3.$tag === "Giris") { const yerTutucu = $m3.$values[0]; const deger = $m3.$values[1]; const degisince = $m3.$values[2]; return girisOgesi(yerTutucu, deger, degisince); }
-      if ($m3.$tag === "CokSatir") { const yerTutucu = $m3.$values[0]; const deger = $m3.$values[1]; const degisince = $m3.$values[2]; return cokSatirOgesi(yerTutucu, deger, degisince); }
-      if ($m3.$tag === "SayiGirisi") { const yerTutucu = $m3.$values[0]; const deger = $m3.$values[1]; const degisince = $m3.$values[2]; return sayiOgesi(yerTutucu, deger, degisince); }
-      if ($m3.$tag === "Onay") { const etiket = $m3.$values[0]; const isaretli = $m3.$values[1]; const degisince = $m3.$values[2]; return onayOgesi(etiket, isaretli, degisince); }
-      if ($m3.$tag === "Secim") { const secenekler = $m3.$values[0]; const secili = $m3.$values[1]; const degisince = $m3.$values[2]; return secimOgesi(secenekler, secili, degisince); }
-      if ($m3.$tag === "Anahtar") { const etiket = $m3.$values[0]; const acik = $m3.$values[1]; const degisince = $m3.$values[2]; return anahtarOgesi(etiket, acik, degisince); }
-      if ($m3.$tag === "Radyo") { const secenekler = $m3.$values[0]; const secili = $m3.$values[1]; const degisince = $m3.$values[2]; return radyoOgesi(secenekler, secili, degisince); }
-      if ($m3.$tag === "Kaydirici") { const enAz = $m3.$values[0]; const enCok = $m3.$values[1]; const deger = $m3.$values[2]; const degisince = $m3.$values[3]; return kaydiriciOgesi(enAz, enCok, deger, degisince); }
-      if ($m3.$tag === "Alan") { const etiket = $m3.$values[0]; const ipucu = $m3.$values[1]; const ic = $m3.$values[2]; return alanOgesi(etiket, ipucu, ic, false); }
-      if ($m3.$tag === "HataliAlan") { const etiket = $m3.$values[0]; const hata = $m3.$values[1]; const ic = $m3.$values[2]; return alanOgesi(etiket, hata, ic, true); }
-      if ($m3.$tag === "Sutun") { const cocuklar = $m3.$values[0]; return kapsayici("nar-sutun", cocuklar); }
-      if ($m3.$tag === "Satir") { const cocuklar = $m3.$values[0]; return kapsayici("nar-satir", cocuklar); }
-      if ($m3.$tag === "SatirYay") { const cocuklar = $m3.$values[0]; return kapsayici("nar-satir-yay", cocuklar); }
-      if ($m3.$tag === "Esnek") { const cocuklar = $m3.$values[0]; return kapsayici("nar-esnek", cocuklar); }
-      if ($m3.$tag === "Izgara") { const sutun = $m3.$values[0]; const cocuklar = $m3.$values[1]; return izgaraOgesi(sutun, cocuklar); }
-      if ($m3.$tag === "Genislik") { const px = $m3.$values[0]; const ic = $m3.$values[1]; return genislikOgesi(px, ic); }
-      if ($m3.$tag === "Kutu") { const cocuklar = $m3.$values[0]; return kapsayici("nar-kutu", cocuklar); }
-      if ($m3.$tag === "Kart") { const baslik = $m3.$values[0]; const cocuklar = $m3.$values[1]; return kartOgesi(baslik, cocuklar); }
-      if ($m3.$tag === "Ortala") { const ic = $m3.$values[0]; return kapsayici("nar-ortala", [ic]); }
-      if ($m3.$tag === "Ayrac") { const etiket = $m3.$values[0]; return ayracOgesi(etiket); }
-      if ($m3.$tag === "Uyari") { const ton = $m3.$values[0]; const mesaj = $m3.$values[1]; return yaziOgesi("div", ("nar-uyari nar-uyari-" + ton), mesaj); }
-      if ($m3.$tag === "Liste") { const ogeler = $m3.$values[0]; return listeOgesi(ogeler); }
-      if ($m3.$tag === "Tablo") { const basliklar = $m3.$values[0]; const satirlar = $m3.$values[1]; return tabloOgesi(basliklar, satirlar); }
-      if ($m3.$tag === "Ilerleme") { const yuzde = $m3.$values[0]; return ilerlemeOgesi(yuzde); }
-      if ($m3.$tag === "Resim") { const adres = $m3.$values[0]; const aciklama = $m3.$values[1]; return resimOgesi(adres, aciklama); }
-      if ($m3.$tag === "Sekmeler") { const basliklar = $m3.$values[0]; const secili = $m3.$values[1]; const degisince = $m3.$values[2]; return sekmeOgesi(basliklar, secili, degisince); }
-      if ($m3.$tag === "Simge") { const ad = $m3.$values[0]; return simgeOgesi(ad); }
-      if ($m3.$tag === "Avatar") { const ad = $m3.$values[0]; const adres = $m3.$values[1]; return avatarOgesi(ad, adres); }
-      if ($m3.$tag === "Istatistik") { const baslik = $m3.$values[0]; const deger = $m3.$values[1]; const degisim = $m3.$values[2]; return istatistikOgesi(baslik, deger, degisim); }
-      if ($m3.$tag === "Cubuklar") { const degerler = $m3.$values[0]; const etiketler = $m3.$values[1]; return cubukOgesi(degerler, etiketler); }
-      if ($m3.$tag === "Adimlar") { const adlar = $m3.$values[0]; const simdi = $m3.$values[1]; return adimOgesi(adlar, simdi); }
-      if ($m3.$tag === "BosDurum") { const simge = $m3.$values[0]; const baslik = $m3.$values[1]; const aciklama = $m3.$values[2]; const eylem = $m3.$values[3]; return bosDurumOgesi(simge, baslik, aciklama, eylem); }
-      if ($m3.$tag === "Sayfalama") { const simdi = $m3.$values[0]; const toplam = $m3.$values[1]; const gidince = $m3.$values[2]; return sayfalamaOgesi(simdi, toplam, gidince); }
-      if ($m3.$tag === "Akordeon") { const basliklar = $m3.$values[0]; const govdeler = $m3.$values[1]; const acik = $m3.$values[2]; const degisince = $m3.$values[3]; return akordeonOgesi(basliklar, govdeler, acik, degisince); }
-      if ($m3.$tag === "Takvim") { const durum = $m3.$values[0]; const degisince = $m3.$values[1]; return takvimOgesi(durum, degisince); }
-      if ($m3.$tag === "Menu") { const etiket = $m3.$values[0]; const ogeler = $m3.$values[1]; const secince = $m3.$values[2]; return menuOgesi(etiket, ogeler, secince); }
-      if ($m3.$tag === "Ipucu") { const not = $m3.$values[0]; const ic = $m3.$values[1]; return ipucuOgesi(not, ic); }
-      if ($m3.$tag === "Iletisim") { const baslik = $m3.$values[0]; const cocuklar = $m3.$values[1]; const kapaninca = $m3.$values[2]; return iletisimOgesi(baslik, cocuklar, kapaninca); }
-      if ($m3.$tag === "Uyarla") { const ic = $m3.$values[0]; const u = $m3.$values[1]; return uyarlaOge(ic, u); }
-      if ($m3.$tag === "Hareketli") { const ad = $m3.$values[0]; const ic = $m3.$values[1]; return hareketliOge(ad, ic); }
-      if ($m3.$tag === "Sirali") { const ogeler = $m3.$values[0]; return siraliOge(ogeler); }
-      if ($m3.$tag === "Iskelet") { const satir = $m3.$values[0]; return iskeletOgesi(satir); }
-      if ($m3.$tag === "Donuyor") { const etiket = $m3.$values[0]; return donuyorOgesi(etiket); }
-      if ($m3.$tag === "Bosluk") { const yukseklik = $m3.$values[0]; return boslukOgesi(yukseklik); }
-      if ($m3.$tag === "Cizgi") { return sinifliOge("div", "nar-cizgi"); }
-      if ($m3.$tag === "Bos") { return $olustur("span"); }
-      $panic("eşleşen match dalı yok: " + $str($m3));
+  return (($m7) => {
+      if ($m7.$tag === "Baslik") { const yazi = $m7.$values[0]; return yaziOgesi("h2", "nar-baslik", yazi); }
+      if ($m7.$tag === "AltBaslik") { const yazi = $m7.$values[0]; return yaziOgesi("h3", "nar-altbaslik", yazi); }
+      if ($m7.$tag === "Metin") { const yazi = $m7.$values[0]; return yaziOgesi("div", "nar-metin", yazi); }
+      if ($m7.$tag === "Paragraf") { const yazi = $m7.$values[0]; return yaziOgesi("p", "nar-paragraf", yazi); }
+      if ($m7.$tag === "Etiket") { const yazi = $m7.$values[0]; return yaziOgesi("div", "nar-etiket", yazi); }
+      if ($m7.$tag === "Soluk") { const yazi = $m7.$values[0]; return yaziOgesi("div", "nar-solukyazi", yazi); }
+      if ($m7.$tag === "Rozet") { const yazi = $m7.$values[0]; const ton = $m7.$values[1]; return yaziOgesi("span", ("nar-rozet nar-rozet-" + ton), yazi); }
+      if ($m7.$tag === "Bag") { const yazi = $m7.$values[0]; const adres = $m7.$values[1]; return bagOgesi(yazi, adres); }
+      if ($m7.$tag === "Alinti") { const soz = $m7.$values[0]; const kaynak = $m7.$values[1]; return alintiOgesi(soz, kaynak); }
+      if ($m7.$tag === "KodBloku") { const kod = $m7.$values[0]; return kodOgesi(kod); }
+      if ($m7.$tag === "Dugme") { const etiket = $m7.$values[0]; const islev = $m7.$values[1]; return dugmeOgesi("nar-dugme", etiket, islev); }
+      if ($m7.$tag === "IkincilDugme") { const etiket = $m7.$values[0]; const islev = $m7.$values[1]; return dugmeOgesi("nar-dugme-ikincil", etiket, islev); }
+      if ($m7.$tag === "SessizDugme") { const etiket = $m7.$values[0]; const islev = $m7.$values[1]; return dugmeOgesi("nar-dugme-sessiz", etiket, islev); }
+      if ($m7.$tag === "TehlikeDugmesi") { const etiket = $m7.$values[0]; const islev = $m7.$values[1]; return dugmeOgesi("nar-dugme-tehlike", etiket, islev); }
+      if ($m7.$tag === "IkonDugme") { const simge = $m7.$values[0]; const etiket = $m7.$values[1]; const islev = $m7.$values[2]; return ikonDugmesi(simge, etiket, islev); }
+      if ($m7.$tag === "Giris") { const yerTutucu = $m7.$values[0]; const deger = $m7.$values[1]; const degisince = $m7.$values[2]; return girisOgesi(yerTutucu, deger, degisince); }
+      if ($m7.$tag === "CokSatir") { const yerTutucu = $m7.$values[0]; const deger = $m7.$values[1]; const degisince = $m7.$values[2]; return cokSatirOgesi(yerTutucu, deger, degisince); }
+      if ($m7.$tag === "SayiGirisi") { const yerTutucu = $m7.$values[0]; const deger = $m7.$values[1]; const degisince = $m7.$values[2]; return sayiOgesi(yerTutucu, deger, degisince); }
+      if ($m7.$tag === "Onay") { const etiket = $m7.$values[0]; const isaretli = $m7.$values[1]; const degisince = $m7.$values[2]; return onayOgesi(etiket, isaretli, degisince); }
+      if ($m7.$tag === "Secim") { const secenekler = $m7.$values[0]; const secili = $m7.$values[1]; const degisince = $m7.$values[2]; return secimOgesi(secenekler, secili, degisince); }
+      if ($m7.$tag === "Anahtar") { const etiket = $m7.$values[0]; const acik = $m7.$values[1]; const degisince = $m7.$values[2]; return anahtarOgesi(etiket, acik, degisince); }
+      if ($m7.$tag === "Radyo") { const secenekler = $m7.$values[0]; const secili = $m7.$values[1]; const degisince = $m7.$values[2]; return radyoOgesi(secenekler, secili, degisince); }
+      if ($m7.$tag === "Kaydirici") { const enAz = $m7.$values[0]; const enCok = $m7.$values[1]; const deger = $m7.$values[2]; const degisince = $m7.$values[3]; return kaydiriciOgesi(enAz, enCok, deger, degisince); }
+      if ($m7.$tag === "Alan") { const etiket = $m7.$values[0]; const ipucu = $m7.$values[1]; const ic = $m7.$values[2]; return alanOgesi(etiket, ipucu, ic, false); }
+      if ($m7.$tag === "HataliAlan") { const etiket = $m7.$values[0]; const hata = $m7.$values[1]; const ic = $m7.$values[2]; return alanOgesi(etiket, hata, ic, true); }
+      if ($m7.$tag === "Sutun") { const cocuklar = $m7.$values[0]; return kapsayici("nar-sutun", cocuklar); }
+      if ($m7.$tag === "Satir") { const cocuklar = $m7.$values[0]; return kapsayici("nar-satir", cocuklar); }
+      if ($m7.$tag === "SatirYay") { const cocuklar = $m7.$values[0]; return kapsayici("nar-satir-yay", cocuklar); }
+      if ($m7.$tag === "Esnek") { const cocuklar = $m7.$values[0]; return kapsayici("nar-esnek", cocuklar); }
+      if ($m7.$tag === "Izgara") { const sutun = $m7.$values[0]; const cocuklar = $m7.$values[1]; return izgaraOgesi(sutun, cocuklar); }
+      if ($m7.$tag === "Genislik") { const px = $m7.$values[0]; const ic = $m7.$values[1]; return genislikOgesi(px, ic); }
+      if ($m7.$tag === "Kutu") { const cocuklar = $m7.$values[0]; return kapsayici("nar-kutu", cocuklar); }
+      if ($m7.$tag === "Kart") { const baslik = $m7.$values[0]; const cocuklar = $m7.$values[1]; return kartOgesi(baslik, cocuklar); }
+      if ($m7.$tag === "Ortala") { const ic = $m7.$values[0]; return kapsayici("nar-ortala", [ic]); }
+      if ($m7.$tag === "Ayrac") { const etiket = $m7.$values[0]; return ayracOgesi(etiket); }
+      if ($m7.$tag === "Uyari") { const ton = $m7.$values[0]; const mesaj = $m7.$values[1]; return yaziOgesi("div", ("nar-uyari nar-uyari-" + ton), mesaj); }
+      if ($m7.$tag === "Liste") { const ogeler = $m7.$values[0]; return listeOgesi(ogeler); }
+      if ($m7.$tag === "Tablo") { const basliklar = $m7.$values[0]; const satirlar = $m7.$values[1]; return tabloOgesi(basliklar, satirlar); }
+      if ($m7.$tag === "Ilerleme") { const yuzde = $m7.$values[0]; return ilerlemeOgesi(yuzde); }
+      if ($m7.$tag === "Resim") { const adres = $m7.$values[0]; const aciklama = $m7.$values[1]; return resimOgesi(adres, aciklama); }
+      if ($m7.$tag === "Sekmeler") { const basliklar = $m7.$values[0]; const secili = $m7.$values[1]; const degisince = $m7.$values[2]; return sekmeOgesi(basliklar, secili, degisince); }
+      if ($m7.$tag === "Simge") { const ad = $m7.$values[0]; return simgeOgesi(ad); }
+      if ($m7.$tag === "Avatar") { const ad = $m7.$values[0]; const adres = $m7.$values[1]; return avatarOgesi(ad, adres); }
+      if ($m7.$tag === "Istatistik") { const baslik = $m7.$values[0]; const deger = $m7.$values[1]; const degisim = $m7.$values[2]; return istatistikOgesi(baslik, deger, degisim); }
+      if ($m7.$tag === "Cubuklar") { const degerler = $m7.$values[0]; const etiketler = $m7.$values[1]; return cubukOgesi(degerler, etiketler); }
+      if ($m7.$tag === "Adimlar") { const adlar = $m7.$values[0]; const simdi = $m7.$values[1]; return adimOgesi(adlar, simdi); }
+      if ($m7.$tag === "BosDurum") { const simge = $m7.$values[0]; const baslik = $m7.$values[1]; const aciklama = $m7.$values[2]; const eylem = $m7.$values[3]; return bosDurumOgesi(simge, baslik, aciklama, eylem); }
+      if ($m7.$tag === "Sayfalama") { const simdi = $m7.$values[0]; const toplam = $m7.$values[1]; const gidince = $m7.$values[2]; return sayfalamaOgesi(simdi, toplam, gidince); }
+      if ($m7.$tag === "Akordeon") { const basliklar = $m7.$values[0]; const govdeler = $m7.$values[1]; const acik = $m7.$values[2]; const degisince = $m7.$values[3]; return akordeonOgesi(basliklar, govdeler, acik, degisince); }
+      if ($m7.$tag === "Takvim") { const durum = $m7.$values[0]; const degisince = $m7.$values[1]; return takvimOgesi(durum, degisince); }
+      if ($m7.$tag === "Menu") { const etiket = $m7.$values[0]; const ogeler = $m7.$values[1]; const secince = $m7.$values[2]; return menuOgesi(etiket, ogeler, secince); }
+      if ($m7.$tag === "Ipucu") { const not = $m7.$values[0]; const ic = $m7.$values[1]; return ipucuOgesi(not, ic); }
+      if ($m7.$tag === "Iletisim") { const baslik = $m7.$values[0]; const cocuklar = $m7.$values[1]; const kapaninca = $m7.$values[2]; return iletisimOgesi(baslik, cocuklar, kapaninca); }
+      if ($m7.$tag === "Uyarla") { const ic = $m7.$values[0]; const u = $m7.$values[1]; return uyarlaOge(ic, u); }
+      if ($m7.$tag === "Hareketli") { const ad = $m7.$values[0]; const ic = $m7.$values[1]; return hareketliOge(ad, ic); }
+      if ($m7.$tag === "Sirali") { const ogeler = $m7.$values[0]; return siraliOge(ogeler); }
+      if ($m7.$tag === "Iskelet") { const satir = $m7.$values[0]; return iskeletOgesi(satir); }
+      if ($m7.$tag === "Donuyor") { const etiket = $m7.$values[0]; return donuyorOgesi(etiket); }
+      if ($m7.$tag === "Bosluk") { const yukseklik = $m7.$values[0]; return boslukOgesi(yukseklik); }
+      if ($m7.$tag === "Cizgi") { return sinifliOge("div", "nar-cizgi"); }
+      if ($m7.$tag === "Bos") { return $olustur("span"); }
+      $panic("eşleşen match dalı yok: " + $str($m7));
     })(g);
 }
 
@@ -1665,13 +1661,11 @@ function avatarOgesi(ad, adres) {
 }
 
 function degisimSinifi(degisim) {
-  if (degisim.startsWith("+")) {
-    return "nar-degisim-arti";
-  }
-  if (degisim.startsWith("-")) {
-    return "nar-degisim-eksi";
-  }
-  return "nar-degisim-notr";
+  return (($m8) => {
+      if ($m8.startsWith("+")) { const d = $m8; return "nar-degisim-arti"; }
+      if ($m8.startsWith("-")) { const d = $m8; return "nar-degisim-eksi"; }
+      return "nar-degisim-notr";
+    })(degisim);
 }
 
 function istatistikOgesi(baslik, deger, degisim) {
@@ -1876,9 +1870,9 @@ function iletisimOgesi(baslik, cocuklar, kapaninca) {
   return perde;
 }
 
-function takvimDurumu() {
+function takvimDurumu(aySayisi, tekTarih, gecmisAcik) {
   const b = bugun();
-  return new TakvimDurumu(tarihYil(b), tarihAy(b), 0, 0, b, 0, 2, false);
+  return new TakvimDurumu(tarihYil(b), tarihAy(b), 0, 0, (gecmisAcik ? 0 : b), 0, aySayisi, tekTarih);
 }
 
 function takvimKopyala(d) {
@@ -2431,7 +2425,7 @@ function main() {
     console.log("Derle:  nar build ornekler/arayuz_galerisi.nar --target web");
     return;
   }
-  const baslangic = new Durum(0, "", "", 28, true, "Mardin", 62, false, "Haftalık", 40, 0, 1, false, "", 1, 0, false, true, takvimDurumu());
+  const baslangic = new Durum(0, "", "", 28, true, "Mardin", 62, false, "Haftalık", 40, 0, 1, false, "", 1, 0, false, true, takvimDurumu(2, false, false));
   deriSec("yumusak");
   uygulama = uygulamaBaslat("#uygulama", baslangic, ciz);
   genislikKur(1080);

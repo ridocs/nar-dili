@@ -236,6 +236,14 @@ class EnumPat(Pattern):
     subpatterns: list[Pattern] = field(default_factory=list)
 
 
+@dataclass
+class RangePat(Pattern):
+    """`1..=5` ya da `1..5` — sayı ve metin aralıkları."""
+    low: Expr = None    # type: ignore[assignment]
+    high: Expr = None   # type: ignore[assignment]
+    inclusive: bool = True
+
+
 # ------------------------------------------------------------------ deyimler
 @dataclass
 class Stmt(Node):
@@ -302,6 +310,8 @@ class For(Stmt):
 class MatchArm(Node):
     pattern: Pattern = None  # type: ignore[assignment]
     body: object = None      # Block | Expr
+    # `desen if koşul ->` — desen tutsa bile koşul yanlışsa bu kol atlanır.
+    guard: Optional[Expr] = None
 
 
 @dataclass

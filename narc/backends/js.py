@@ -263,6 +263,8 @@ class JsBackend:
         # `?` gibi ifade içinde durup deyim üreten şeylerin bıraktığı
         # satırlar; bir sonraki `write` onları kendinden önce boşaltır.
         self.bekleyen: list[str] = []
+        # Koşullu match kolunda desenin bağladığı adların karşılıkları.
+        self.desen_baglari: dict | None = None
 
     # ------------------------------------------------------------ yardımcılar
     def write(self, text: str = "") -> None:
@@ -627,6 +629,7 @@ class JsBackend:
         closed = False
         for arm in stmt.arms:
             test, bindings = self.pattern_test(arm.pattern, subject_var, stmt.subject.ty)
+            test = self.guardli_test(arm, test, bindings, subject_var)
             if test is None:  # her şeyi kapsayan dal
                 if first:
                     self.write("{")
@@ -668,6 +671,29 @@ class JsBackend:
         else:  # pragma: no cover
             self.write(self.expr(arm.body) + ";")
 
+    def guardli_test(self, arm, test, bindings, subject: str) -> str | None:
+        """Kolun testi ile koşulunu birleştirir.
+
+        Koşul, desenin bağladığı adları kullanabilir; bunlar henüz
+        değişkene atanmadığı için üretim sırasında doğrudan değerleriyle
+        karşılanır (`self.desen_baglari`).
+        """
+        if arm.guard is None:
+            return test
+        eslesme = {}
+        for satir in bindings:
+            # "const x = ifade;" biçimindeki bağları ada göre ayır.
+            if satir.startswith("const ") and " = " in satir:
+                ad, _, deger = satir[len("const "):].partition(" = ")
+                eslesme[ad.strip()] = deger.rstrip(";").strip()
+        onceki = self.desen_baglari
+        self.desen_baglari = {**(onceki or {}), **eslesme}
+        try:
+            kosul = self.expr(arm.guard)
+        finally:
+            self.desen_baglari = onceki
+        return kosul if test is None else f"{test} && ({kosul})"
+
     def pattern_test(self, pat: A.Pattern, subject: str, subject_ty: Type | None):
         """(koşul, bağlama satırları) döndürür. Koşul None ise dal her zaman eşleşir."""
         if isinstance(pat, A.WildcardPat):
@@ -683,6 +709,11 @@ class JsBackend:
             if isinstance(pat.value, A.NoneLit):
                 return f"{subject} === null", []
             return f"$eq({subject}, {self.expr(pat.value)})", []
+
+        if isinstance(pat, A.RangePat):
+            ust = "<=" if pat.inclusive else "<"
+            return (f"({subject} >= {self.expr(pat.low)} && "
+                    f"{subject} {ust} {self.expr(pat.high)})"), []
 
         if isinstance(pat, A.EnumPat):
             tests = [f"{subject}.$tag === {js_string(pat.variant)}"]
@@ -731,6 +762,11 @@ class JsBackend:
             if node.__dict__.get("resolved") == "enum_variant":
                 enum_name = self.name(node.__dict__["enum_name"])
                 return f"{enum_name}.{self.name(node.name)}"
+            # Koşullu match kolunda (`desen if koşul ->`) desenin bağladığı
+            # adlar henüz değişkene yazılmamıştır: koşul, testin içinde
+            # değerlendirilir. Bu yüzden ad, değerin kendisiyle karşılanır.
+            if self.desen_baglari and node.name in self.desen_baglari:
+                return self.desen_baglari[node.name]
             return self.name(node.name)
 
         if isinstance(node, A.ListLit):
@@ -928,6 +964,7 @@ class JsBackend:
 
         for arm in node.arms:
             test, bindings = self.pattern_test(arm.pattern, subject, node.subject.ty)
+            test = self.guardli_test(arm, test, bindings, subject)
             govde = "".join(f"{b} " for b in bindings)
             if test is None:
                 satirlar.append(f"{pad}  {govde}return {self.expr(arm.body)};")

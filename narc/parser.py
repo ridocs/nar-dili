@@ -553,18 +553,42 @@ class Parser:
             if self.at("eof"):
                 raise NarError("kapatılmamış match: '}' bekleniyor", span)
             pattern = self.parse_pattern()
+            guard = self.parse_arm_guard()
             arrow = self.expect("->", "desenden sonra '->'")
             if self.at("{"):
                 body = self.parse_block()
             else:
                 body = self.parse_stmt()
-            arms.append(A.MatchArm(arrow.span, pattern, body))
+            arms.append(A.MatchArm(arrow.span, pattern, body, guard))
             self.skip_newlines()
 
         self.expect("}", "'}'")
         if not arms:
             raise NarError("match en az bir dal içermeli", span)
         return A.Match(span, subject, arms)
+
+    def parse_arm_guard(self):
+        """`desen if koşul ->` — koşullu kol.
+
+        Desen değişken bağladıysa koşul onu kullanabilir; bu yüzden
+        `if` desenden sonra, oktan önce gelir.
+        """
+        if not self.at("if"):
+            return None
+        self.advance()
+        return self.parse_condition()
+
+    def aralik_deseni(self, tok, alt):
+        """Sabit desenden sonra `..` ya da `..=` gelirse aralıktır."""
+        if not self.at("..", "..="):
+            return A.LiteralPat(tok.span, alt)
+        kapsayan = self.cur.kind == "..="
+        self.advance()
+        if self.cur.kind == "-":
+            ust = self.parse_unary()
+        else:
+            ust = self.parse_primary()
+        return A.RangePat(tok.span, alt, ust, kapsayan)
 
     def parse_pattern(self) -> A.Pattern:
         tok = self.cur
@@ -577,11 +601,11 @@ class Parser:
 
         if tok.kind in ("int", "float", "string", "true", "false", "none"):
             value = self.parse_primary()
-            return A.LiteralPat(tok.span, value)
+            return self.aralik_deseni(tok, value)
 
         if tok.kind == "-" and self.peek(1).kind in ("int", "float"):
             value = self.parse_unary()
-            return A.LiteralPat(tok.span, value)
+            return self.aralik_deseni(tok, value)
 
         if tok.kind == ".":  # `.Varyant` — enum adı bağlamdan çıkarılır
             self.advance()
@@ -966,9 +990,10 @@ class Parser:
             if self.at("eof"):
                 raise NarError("kapatılmamış match: '}' bekleniyor", span)
             pattern = self.parse_pattern()
+            guard = self.parse_arm_guard()
             arrow = self.expect("->", "desenden sonra '->'")
             body = self.parse_arm_value()
-            arms.append(A.MatchArm(arrow.span, pattern, body))
+            arms.append(A.MatchArm(arrow.span, pattern, body, guard))
             self.skip_newlines()
 
         self.expect("}", "'}'")

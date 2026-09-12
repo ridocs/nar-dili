@@ -21,26 +21,18 @@ fn tarihGun(t: Int) -> Int = t % 100
 
 // --- takvim bilgisi -------------------------------------------------------
 
-fn artikYilMi(yil: Int) -> Bool {
-  if yil % 400 == 0 {
-    return true
-  }
-  if yil % 100 == 0 {
-    return false
-  }
-  return yil % 4 == 0
+fn artikYilMi(yil: Int) -> Bool = match yil {
+  y if y % 400 == 0 -> true
+  y if y % 100 == 0 -> false
+  _ -> yil % 4 == 0
 }
 
 let AY_GUNLERI = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
-fn ayGunSayisi(yil: Int, ay: Int) -> Int {
-  if ay < 1 || ay > 12 {
-    return 0
-  }
-  if ay == 2 && artikYilMi(yil) {
-    return 29
-  }
-  return AY_GUNLERI[ay - 1]
+fn ayGunSayisi(yil: Int, ay: Int) -> Int = match ay {
+  2 if artikYilMi(yil) -> 29
+  1..=12 -> AY_GUNLERI[ay - 1]
+  _ -> 0
 }
 
 // Gregoryen takvimde gün numarası (Julian Day Number). İki tarihi
@@ -120,18 +112,14 @@ let AY_KISA = ["Oca", "Şub", "Mar", "Nis", "May", "Haz",
 // Pazartesiden başlar; takvim ızgarasının başlık satırı budur.
 let GUN_KISA = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]
 
-fn ayAdi(ay: Int) -> String {
-  if ay < 1 || ay > 12 {
-    return ""
-  }
-  return AY_ADLARI[ay - 1]
+fn ayAdi(ay: Int) -> String = match ay {
+  1..=12 -> AY_ADLARI[ay - 1]
+  _ -> ""
 }
 
-fn ayKisaAdi(ay: Int) -> String {
-  if ay < 1 || ay > 12 {
-    return ""
-  }
-  return AY_KISA[ay - 1]
+fn ayKisaAdi(ay: Int) -> String = match ay {
+  1..=12 -> AY_KISA[ay - 1]
+  _ -> ""
 }
 
 fn tarihMetni(t: Int) -> String {

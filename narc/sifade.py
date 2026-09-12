@@ -213,6 +213,9 @@ def _desen(p) -> str:
         return dugum("baglama", kacir(p.name))
     if isinstance(p, A.LiteralPat):
         return dugum("deger", ifade(p.value))
+    if isinstance(p, A.RangePat):
+        return dugum("aralik", ifade(p.low), ifade(p.high),
+                     "true" if p.inclusive else "false")
     if isinstance(p, A.EnumPat):
         enum_adi = kacir(p.enum_name) if p.enum_name is not None else "-"
         return dugum("varyant", enum_adi, kacir(p.variant),
@@ -221,7 +224,8 @@ def _desen(p) -> str:
 
 
 def kol(a: A.MatchArm) -> str:
-    return konumla(dugum("kol", desen(a.pattern), govde(a.body)), a.span)
+    return konumla(
+        dugum("kol", desen(a.pattern), govde(a.body), ifade(a.guard)), a.span)
 
 
 # ----------------------------------------------------------------- deyimler

@@ -828,6 +828,23 @@ class Checker:
             env.define(name, ty, False)
 
     # ------------------------------------------------------------------ match
+    def kol_kosulu(self, arm, arm_env: Env, kapsiyor: bool) -> bool:
+        """Koşullu kolun koşulunu denetler; kapsama hakkını düşürür.
+
+        `x if x > 3 ->` deseni her değeri tutar ama koşul tutmayabilir;
+        bu yüzden match'i tamamlamış sayılmaz. Yoksa derleyici eksik
+        dalları görmezden gelirdi.
+        """
+        if arm.guard is None:
+            return kapsiyor
+        got = self.check_expr(arm.guard, arm_env, BOOL)
+        if not assignable(BOOL, got):
+            self.error(
+                f"kol koşulu 'Bool' olmalı, '{got}' bulundu",
+                arm.guard.span,
+            )
+        return False
+
     def check_match(self, stmt: A.Match, env: Env) -> None:
         subject = self.check_expr(stmt.subject, env)
         base = unwrap_optional(subject)
@@ -836,7 +853,8 @@ class Checker:
 
         for arm in stmt.arms:
             arm_env = env.child()
-            if self.check_pattern(arm.pattern, subject, arm_env, covered):
+            kapsiyor = self.check_pattern(arm.pattern, subject, arm_env, covered)
+            if self.kol_kosulu(arm, arm_env, kapsiyor):
                 has_catch_all = True
             if isinstance(arm.body, A.Block):
                 self.check_block(arm.body, arm_env)
@@ -890,6 +908,25 @@ class Checker:
                     f"desen tipi '{got}', eşlenen değer '{subject}'",
                     pat.span,
                 )
+            return False
+
+        if isinstance(pat, A.RangePat):
+            # Aralık uçları eşlenen değerle aynı tipte olmalı ve
+            # karşılaştırılabilir olmalı: sayı ya da metin.
+            taban = unwrap_optional(subject)
+            for uc in (pat.low, pat.high):
+                got = self.check_expr(uc, env, taban)
+                if not assignable(taban, got):
+                    self.error(
+                        f"aralık ucunun tipi '{got}', eşlenen değer '{subject}'",
+                        uc.span,
+                    )
+                elif taban not in ORDERED and not isinstance(taban, AnyT):
+                    self.error(
+                        f"'{taban}' aralık deseninde kullanılamaz",
+                        pat.span,
+                        hint="aralık yalnız sayı ve metin için geçerli",
+                    )
             return False
 
         if isinstance(pat, A.EnumPat):
@@ -1827,7 +1864,8 @@ class Checker:
 
         for arm in node.arms:
             arm_env = env.child()
-            if self.check_pattern(arm.pattern, subject, arm_env, covered):
+            kapsiyor = self.check_pattern(arm.pattern, subject, arm_env, covered)
+            if self.kol_kosulu(arm, arm_env, kapsiyor):
                 has_catch_all = True
             with self.yasakta("değer üreten 'match'in kollarında"):
                 arm_ty = self.check_expr(arm.body, arm_env, expected or result)
