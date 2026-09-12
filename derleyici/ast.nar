@@ -42,10 +42,17 @@ enum TipIfadesi {
   TIslev([TipD], TipD?)                  // (Int) -> Bool
 }
 
+// Çağrı argümanları ve adları. `f(1, ad: 2)` için adlar ["", "ad"].
+struct Argumanlar {
+  args: [IfadeD]
+  adlar: [String]
+}
+
 struct Parametre {
   konum: Konum
   ad: String
   tip: TipD?
+  varsayilan: IfadeD? = none      // `a: Int = 5`
 }
 
 // --- ifadeler -------------------------------------------------------------
@@ -86,7 +93,7 @@ enum Ifade {
   ITekli(String, IfadeD)                 // -x, !x
   IIkili(String, IfadeD, IfadeD)
   IAralik(IfadeD, IfadeD, Bool)          // son dahil mi
-  ICagri(IfadeD, [IfadeD])
+  ICagri(IfadeD, [IfadeD], [String])     // hedef, argümanlar, argüman adları
   IDizin(IfadeD, IfadeD)
   IAlan(IfadeD, String, Bool)            // güvenli mi (?.)
   IAc(IfadeD)                            // x!
@@ -180,6 +187,7 @@ struct AlanBildirimi {
   ad: String
   tip: TipD
   degisebilir: Bool
+  varsayilan: IfadeD? = none      // `var n: Int = 0`
 }
 
 struct VaryantBildirimi {
@@ -336,7 +344,9 @@ fn yazTipOps(t: TipD?) -> String {
 }
 
 fn yazParametre(p: Parametre) -> String =
-  konumla(dugum("parametre", [tirnakla(p.ad), yazTipOps(p.tip)]), p.konum)
+  konumla(dugum("parametre",
+                [tirnakla(p.ad), yazTipOps(p.tip), yazIfadeOps(p.varsayilan)]),
+          p.konum)
 
 // --- ifade yazımı ---------------------------------------------------------
 
@@ -360,7 +370,7 @@ fn yazIfade(e: Ifade) -> String = match e {
   ITekli(op, x) -> dugum("tekli", [tirnakla(op), yazIfadeD(x)])
   IIkili(op, sol, sag) -> dugum("ikili", [tirnakla(op), yazIfadeD(sol), yazIfadeD(sag)])
   IAralik(bas, son, dahil) -> dugum("aralik", [yazIfadeD(bas), yazIfadeD(son), mantik(dahil)])
-  ICagri(hedef, args) -> dugum("cagri", [yazIfadeD(hedef), dizi(args.map(|a| yazIfadeD(a)))])
+  ICagri(hedef, args, adlar) -> dugum("cagri", [yazIfadeD(hedef), dizi(args.map(|a| yazIfadeD(a))), dizi(adlar.map(|a| if a == "" { "-" } else { tirnakla(a) }))])
   IDizin(nesne, dizin) -> dugum("dizin", [yazIfadeD(nesne), yazIfadeD(dizin)])
   IAlan(nesne, ad, guvenli) -> dugum("alanerisim", [yazIfadeD(nesne), tirnakla(ad), mantik(guvenli)])
   IAc(x) -> dugum("ac", [yazIfadeD(x)])
@@ -467,7 +477,10 @@ fn yazIslevGovdesi(f: IslevBildirimi) -> String = dugum("fn", [
 ])
 
 fn yazAlanBildirimi(a: AlanBildirimi) -> String =
-  konumla(dugum("alandecl", [tirnakla(a.ad), yazTip(a.tip), mantik(a.degisebilir)]), a.konum)
+  konumla(dugum("alandecl",
+                [tirnakla(a.ad), yazTip(a.tip), mantik(a.degisebilir),
+                 yazIfadeOps(a.varsayilan)]),
+          a.konum)
 
 fn yazVaryantBildirimi(v: VaryantBildirimi) -> String =
   konumla(dugum("varyantdecl", [tirnakla(v.ad), dizi(v.yuk.map(|t| yazTip(t)))]), v.konum)

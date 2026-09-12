@@ -448,7 +448,12 @@ struct Cozumleyici {
       let ad = self.beklenenAd("parametre adı")
       self.bekle(":", "parametre tipinden önce ':'")
       let tip = self.tipCozumle()
-      params.push(Parametre { konum: k, ad: ad, tip: tip })
+      // `= ifade` varsa bu parametre çağrıda atlanabilir.
+      var varsayilan: IfadeD? = none
+      if self.al("=") {
+        varsayilan = self.ifadeCozumle()
+      }
+      params.push(Parametre { konum: k, ad: ad, tip: tip, varsayilan: varsayilan })
       self.satirSonlariniAtla()
       devam = self.al(",")
       self.satirSonlariniAtla()
@@ -479,8 +484,13 @@ struct Cozumleyici {
         let alanAdi = self.beklenenAd("alan adı")
         self.bekle(":", "alan tipinden önce ':'")
         let tip = self.tipCozumle()
+        var alanVarsayilani: IfadeD? = none
+        if self.al("=") {
+          alanVarsayilani = self.ifadeCozumle()
+        }
         alanlar.push(AlanBildirimi {
-          konum: alanKonumu, ad: alanAdi, tip: tip, degisebilir: degisebilir
+          konum: alanKonumu, ad: alanAdi, tip: tip, degisebilir: degisebilir,
+          varsayilan: alanVarsayilani
         })
       }
       self.satirSonlariniAtla()
@@ -894,7 +904,8 @@ struct Cozumleyici {
       }
       if tur == "(" {
         self.ilerle()
-        e = self.ifadeD(k, ICagri(e, self.argumanlarCozumle()))
+        let cagriArgs = self.argumanlarCozumle()
+      e = self.ifadeD(k, ICagri(e, cagriArgs.args, cagriArgs.adlar))
         continue
       }
       if tur == "[" {
@@ -1001,14 +1012,25 @@ struct Cozumleyici {
     return self.ifadeD(k, IStruct(adiniAl(tipIfadesi), targs, alanlar))
   }
 
-  fn argumanlarCozumle() -> [IfadeD] {
+  fn argumanlarCozumle() -> Argumanlar {
     var args: [IfadeD] = []
+    var adlar: [String] = []
     let onceki = self.structLitYok
     self.structLitYok = false
 
     self.satirSonlariniAtla()
     var devam = true
     while self.iyiMi() && devam && !self.suradaMi(")") {
+      // `ad:` yalnız tanımlayıcının hemen ardından ':' gelirse
+      // adlandırılmış argümandır.
+      var ad = ""
+      if self.suradaMi("ident") && self.bakIleri(1).tur == ":" {
+        ad = self.simdiki().metin
+        self.ilerle()
+        self.ilerle()
+        self.satirSonlariniAtla()
+      }
+      adlar.push(ad)
       args.push(self.ifadeCozumle())
       self.satirSonlariniAtla()
       devam = self.al(",")
@@ -1018,7 +1040,7 @@ struct Cozumleyici {
 
     self.structLitYok = onceki
     self.bekle(")", "')'")
-    return args
+    return Argumanlar { args: args, adlar: adlar }
   }
 
   fn temelIfadeCozumle() -> IfadeD {
@@ -1493,7 +1515,7 @@ fn icKonumuTasi(e: Ifade, k: Konum) -> Ifade = match e {
   ITekli(op, x) -> ITekli(op, konumuTasi(x, k))
   IIkili(op, sol, sag) -> IIkili(op, konumuTasi(sol, k), konumuTasi(sag, k))
   IAralik(bas, son, dahil) -> IAralik(konumuTasi(bas, k), konumuTasi(son, k), dahil)
-  ICagri(hedef, args) -> ICagri(konumuTasi(hedef, k), args.map(|a| konumuTasi(a, k)))
+  ICagri(hedef, args, adlar) -> ICagri(konumuTasi(hedef, k), args.map(|a| konumuTasi(a, k)), adlar)
   IDizin(nesne, dizin) -> IDizin(konumuTasi(nesne, k), konumuTasi(dizin, k))
   IAlan(nesne, ad, guvenli) -> IAlan(konumuTasi(nesne, k), ad, guvenli)
   IAc(x) -> IAc(konumuTasi(x, k))

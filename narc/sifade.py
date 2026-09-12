@@ -99,7 +99,9 @@ def _tip(t) -> str:
 
 
 def parametre(p: A.Param) -> str:
-    return konumla(dugum("parametre", kacir(p.name), tip(p.type_expr)), p.span)
+    return konumla(
+        dugum("parametre", kacir(p.name), tip(p.type_expr), ifade(p.default)),
+        p.span)
 
 
 # ----------------------------------------------------------------- ifadeler
@@ -157,7 +159,9 @@ def _ifade(e) -> str:
                      "true" if e.inclusive else "false")
 
     if isinstance(e, A.Call):
-        return dugum("cagri", ifade(e.callee), liste(ifade(a) for a in e.args))
+        return dugum("cagri", ifade(e.callee), liste(ifade(a) for a in e.args),
+                     liste(kacir(a) if a else "-"
+                           for a in (getattr(e, "arg_names", None) or [])))
     if isinstance(e, A.Index):
         return dugum("dizin", ifade(e.obj), ifade(e.index))
     if isinstance(e, A.FieldAccess):
@@ -310,7 +314,8 @@ def _oge(o) -> str:
             liste(kacir(t) for t in o.type_params),
             liste(kacir(i) for i in o.interfaces),
             liste(konumla(dugum("alandecl", kacir(f.name), tip(f.type_expr),
-                                "true" if f.mutable else "false"), f.span)
+                                "true" if f.mutable else "false",
+                                ifade(f.default)), f.span)
                   for f in o.fields),
             liste(fn(m) for m in o.methods),
         )
