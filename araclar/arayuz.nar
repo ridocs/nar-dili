@@ -109,6 +109,7 @@ enum Gorunum {
 
   // ayırıcılar
   Bosluk(Int)
+  Doldur                                      // kalan yeri kaplar
   Cizgi
   Bos                                         // hiçbir şey çizmez
 
@@ -440,6 +441,7 @@ fn ogeYap(g: Gorunum) -> Element = match g {
   Donuyor(etiket) -> donuyorOgesi(etiket)
 
   Bosluk(yukseklik) -> boslukOgesi(yukseklik)
+  Doldur -> sinifliOge("div", "nar-doldur")
   Cizgi -> sinifliOge("div", "nar-cizgi")
   Bos -> olustur("span")
 }

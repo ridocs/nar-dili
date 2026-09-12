@@ -165,7 +165,9 @@ fn fiyatKarti(p: Paket, secince: (String) -> Void) -> Gorunum {
   for m in p.maddeler {
     ic.push(Satir([Simge("onay"), Metin(m)]))
   }
-  ic.push(Bosluk(4))
+  // Madde sayısı paketten pakete değişir; düğmeler yine aynı hizada
+  // dursun diye kalan yer burada dolduruluyor.
+  ic.push(Doldur)
   // Öne çıkan paketin düğmesi birincil; ötekiler sessiz kalır ki göz
   // nereye bakacağını bilsin.
   if p.one_cikan {
