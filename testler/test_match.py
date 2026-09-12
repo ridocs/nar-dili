@@ -105,17 +105,51 @@ fn main() {
 ''', "aabbc")
 
     def test_metin_araligi(self):
+        """Alt sınırın altı da sınanır: eksik kalırsa VM yanlış dala girer."""
         self.iki_motor('''
 fn harf(s: String) -> String = match s {
   "a"..="m" -> "ilk yarı"
-  _ -> "ikinci yarı"
+  _ -> "dışarıda"
 }
 
 fn main() {
   print(harf("b"))
   print(harf("z"))
+  print(harf("A"))
 }
-''', "ilk yarı\nikinci yarı")
+''', "ilk yarı\ndışarıda\ndışarıda")
+
+    def test_aralik_alt_sinirin_altinda(self):
+        """Sayıda da her iki uç: 0 aralığın altında, 10 üstünde."""
+        self.iki_motor('''
+fn f(n: Int) -> String = match n {
+  3..=6 -> "içinde"
+  _ -> "dışında"
+}
+
+fn main() {
+  for n in [0, 2, 3, 5, 6, 7, 10] {
+    print(str(n) + ":" + f(n))
+  }
+}
+''', "0:dışında\n2:dışında\n3:içinde\n5:içinde\n6:içinde\n7:dışında\n10:dışında")
+
+    def test_rakam_denetimi(self):
+        """Gerçek kullanım: karakter rakam mı? (hesap makinesinden)"""
+        self.iki_motor('''
+fn rakamMi(k: String) -> Bool = match k {
+  "0".."9" -> true
+  _ -> false
+}
+
+fn main() {
+  var sonuc = ""
+  for k in ["3", "a", "0", " ", "+", "9"] {
+    sonuc += if rakamMi(k) { "1" } else { "0" }
+  }
+  print(sonuc)
+}
+''', "101000")
 
     def test_deyim_matchinde_kosul(self):
         self.iki_motor('''

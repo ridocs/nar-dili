@@ -97,6 +97,9 @@ class BytecodeUretici:
         self.global_indis: dict[str, int] = {}
         # Döngü yamaları: (break yerleri, continue yerleri)
         self.dongu_yiginlari: list = []
+        # Aralık deseni gibi birden çok sınav yapan desenlerin ek
+        # atlama yerleri; kolun sonuna yamalanmak üzere biriktirilir.
+        self._ek_atlamalar: list[int] = []
 
     # --- yardımcılar ------------------------------------------------------
 
@@ -526,7 +529,10 @@ class BytecodeUretici:
         sırada kapsamda olur.
         """
         yerler = []
+        self._ek_atlamalar = []
         atla = self._desen_kosulu(kol.pattern, konu_indis)
+        yerler.extend(self._ek_atlamalar)
+        self._ek_atlamalar = []
         if atla is not None:
             yerler.append(atla)
         if getattr(kol, "guard", None) is not None:
@@ -562,7 +568,9 @@ class BytecodeUretici:
             return self.yaz(K.ATLA_YANLIS, 0)
 
         if isinstance(desen, A.RangePat):
-            # Alt sınır tutmazsa hemen atla; tutuyorsa üst sınıra bak.
+            # İki sınav: alt sınır ve üst sınır. Biri düşerse kol atlanır,
+            # bu yüzden iki atlama da çağırana verilir — ikisi de kolun
+            # sonuna yamalanmalı.
             self.yaz(K.YEREL_OKU, konu_indis)
             self.ifade(desen.low)
             self.yaz(K.BUYUK_ESIT)
@@ -571,9 +579,7 @@ class BytecodeUretici:
             self.ifade(desen.high)
             self.yaz(K.KUCUK_ESIT if desen.inclusive else K.KUCUK)
             ust_atla = self.yaz(K.ATLA_YANLIS, 0)
-            # İki sınavdan biri düşerse aynı yere gidilir; alt sınavın
-            # atlamasını üst sınavınkine bağlıyoruz.
-            self.islev.yamala(alt_atla, self.su_an())
+            self._ek_atlamalar.append(alt_atla)
             return ust_atla
 
         if isinstance(desen, A.EnumPat):
