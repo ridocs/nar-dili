@@ -1,0 +1,187 @@
+// Giriş–çıkış tarihi seçen bir rezervasyon ekranı.
+//
+// Takvim bir aralık seçer: önce giriş günü, sonra çıkış günü. Seçilen
+// tarihler uygulamanın durumunda durur; takvim kendi içinde bir şey
+// saklamaz, tıklamayı yorumlayıp yeni durumu geri verir.
+//
+//     nar build ornekler/takvim.nar --target web -o cikti/takvim.html
+//     nar build ornekler/takvim.nar --target ghb
+
+import "../araclar/arayuz.nar"
+
+let GECELIK = 1850
+let TEMIZLIK = 350
+let KISI_BASI = 120
+
+struct Durum {
+  var takvim: TakvimDurumu
+  var kisi: Int
+  var kahvalti: Bool
+  var onaylandi: Bool
+}
+
+var uygulama: Uygulama<Durum>? = none
+var SON: Durum? = none
+
+fn d() -> Durum = SON!
+
+fn guncelle(yeni: Durum) {
+  if uygulama != none {
+    uygulama!.degistir(yeni)
+  }
+}
+
+// --- para -----------------------------------------------------------------
+
+// 1850 -> "1.850". Binlik ayracı için hazır bir yerleşik yok; sayıyı
+// sondan başa okuyup üçer üçer ayırıyoruz.
+fn binlikAyir(n: Int) -> String {
+  let s = str(n)
+  var sonuc = ""
+  var sayac = 0
+  var i = s.len() - 1
+  while i >= 0 {
+    sonuc = s.charAt(i) + sonuc
+    sayac += 1
+    if sayac % 3 == 0 && i > 0 {
+      sonuc = "." + sonuc
+    }
+    i -= 1
+  }
+  return sonuc
+}
+
+fn para(n: Int) -> String = binlikAyir(n) + " ₺"
+
+// --- hesap ----------------------------------------------------------------
+
+fn geceler() -> Int = geceSayisi(d().takvim.giris, d().takvim.cikis)
+
+fn konaklama() -> Int = geceler() * GECELIK
+
+fn kahvaltiBedeli() -> Int {
+  if !d().kahvalti {
+    return 0
+  }
+  return geceler() * d().kisi * KISI_BASI
+}
+
+fn toplam() -> Int {
+  if geceler() == 0 {
+    return 0
+  }
+  return konaklama() + TEMIZLIK + kahvaltiBedeli()
+}
+
+// --- görünüm --------------------------------------------------------------
+
+fn fiyatSatiri(etiket: String, tutar: String) -> Gorunum = SatirYay([
+  Soluk(etiket),
+  Metin(tutar)
+])
+
+fn ozetKutusu() -> Gorunum {
+  var ic: [Gorunum] = []
+  ic.push(SatirYay([
+    Sutun([
+      Baslik(para(GECELIK)),
+      Soluk("gecelik")
+    ]),
+    Rozet("4,8 ★", "notr")
+  ]))
+  ic.push(Cizgi)
+
+  if geceler() == 0 {
+    ic.push(BosDurum("takvim", "Tarih seçilmedi",
+                     "Takvimden giriş ve çıkış gününü seç; tutar burada çıkar.",
+                     Bos))
+    return Kutu(ic)
+  }
+
+  ic.push(Izgara(2, [
+    Alan("Giriş", GUN_KISA[haftaninGunu(tarihYil(d().takvim.giris), tarihAy(d().takvim.giris), tarihGun(d().takvim.giris))], Metin(tarihMetni(d().takvim.giris))),
+    Alan("Çıkış", if d().takvim.cikis == 0 { "seçilmedi" } else { GUN_KISA[haftaninGunu(tarihYil(d().takvim.cikis), tarihAy(d().takvim.cikis), tarihGun(d().takvim.cikis))] }, Metin(if d().takvim.cikis == 0 { "—" } else { tarihMetni(d().takvim.cikis) }))
+  ]))
+
+  if d().takvim.cikis == 0 {
+    ic.push(Uyari(TON_BILGI, "Çıkış gününü de seç."))
+    return Kutu(ic)
+  }
+
+  ic.push(Cizgi)
+  ic.push(Alan("Kişi", "", Kaydirici(1, 6, d().kisi, |v| {
+    let g = d()
+    g.kisi = v
+    guncelle(g)
+  })))
+  ic.push(Anahtar("Kahvaltı dahil", d().kahvalti, |v| {
+    let g = d()
+    g.kahvalti = v
+    guncelle(g)
+  }))
+  ic.push(Cizgi)
+  ic.push(fiyatSatiri(para(GECELIK) + " × " + str(geceler()) + " gece",
+                      para(konaklama())))
+  if d().kahvalti {
+    ic.push(fiyatSatiri("Kahvaltı · " + str(d().kisi) + " kişi",
+                        para(kahvaltiBedeli())))
+  }
+  ic.push(fiyatSatiri("Temizlik bedeli", para(TEMIZLIK)))
+  ic.push(Cizgi)
+  ic.push(SatirYay([
+    Metin("Toplam"),
+    Baslik(para(toplam()))
+  ]))
+  ic.push(Dugme("Rezervasyon yap", || {
+    let g = d()
+    g.onaylandi = true
+    guncelle(g)
+  }))
+  if d().onaylandi {
+    ic.push(Uyari(TON_BASARI, "Rezervasyon alındı: " +
+      kisaTarihMetni(d().takvim.giris) + " – " +
+      kisaTarihMetni(d().takvim.cikis) + ", " + str(geceler()) + " gece."))
+  }
+  return Kutu(ic)
+}
+
+fn ciz(durum: Durum) -> Gorunum {
+  SON = durum
+  return Sutun([
+    Satir([
+      Sutun([
+        Baslik("Mardin taş konak"),
+        Satir([
+          Simge("ev"),
+          Soluk("Eski şehir · 2 oda · 4 kişilik")
+        ])
+      ]),
+      Rozet("müsait", TON_BASARI)
+    ]),
+    Bosluk(4),
+    Satir([
+      Genislik(620, Takvim(durum.takvim, |yeni| {
+        let g = d()
+        g.takvim = yeni
+        // Tarih değişince onay düşer; eski onay yeni tarihe ait değil.
+        g.onaylandi = false
+        guncelle(g)
+      })),
+      ozetKutusu()
+    ]).mobildeSutun()
+  ])
+}
+
+fn main() {
+  if bul("#uygulama") == none {
+    print("Bu program tarayıcıda çalıştırılmalı.")
+    print("Derle:  nar build ornekler/takvim.nar --target web")
+    return
+  }
+  deriSec("yumusak")
+  let t = takvimDurumu()
+  uygulama = uygulamaBaslat("#uygulama", Durum {
+    takvim: t, kisi: 2, kahvalti: true, onaylandi: false
+  }, ciz)
+  genislikKur(1020)
+}

@@ -382,5 +382,103 @@ $yaz($dom.siniflar(e).sort());
         self.assertEqual(
             kayit[0], ["nar-mobilde-gizli", "nar-mobilde-sutun", "nar-satir"])
 
+
+TAKVIM = '''import "@ARAYUZ@"
+
+var uygulama: Uygulama<TakvimDurumu>? = none
+
+fn ciz(d: TakvimDurumu) -> Gorunum = Sutun([
+  Takvim(d, |yeni| {
+    if uygulama != none {
+      uygulama!.degistir(yeni)
+    }
+  })
+])
+
+fn main() {
+  // Sabit bir ay: test bugünün tarihine göre değişmesin. `enErken: 0`
+  // geçmiş sınırını kaldırır, yoksa 2026 Eylül bir gün kapanabilirdi.
+  uygulama = uygulamaBaslat("#uygulama", TakvimDurumu {
+    yil: 2026, ay: 9, giris: 0, cikis: 0, enErken: 0, enGec: 0,
+    aySayisi: 1, tekTarih: false
+  }, ciz)
+}
+'''
+
+
+def ozet(kok_degiskeni: str = "$dom.govde") -> str:
+    """Takvimin alt satırındaki iki metni okuyan senaryo parçası."""
+    return (
+        f'$yaz([$dom.sinifliOgeler({kok_degiskeni}, "nar-takvim-aralik")'
+        '.map(o => o.textContent)[0] || "",'
+        f' $dom.sinifliOgeler({kok_degiskeni}, "nar-takvim-gece")'
+        '.map(o => o.textContent)[0] || ""]);'
+    )
+
+
+@unittest.skipIf(NODE is None, "node bulunamadı")
+class TakvimTesti(unittest.TestCase):
+    def test_once_giris_sonra_cikis_secilir(self):
+        kayit = sahnede_calistir(TAKVIM, f'''
+{ozet()}
+$dom.tikla($dom.dugme($dom.govde, "10"));
+{ozet()}
+$dom.tikla($dom.dugme($dom.govde, "14"));
+{ozet()}
+$yaz($dom.sinifliOgeler($dom.govde, "nar-gun-arada").length);
+''')
+        self.assertEqual(kayit[0], ["Tarih seç", "önce giriş, sonra çıkış"])
+        self.assertEqual(kayit[1], ["10 Eyl — …", "çıkış gününü seç"])
+        self.assertEqual(kayit[2], ["10 Eyl — 14 Eyl", "4 gece"])
+        # 11, 12, 13 aradaki günler
+        self.assertEqual(kayit[3], 3)
+
+    def test_girisin_oncesine_tiklamak_secimi_tasir(self):
+        """Kullanıcı yanlış gün seçtiyse hata vermek yerine seçim taşınır."""
+        kayit = sahnede_calistir(TAKVIM, f'''
+$dom.tikla($dom.dugme($dom.govde, "20"));
+$dom.tikla($dom.dugme($dom.govde, "12"));
+{ozet()}
+$dom.tikla($dom.dugme($dom.govde, "15"));
+{ozet()}
+''')
+        self.assertEqual(kayit[0], ["12 Eyl — …", "çıkış gününü seç"])
+        self.assertEqual(kayit[1], ["12 Eyl — 15 Eyl", "3 gece"])
+
+    def test_aralik_tamamken_yeni_tiklama_bastan_baslatir(self):
+        kayit = sahnede_calistir(TAKVIM, f'''
+$dom.tikla($dom.dugme($dom.govde, "10"));
+$dom.tikla($dom.dugme($dom.govde, "14"));
+$dom.tikla($dom.dugme($dom.govde, "22"));
+{ozet()}
+$yaz($dom.sinifliOgeler($dom.govde, "nar-gun-arada").length);
+''')
+        self.assertEqual(kayit[0], ["22 Eyl — …", "çıkış gününü seç"])
+        self.assertEqual(kayit[1], 0)
+
+    def test_temizle_secimi_siler(self):
+        kayit = sahnede_calistir(TAKVIM, f'''
+$dom.tikla($dom.dugme($dom.govde, "10"));
+$dom.tikla($dom.dugme($dom.govde, "14"));
+$dom.tikla($dom.dugme($dom.govde, "Temizle"));
+{ozet()}
+''')
+        self.assertEqual(kayit[0], ["Tarih seç", "önce giriş, sonra çıkış"])
+
+    def test_ay_gecisi(self):
+        """İleri oku sonraki aya geçer; gün sayısı ve ad değişir."""
+        kayit = sahnede_calistir(TAKVIM, '''
+$yaz($dom.sinifliOgeler($dom.govde, "nar-ay-adi").map(o => o.textContent));
+const ileri = $dom.govde.querySelectorAll("button")
+  .filter(d => d.ozellikler["aria-label"] === "sonraki ay");
+$dom.tikla(ileri[0]);
+$yaz($dom.sinifliOgeler($dom.govde, "nar-ay-adi").map(o => o.textContent));
+$yaz($dom.sinifliOgeler($dom.govde, "nar-gun").filter(
+  o => !o.siniflar.has("nar-gun-bos")).length);
+''')
+        self.assertEqual(kayit[0], ["Eylül 2026"])
+        self.assertEqual(kayit[1], ["Ekim 2026"])
+        self.assertEqual(kayit[2], 31)
+
 if __name__ == "__main__":
     unittest.main()

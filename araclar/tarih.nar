@@ -1,0 +1,178 @@
+// Tarih aritmetiği — Nar diliyle yazılmıştır.
+//
+// Bir tarih tek bir tam sayıdır: `20260912` (yıl, ay, gün yan yana).
+// Bunun iki somut faydası var: iki tarihi karşılaştırmak için `<` yeter,
+// ve tarih bir yapı değil sayı olduğu için listelerde, eşlemelerde ve
+// URL'de taşınması dert olmaz. `0` "seçilmedi" anlamına gelir.
+//
+//     let g = tarih(2026, 9, 12)
+//     print(tarihMetni(g))            // 12 Eylül 2026
+//     print(str(geceSayisi(g, tarih(2026, 9, 15))))   // 3
+//
+// Bir kütüphanedir: `main` içermez.
+
+// --- kurma ve okuma -------------------------------------------------------
+
+fn tarih(yil: Int, ay: Int, gun: Int) -> Int = yil * 10000 + ay * 100 + gun
+
+fn tarihYil(t: Int) -> Int = t / 10000
+fn tarihAy(t: Int) -> Int = (t / 100) % 100
+fn tarihGun(t: Int) -> Int = t % 100
+
+// --- takvim bilgisi -------------------------------------------------------
+
+fn artikYilMi(yil: Int) -> Bool {
+  if yil % 400 == 0 {
+    return true
+  }
+  if yil % 100 == 0 {
+    return false
+  }
+  return yil % 4 == 0
+}
+
+let AY_GUNLERI = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+fn ayGunSayisi(yil: Int, ay: Int) -> Int {
+  if ay < 1 || ay > 12 {
+    return 0
+  }
+  if ay == 2 && artikYilMi(yil) {
+    return 29
+  }
+  return AY_GUNLERI[ay - 1]
+}
+
+// Gregoryen takvimde gün numarası (Julian Day Number). İki tarihi
+// çıkarınca aradaki gün sayısı çıkar; ay ve yıl sınırlarını düşünmek
+// gerekmez.
+fn gunNumarasi(yil: Int, ay: Int, gun: Int) -> Int {
+  let a = (14 - ay) / 12
+  let y = yil + 4800 - a
+  let m = ay + 12 * a - 3
+  return gun + (153 * m + 2) / 5 + 365 * y + y / 4 - y / 100 + y / 400 - 32045
+}
+
+// Haftanın günü: 0 Pazartesi, 6 Pazar. Türkiye'de hafta pazartesi
+// başladığı için takvim ızgarası da buna göre diziliyor.
+fn haftaninGunu(yil: Int, ay: Int, gun: Int) -> Int =
+  gunNumarasi(yil, ay, gun) % 7
+
+// İki tarih arasındaki gece sayısı. Sıra önemsiz: hep pozitif döner.
+fn geceSayisi(a: Int, b: Int) -> Int {
+  if a == 0 || b == 0 {
+    return 0
+  }
+  let x = gunNumarasi(tarihYil(a), tarihAy(a), tarihGun(a))
+  let y = gunNumarasi(tarihYil(b), tarihAy(b), tarihGun(b))
+  if y > x {
+    return y - x
+  }
+  return x - y
+}
+
+// Bir tarihe gün ekler; ay ve yıl kendiliğinden döner.
+fn gunEkle(t: Int, adet: Int) -> Int {
+  if t == 0 {
+    return 0
+  }
+  var yil = tarihYil(t)
+  var ay = tarihAy(t)
+  var gun = tarihGun(t) + adet
+  // Geriye taşma
+  while gun < 1 {
+    ay -= 1
+    if ay < 1 {
+      ay = 12
+      yil -= 1
+    }
+    gun += ayGunSayisi(yil, ay)
+  }
+  // İleriye taşma
+  var sinir = ayGunSayisi(yil, ay)
+  while gun > sinir {
+    gun -= sinir
+    ay += 1
+    if ay > 12 {
+      ay = 1
+      yil += 1
+    }
+    sinir = ayGunSayisi(yil, ay)
+  }
+  return tarih(yil, ay, gun)
+}
+
+// --- ay gezinme -----------------------------------------------------------
+
+fn sonrakiAyYili(yil: Int, ay: Int) -> Int = if ay == 12 { yil + 1 } else { yil }
+fn sonrakiAyi(ay: Int) -> Int = if ay == 12 { 1 } else { ay + 1 }
+fn oncekiAyYili(yil: Int, ay: Int) -> Int = if ay == 1 { yil - 1 } else { yil }
+fn oncekiAyi(ay: Int) -> Int = if ay == 1 { 12 } else { ay - 1 }
+
+// --- yazıya dökme ---------------------------------------------------------
+
+let AY_ADLARI = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+                 "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
+
+let AY_KISA = ["Oca", "Şub", "Mar", "Nis", "May", "Haz",
+               "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"]
+
+// Pazartesiden başlar; takvim ızgarasının başlık satırı budur.
+let GUN_KISA = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]
+
+fn ayAdi(ay: Int) -> String {
+  if ay < 1 || ay > 12 {
+    return ""
+  }
+  return AY_ADLARI[ay - 1]
+}
+
+fn ayKisaAdi(ay: Int) -> String {
+  if ay < 1 || ay > 12 {
+    return ""
+  }
+  return AY_KISA[ay - 1]
+}
+
+fn tarihMetni(t: Int) -> String {
+  if t == 0 {
+    return ""
+  }
+  return str(tarihGun(t)) + " " + ayAdi(tarihAy(t)) + " " + str(tarihYil(t))
+}
+
+fn kisaTarihMetni(t: Int) -> String {
+  if t == 0 {
+    return ""
+  }
+  return str(tarihGun(t)) + " " + ayKisaAdi(tarihAy(t))
+}
+
+// "2026-09-12" — sıralanabilir, makine okuyabilir biçim.
+fn ikiHane(n: Int) -> String = if n < 10 { "0" + str(n) } else { str(n) }
+
+fn isoTarih(t: Int) -> String {
+  if t == 0 {
+    return ""
+  }
+  return str(tarihYil(t)) + "-" + ikiHane(tarihAy(t)) + "-" + ikiHane(tarihGun(t))
+}
+
+// --- bugün ----------------------------------------------------------------
+
+// `zamanMetni()` yerel saati "YYYY-AA-GG SS:DD:SS" biçiminde verir;
+// baştaki on karakter aradığımız tarihtir. Milisaniyeden hesaplasaydık
+// saat dilimi yüzünden gece yarısı civarında bir gün kayabilirdi.
+fn bugun() -> Int {
+  let m = zamanMetni()
+  if m.len() < 10 {
+    return 0
+  }
+  let yil = int(m.slice(0, 4)) ?? 0
+  let ay = int(m.slice(5, 7)) ?? 0
+  let gun = int(m.slice(8, 10)) ?? 0
+  if yil == 0 || ay == 0 || gun == 0 {
+    return 0
+  }
+  return tarih(yil, ay, gun)
+}

@@ -227,6 +227,9 @@ IKON_OK = _ikon('<path d="M5 12h13m-5-5 5 5-5 5"/>', 15)
 IKON_OYNAT = _ikon('<path d="M8 5.5v13l11-6.5-11-6.5Z"/>', 15)
 # 21st'in kategori listesindeki minik çizgi işareti.
 IKON_CIZGI = _ikon('<path d="M7 12h10"/>', 14)
+IKON_TAKVIM = _ikon(
+    '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/>'
+    '<path d="M3.5 10h17"/><path d="M8 3v4M16 3v4"/>', 15)
 IKON_BILESEN = _ikon(
     '<rect x="4" y="4" width="7" height="7" rx="1.5"/>'
     '<rect x="13" y="4" width="7" height="7" rx="1.5"/>'

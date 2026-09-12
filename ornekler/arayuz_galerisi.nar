@@ -30,6 +30,7 @@ struct Durum {
   // görsel ayarlar
   var koyu: Bool
   var yumusak: Bool
+  var takvim: TakvimDurumu
 }
 
 var uygulama: Uygulama<Durum>? = none
@@ -205,6 +206,14 @@ fn girdiBolumu() -> Gorunum = Sutun([
       Metin("seçilen: ${d().radyo} · ${d().sehir}")
     ]),
     "Onay(\"Haberleri gönder\", durum.abone, |v| { durum.abone = v })\nAnahtar(\"Koyu tema\", durum.koyu, |v| { durum.koyu = v })\nRadyo([\"Günlük\", \"Haftalık\"], durum.sik, |v| { durum.sik = v })\nSecim([\"İstanbul\", \"Ankara\"], durum.sehir, |v| { durum.sehir = v })"),
+
+  bolum("Takvim", "Giriş ve çıkış gününü seçtiren aralık takvimi. Önce giriş, sonra çıkış gününe tıkla; aradaki geceler şerit olur. Geçmiş günler kapalı.",
+    Takvim(d().takvim, |yeni| {
+      let g = d()
+      g.takvim = yeni
+      guncelle(g)
+    }),
+    "Takvim(durum.takvim, |yeni| { durum.takvim = yeni })\n\n// Durum: hangi ay görünüyor, hangi günler seçili\nlet t = takvimDurumu()   // bugünden başlayan iki aylık\nt.tekTarih = true        // aralık değil tek gün"),
 
   bolum("Kaydırıcı", "Aralıktan bir sayı. Değer sürüklerken anında görünür.",
     Sutun([
@@ -592,7 +601,8 @@ fn main() {
     adim: 1,
     icSekme: 0,
     koyu: false,
-    yumusak: true
+    yumusak: true,
+    takvim: takvimDurumu()
   }
   deriSec("yumusak")
   // Vitrin geniş: yan yana üç kart 820px'e sığmıyor.

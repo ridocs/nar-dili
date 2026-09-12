@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>arayuz_galerisi</title>
+<title>takvim</title>
 <style>
   :root { color-scheme: light dark; }
   body { margin: 0; padding: 24px; font: 14px/1.6 ui-monospace, SFMono-Regular,
@@ -13,7 +13,7 @@
 </style>
 </head>
 <body>
-<h1>arayuz_galerisi</h1>
+<h1>takvim</h1>
 <!-- Nar programı `bul("#uygulama")` ile buraya çizebilir. -->
 <div id="uygulama"></div>
 <div id="cikti"></div>
@@ -746,93 +746,16 @@ class Uygulama {
 Uygulama.$narName = "Uygulama";
 $defType("Uygulama", { params: ["D"], fields: {"durum": "D", "gorunum": undefined, "kokSecici": "String"} });
 
-class Olcum {
-  constructor(baslik, deger, degisim) {
-    this.baslik = baslik;
-    this.deger = deger;
-    this.degisim = degisim;
-  }
-}
-Olcum.$narName = "Olcum";
-$defType("Olcum", { params: [], fields: {"baslik": "String", "deger": "String", "degisim": "String"} });
-
-class Hareket {
-  constructor(kisi, ne, ne_zaman) {
-    this.kisi = kisi;
-    this.ne = ne;
-    this.ne_zaman = ne_zaman;
-  }
-}
-Hareket.$narName = "Hareket";
-$defType("Hareket", { params: [], fields: {"kisi": "String", "ne": "String", "ne_zaman": "String"} });
-
-class Paket {
-  constructor(ad, fiyat, donem, maddeler, one_cikan, dugme) {
-    this.ad = ad;
-    this.fiyat = fiyat;
-    this.donem = donem;
-    this.maddeler = maddeler;
-    this.one_cikan = one_cikan;
-    this.dugme = dugme;
-  }
-}
-Paket.$narName = "Paket";
-$defType("Paket", { params: [], fields: {"ad": "String", "fiyat": "String", "donem": "String", "maddeler": ["l", "String"], "one_cikan": "Bool", "dugme": "String"} });
-
-class Ozellik {
-  constructor(simge, baslik, aciklama) {
-    this.simge = simge;
-    this.baslik = baslik;
-    this.aciklama = aciklama;
-  }
-}
-Ozellik.$narName = "Ozellik";
-$defType("Ozellik", { params: [], fields: {"simge": "String", "baslik": "String", "aciklama": "String"} });
-
-class Ayar {
-  constructor(ad, aciklama, acik) {
-    this.ad = ad;
-    this.aciklama = aciklama;
-    this.acik = acik;
-  }
-}
-Ayar.$narName = "Ayar";
-$defType("Ayar", { params: [], fields: {"ad": "String", "aciklama": "String", "acik": "Bool"} });
-
-class Soru {
-  constructor(soru, cevap) {
-    this.soru = soru;
-    this.cevap = cevap;
-  }
-}
-Soru.$narName = "Soru";
-$defType("Soru", { params: [], fields: {"soru": "String", "cevap": "String"} });
-
 class Durum {
-  constructor(sekme, ad, not, yas, abone, sehir, ilerleme, anahtar, radyo, kaydirici, akordeon, sayfa, iletisim, menuSecimi, adim, icSekme, koyu, yumusak, takvim) {
-    this.sekme = sekme;
-    this.ad = ad;
-    this.not = not;
-    this.yas = yas;
-    this.abone = abone;
-    this.sehir = sehir;
-    this.ilerleme = ilerleme;
-    this.anahtar = anahtar;
-    this.radyo = radyo;
-    this.kaydirici = kaydirici;
-    this.akordeon = akordeon;
-    this.sayfa = sayfa;
-    this.iletisim = iletisim;
-    this.menuSecimi = menuSecimi;
-    this.adim = adim;
-    this.icSekme = icSekme;
-    this.koyu = koyu;
-    this.yumusak = yumusak;
+  constructor(takvim, kisi, kahvalti, onaylandi) {
     this.takvim = takvim;
+    this.kisi = kisi;
+    this.kahvalti = kahvalti;
+    this.onaylandi = onaylandi;
   }
 }
 Durum.$narName = "Durum";
-$defType("Durum", { params: [], fields: {"sekme": "Int", "ad": "String", "not": "String", "yas": "Int", "abone": "Bool", "sehir": "String", "ilerleme": "Int", "anahtar": "Bool", "radyo": "String", "kaydirici": "Int", "akordeon": "Int", "sayfa": "Int", "iletisim": "Bool", "menuSecimi": "String", "adim": "Int", "icSekme": "Int", "koyu": "Bool", "yumusak": "Bool", "takvim": "TakvimDurumu"} });
+$defType("Durum", { params: [], fields: {"takvim": "TakvimDurumu", "kisi": "Int", "kahvalti": "Bool", "onaylandi": "Bool"} });
 
 function hareketStiliniKur() {
   if (HAREKET_KURULDU) {
@@ -2092,133 +2015,8 @@ function uygulamaBaslat(secici, baslangic, gorunum) {
   return u;
 }
 
-function olcum(baslik, deger, degisim) {
-  return new Olcum(baslik, deger, degisim);
-}
-
-function hareket(kisi, ne, neZaman) {
-  return new Hareket(kisi, ne, neZaman);
-}
-
-function paket(ad, fiyat, donem, maddeler, oneCikan, dugme) {
-  return new Paket(ad, fiyat, donem, maddeler, oneCikan, dugme);
-}
-
-function ozellik(simge, baslik, aciklama) {
-  return new Ozellik(simge, baslik, aciklama);
-}
-
-function ayar(ad, aciklama, acik) {
-  return new Ayar(ad, aciklama, acik);
-}
-
-function soru(soru, cevap) {
-  return new Soru(soru, cevap);
-}
-
-function girisEkrani(baslik, altbaslik, girince, kaydolunca) {
-  return Gorunum.Ortala(Gorunum.Genislik(420, Gorunum.Kutu([Gorunum.Sutun([Gorunum.Baslik(baslik), Gorunum.Paragraf(altbaslik)]), Gorunum.Bosluk(4), Gorunum.Alan("E-posta", "", Gorunum.Giris("ornek@site.com", GIRIS_EPOSTA, ((v) => {
-    GIRIS_EPOSTA = v;
-  }))), Gorunum.Alan("Parola", "En az sekiz karakter.", Gorunum.Giris("••••••••", GIRIS_PAROLA, ((v) => {
-    GIRIS_PAROLA = v;
-  }))), Gorunum.Bosluk(4), Gorunum.Dugme("Giriş yap", (() => {
-    girince(GIRIS_EPOSTA, GIRIS_PAROLA);
-  })), Gorunum.Ayrac("ya da"), Gorunum.Satir([Gorunum.Metin("Hesabın yok mu?"), Gorunum.SessizDugme("Kaydol", kaydolunca)])])));
-}
-
-function hareketSatiri(h) {
-  return Gorunum.SatirYay([Gorunum.Satir([Gorunum.Avatar(h.kisi, ""), Gorunum.Sutun([Gorunum.Metin(h.kisi), Gorunum.Soluk(h.ne)])]), Gorunum.Soluk(h.ne_zaman)]);
-}
-
-function gostergePaneli(baslik, olcumler, degerler, etiketler, hareketler) {
-  let kutular = [];
-  for (const o of olcumler) {
-    kutular.push(Gorunum.Istatistik(o.baslik, o.deger, o.degisim));
-  }
-  let satirlar = [];
-  for (const h of hareketler) {
-    satirlar.push(hareketSatiri(h));
-  }
-  return Gorunum.Sutun([Gorunum.Satir([Gorunum.AltBaslik(baslik), Gorunum.Rozet("canlı", TON_BASARI)]), Gorunum.Esnek(kutular), Gorunum.Kart("Günlere göre", [Gorunum.Cubuklar(degerler, etiketler)]), Gorunum.Kart("Son hareketler", satirlar)]);
-}
-
-function fiyatKarti(p, secince) {
-  let ic = [];
-  if (p.one_cikan) {
-    ic.push(Gorunum.Rozet("en çok seçilen", TON_BILGI));
-  }
-  ic.push(Gorunum.AltBaslik(p.ad));
-  ic.push(Gorunum.Satir([Gorunum.Baslik(p.fiyat), Gorunum.Etiket(p.donem)]));
-  ic.push(Gorunum.Cizgi);
-  for (const m of p.maddeler) {
-    ic.push(Gorunum.Satir([Gorunum.Simge("onay"), Gorunum.Metin(m)]));
-  }
-  ic.push(Gorunum.Bosluk(4));
-  if (p.one_cikan) {
-    ic.push(Gorunum.Dugme(p.dugme, (() => {
-      secince(p.ad);
-    })));
-  } else {
-    ic.push(Gorunum.IkincilDugme(p.dugme, (() => {
-      secince(p.ad);
-    })));
-  }
-  return Gorunum.Kutu(ic);
-}
-
-function fiyatKartlari(paketler, secince) {
-  let kartlar = [];
-  for (const p of paketler) {
-    kartlar.push(fiyatKarti(p, secince));
-  }
-  return Gorunum.Esnek(kartlar);
-}
-
-function ozellikKutusu(o) {
-  return Gorunum.Kutu([Gorunum.Simge(o.simge), Gorunum.AltBaslik(o.baslik), Gorunum.Paragraf(o.aciklama)]);
-}
-
-function ozellikIzgarasi(ozellikler) {
-  let kutular = [];
-  for (const o of ozellikler) {
-    kutular.push(ozellikKutusu(o));
-  }
-  return Gorunum.Izgara(2, kutular);
-}
-
-function ayarSatiri(a, degisince) {
-  return Gorunum.SatirYay([Gorunum.Sutun([Gorunum.Metin(a.ad), Gorunum.Soluk(a.aciklama)]), Gorunum.Anahtar("", a.acik, ((v) => {
-    degisince(a.ad, v);
-  }))]);
-}
-
-function ayarListesi(baslik, ayarlar, degisince) {
-  let satirlar = [];
-  for (const [i, a] of ayarlar.entries()) {
-    if ((i > 0)) {
-      satirlar.push(Gorunum.Cizgi);
-    }
-    satirlar.push(ayarSatiri(a, degisince));
-  }
-  return Gorunum.Kart(baslik, satirlar);
-}
-
-function profilKarti(ad, rol, resim, etiketler, mesajlayinca, takipEdince) {
-  let rozetler = [];
-  for (const e of etiketler) {
-    rozetler.push(Gorunum.Rozet(e, "notr"));
-  }
-  return Gorunum.Kutu([Gorunum.Satir([Gorunum.Avatar(ad, resim), Gorunum.Sutun([Gorunum.Metin(ad), Gorunum.Soluk(rol)])]), Gorunum.Satir(rozetler), Gorunum.Satir([Gorunum.Dugme("Mesaj", mesajlayinca), Gorunum.IkincilDugme("Takip et", takipEdince)])]);
-}
-
-function sikSorulanlar(sorular, acik, degisince) {
-  let basliklar = [];
-  let govdeler = [];
-  for (const s of sorular) {
-    basliklar.push(s.soru);
-    govdeler.push(Gorunum.Paragraf(s.cevap));
-  }
-  return Gorunum.Akordeon(basliklar, govdeler, acik, degisince);
+function d() {
+  return $unwrap(SON, "26:22");
 }
 
 function guncelle(yeni) {
@@ -2227,214 +2025,115 @@ function guncelle(yeni) {
   }
 }
 
-function d() {
-  return $unwrap(SON_DURUM, "49:28");
-}
-
-function bolum(baslik, aciklama, gosterim, kod) {
-  return Gorunum.Sutun([Gorunum.Bosluk(8), Gorunum.AltBaslik(baslik), Gorunum.Paragraf(aciklama), Gorunum.Kutu([gosterim]), Gorunum.KodBloku(kod)]);
-}
-
-function temelBolumu() {
-  return Gorunum.Sutun([bolum("Yazı", "Başlıktan dipnota kadar altı kademe. Paragraf 66 karakterde kırılır; bu ölçü okumayı kolaylaştırır.", Gorunum.Sutun([Gorunum.Baslik("Nar ile arayüz"), Gorunum.AltBaslik("Alt başlık"), Gorunum.Metin("Düz metin satırı."), Gorunum.Paragraf("Paragraf uzun metin içindir. Genişliği sınırlanır, rengi biraz yumuşatılır; göz satır sonunu ararken yorulmasın."), Gorunum.Etiket("küçük etiket")]), "Baslik(\"Nar ile arayüz\")\nAltBaslik(\"Alt başlık\")\nMetin(\"Düz metin satırı.\")\nParagraf(\"Paragraf uzun metin içindir...\")\nEtiket(\"küçük etiket\")"), bolum("Rozet", "Kısa durum etiketi. Beş ton: bilgi, başarı, uyarı, hata ve nötr.", Gorunum.Satir([Gorunum.Rozet("bilgi", TON_BILGI), Gorunum.Rozet("başarı", TON_BASARI), Gorunum.Rozet("uyarı", TON_UYARI), Gorunum.Rozet("hata", TON_HATA), Gorunum.Rozet("nötr", "notr"), Gorunum.Rozet("v0.1", "notr")]), "Rozet(\"bilgi\", TON_BILGI)\nRozet(\"başarı\", TON_BASARI)\nRozet(\"nötr\", \"notr\")"), bolum("Simge", "Otuz sekiz çizgi simge. İçinde bulunduğu yazının rengini ve boyutunu alır; ayrıca renk vermek gerekmez.", Gorunum.Sutun([Gorunum.Satir([Gorunum.Simge("ara"), Gorunum.Simge("arti"), Gorunum.Simge("carpi"), Gorunum.Simge("onay"), Gorunum.Simge("bilgi"), Gorunum.Simge("basari"), Gorunum.Simge("uyari"), Gorunum.Simge("hata"), Gorunum.Simge("kalp"), Gorunum.Simge("yildiz"), Gorunum.Simge("ayar"), Gorunum.Simge("kullanici")]), Gorunum.Satir([Gorunum.Simge("ev"), Gorunum.Simge("dosya"), Gorunum.Simge("klasor"), Gorunum.Simge("cop"), Gorunum.Simge("kalem"), Gorunum.Simge("indir"), Gorunum.Simge("yukle"), Gorunum.Simge("gunes"), Gorunum.Simge("ay"), Gorunum.Simge("menu"), Gorunum.Simge("nokta"), Gorunum.Simge("kilit")]), Gorunum.Satir([Gorunum.Simge("posta"), Gorunum.Simge("takvim"), Gorunum.Simge("saat"), Gorunum.Simge("grafik"), Gorunum.Simge("filtre"), Gorunum.Simge("yenile"), Gorunum.Simge("kod"), Gorunum.Simge("oyna"), Gorunum.Simge("dur"), Gorunum.Simge("bag"), Gorunum.Simge("paket"), Gorunum.Simge("ok-sag")])]), "Simge(\"ara\")\nSimge(\"yildiz\")\n\n// Yazının içinde de kullanılır:\nSatir([Simge(\"saat\"), Metin(\"3 dakika önce\")])"), bolum("Avatar", "Resim varsa resim, yoksa addan çıkarılan baş harfler.", Gorunum.Satir([Gorunum.Avatar("Ayşe Yılmaz", ""), Gorunum.Avatar("Mehmet", ""), Gorunum.Avatar("Zeynep Kara Demir", ""), Gorunum.Metin("Ayşe Yılmaz"), Gorunum.Rozet("yönetici", "notr")]), "Avatar(\"Ayşe Yılmaz\", \"\")        // baş harfler: AY\nAvatar(\"Ayşe\", \"/resim/ayse.jpg\")  // resim"), bolum("Bağlantı ve alıntı", "Dış bağlantılar yeni sekmede açılır ve `rel=noopener` alır.", Gorunum.Sutun([Gorunum.Bag("Nar deposu", "https://github.com/ridocs/nar-dili"), Gorunum.Alinti("Bir dilin gücü, yazdığın şeyin ne kadarını sildiğinle ölçülür.", "Nar rehberi")]), "Bag(\"Nar deposu\", \"https://github.com/ridocs/nar-dili\")\nAlinti(\"Bir dilin gücü...\", \"Nar rehberi\")"), bolum("Düğmeler", "Dört ağırlık: birincil eylem, ikincil, sessiz ve tehlikeli. Bir ekranda tek birincil düğme olsun.", Gorunum.Sutun([Gorunum.Satir([Gorunum.Dugme("Kaydet", (() => {
-
-  })), Gorunum.IkincilDugme("Vazgeç", (() => {
-
-  })), Gorunum.SessizDugme("Daha sonra", (() => {
-
-  })), Gorunum.TehlikeDugmesi("Sil", (() => {
-
-  }))]), Gorunum.Satir([Gorunum.IkonDugme("kalem", "düzenle", (() => {
-
-  })), Gorunum.IkonDugme("cop", "sil", (() => {
-
-  })), Gorunum.IkonDugme("indir", "indir", (() => {
-
-  })), Gorunum.IkonDugme("nokta", "daha fazla", (() => {
-
-  }))])]), "Dugme(\"Kaydet\", || { kaydet() })\nIkincilDugme(\"Vazgeç\", || { kapat() })\nSessizDugme(\"Daha sonra\", || { ertele() })\nTehlikeDugmesi(\"Sil\", || { sil() })\nIkonDugme(\"cop\", \"sil\", || { sil() })"), bolum("Kod bloğu", "Uzun satır sarmaz, kendi içinde kayar.", Gorunum.KodBloku("fn topla(a: Int, b: Int) -> Int {\n  return a + b\n}"), "KodBloku(\"fn selam(ad: String) -> String { ... }\")")]);
-}
-
-function girdiBolumu() {
-  return Gorunum.Sutun([bolum("Metin girdisi", "Tek satır, çok satır ve sayı. Her biri yazdıkça haber verir.", Gorunum.Sutun([Gorunum.Alan("Ad", "Görünen adın.", Gorunum.Giris("adını yaz...", d().ad, ((v) => {
-    const g = d();
-    g.ad = v;
-    guncelle(g);
-  }))), Gorunum.Alan("Not", "Birkaç cümle yeter.", Gorunum.CokSatir("not bırak...", d().not, ((v) => {
-    const g = d();
-    g.not = v;
-    guncelle(g);
-  }))), Gorunum.Alan("Yaş", "", Gorunum.SayiGirisi("yaş", d().yas, ((v) => {
-    const g = d();
-    g.yas = v;
-    guncelle(g);
-  }))), Gorunum.Metin(`girilen: ${d().ad} · ${$fmt(d().yas, "Int", false)}`)]), "Alan(\"Ad\", \"Görünen adın.\", Giris(\"adını yaz...\", durum.ad, |v| {\n  durum.ad = v\n}))"), bolum("Alan ve hata", "Etiket, girdi ve altında ipucu. Hatalıysa aynı yer kırmızıya döner.", Gorunum.Sutun([Gorunum.Alan("E-posta", "Kimseyle paylaşılmaz.", Gorunum.Giris("ornek@site.com", "", ((v) => {
-
-  }))), Gorunum.HataliAlan("E-posta", "Bu adres geçerli görünmüyor.", Gorunum.Giris("ornek@site.com", "ornek@", ((v) => {
-
-  })))]), "Alan(\"E-posta\", \"Kimseyle paylaşılmaz.\", Giris(...))\nHataliAlan(\"E-posta\", \"Bu adres geçerli görünmüyor.\", Giris(...))"), bolum("Seçim", "Onay kutusu, anahtar, radyo ve açılır liste. Anahtar anında etki eden ayarlar için, onay kutusu kaydedilecek formlar için.", Gorunum.Sutun([Gorunum.Onay("Haberleri gönder", d().abone, ((v) => {
-    const g = d();
-    g.abone = v;
-    guncelle(g);
-  })), Gorunum.Anahtar("Koyu tema", d().anahtar, ((v) => {
-    const g = d();
-    g.anahtar = v;
-    guncelle(g);
-  })), Gorunum.Ayrac("radyo"), Gorunum.Radyo(["Günlük", "Haftalık", "Aylık"], d().radyo, ((v) => {
-    const g = d();
-    g.radyo = v;
-    guncelle(g);
-  })), Gorunum.Ayrac("açılır liste"), Gorunum.Secim(["İstanbul", "Ankara", "İzmir", "Mardin"], d().sehir, ((v) => {
-    const g = d();
-    g.sehir = v;
-    guncelle(g);
-  })), Gorunum.Metin(`seçilen: ${d().radyo} · ${d().sehir}`)]), "Onay(\"Haberleri gönder\", durum.abone, |v| { durum.abone = v })\nAnahtar(\"Koyu tema\", durum.koyu, |v| { durum.koyu = v })\nRadyo([\"Günlük\", \"Haftalık\"], durum.sik, |v| { durum.sik = v })\nSecim([\"İstanbul\", \"Ankara\"], durum.sehir, |v| { durum.sehir = v })"), bolum("Takvim", "Giriş ve çıkış gününü seçtiren aralık takvimi. Önce giriş, sonra çıkış gününe tıkla; aradaki geceler şerit olur. Geçmiş günler kapalı.", Gorunum.Takvim(d().takvim, ((yeni) => {
-    const g = d();
-    g.takvim = yeni;
-    guncelle(g);
-  })), "Takvim(durum.takvim, |yeni| { durum.takvim = yeni })\n\n// Durum: hangi ay görünüyor, hangi günler seçili\nlet t = takvimDurumu()   // bugünden başlayan iki aylık\nt.tekTarih = true        // aralık değil tek gün"), bolum("Kaydırıcı", "Aralıktan bir sayı. Değer sürüklerken anında görünür.", Gorunum.Sutun([Gorunum.Kaydirici(0, 100, d().kaydirici, ((v) => {
-    const g = d();
-    g.kaydirici = v;
-    guncelle(g);
-  })), Gorunum.Ilerleme(d().kaydirici)]), "Kaydirici(0, 100, durum.ses, |v| { durum.ses = v })\nIlerleme(durum.ses)")]);
-}
-
-function kutucuk(yazi) {
-  return Gorunum.Kutu([Gorunum.Metin(yazi)]);
-}
-
-function yerlesimBolumu() {
-  return Gorunum.Sutun([bolum("Sütun, satır, esnek", "Sütun alt alta, satır yan yana dizer. Esnek yan yana dizer ama yer kalmayınca alt satıra taşar.", Gorunum.Sutun([Gorunum.Etiket("satır"), Gorunum.Satir([kutucuk("bir"), kutucuk("iki"), kutucuk("üç")]), Gorunum.Etiket("esnek"), Gorunum.Esnek([kutucuk("bir"), kutucuk("iki"), kutucuk("üç"), kutucuk("dört"), kutucuk("beş"), kutucuk("altı")])]), "Satir([Kutu([Metin(\"bir\")]), Kutu([Metin(\"iki\")])])\nEsnek([...])   // yer kalmayınca alt satıra taşar"), bolum("Izgara", "Eşit sütunlar. Dar ekranda kendiliğinden tek sütuna iner.", Gorunum.Izgara(3, [kutucuk("1"), kutucuk("2"), kutucuk("3"), kutucuk("4"), kutucuk("5"), kutucuk("6")]), "Izgara(3, [\n  Kutu([Metin(\"1\")]),\n  Kutu([Metin(\"2\")]),\n  Kutu([Metin(\"3\")])\n])"), bolum("Kart ve kutu", "Kart başlıklıdır, kutu başlıksız. İkisi de içindekileri alt alta dizer.", Gorunum.Satir([Gorunum.Kart("Başlıklı kart", [Gorunum.Metin("İçerik burada.")]), Gorunum.Kutu([Gorunum.AltBaslik("Kutu"), Gorunum.Metin("Başlığını kendin koyarsın.")])]), "Kart(\"Başlıklı kart\", [Metin(\"İçerik burada.\")])\nKutu([Metin(\"Başlıksız.\")])"), bolum("Ayırıcılar", "Etiketli ayraç, düz çizgi ve boşluk.", Gorunum.Sutun([Gorunum.Metin("üstteki"), Gorunum.Ayrac("ya da"), Gorunum.Metin("alttaki"), Gorunum.Cizgi, Gorunum.Metin("çizgiden sonra")]), "Ayrac(\"ya da\")\nCizgi\nBosluk(24)"), bolum("Mobil uyum", "Her görünüm kendi mobil davranışını taşır. Pencereyi daraltarak dene: satır sütuna döner, rozet kaybolur.", Gorunum.Sutun([Gorunum.Satir([kutucuk("sol"), kutucuk("orta"), kutucuk("sağ")]).mobildeSutun(), Gorunum.Satir([Gorunum.Metin("Bu rozet dar ekranda gizlenir:"), Gorunum.Rozet("yalnız geniş", TON_BILGI).mobildeGizle()]), Gorunum.Tablo(["Ad", "Rol"], [["Ayşe", "yönetici"], ["Mehmet", "üye"]]).mobil(Gorunum.Liste(["Ayşe — yönetici", "Mehmet — üye"]))]), "Satir([...]).mobildeSutun()\nRozet(\"yalnız geniş\", TON_BILGI).mobildeGizle()\nTablo(basliklar, satirlar).mobil(Liste([...]))")]);
-}
-
-function veriBolumu() {
-  return Gorunum.Sutun([bolum("İstatistik", "Bir ölçüm ve nereye gittiği. Değişimin başındaki işaret rengi belirler.", Gorunum.Esnek([Gorunum.Istatistik("Günlük indirme", "12.480", "+18%"), Gorunum.Istatistik("Açık hata", "7", "-3"), Gorunum.Istatistik("Ortalama süre", "240 ms", "0%")]), "Istatistik(\"Günlük indirme\", \"12.480\", \"+18%\")\nIstatistik(\"Açık hata\", \"7\", \"-3\")"), bolum("Çubuklar", "Küçük bir grafik. Değerler kendi en büyüğüne göre ölçeklenir.", Gorunum.Cubuklar([12, 19, 8, 24, 17, 28, 22], ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]), "Cubuklar([12, 19, 8, 24, 17, 28, 22],\n         [\"Pzt\", \"Sal\", \"Çar\", \"Per\", \"Cum\", \"Cmt\", \"Paz\"])"), bolum("Tablo", "Başlık satırı sabit biçimde; sayılar hizalı.", Gorunum.Tablo(["Paket", "Sürüm", "Boyut"], [["narc", "0.1.0", "312 KB"], ["arayuz", "0.1.0", "89 KB"], ["hareket", "0.1.0", "12 KB"]]), "Tablo([\"Paket\", \"Sürüm\", \"Boyut\"], [\n  [\"narc\", \"0.1.0\", \"312 KB\"],\n  [\"arayuz\", \"0.1.0\", \"89 KB\"]\n])"), bolum("Liste ve ilerleme", "Madde listesi ve yüzde çubuğu.", Gorunum.Sutun([Gorunum.Liste(["Derleyici", "Arayüz kitaplığı", "Paket yöneticisi"]), Gorunum.Ilerleme(72), Gorunum.Metin("%72 tamam")]), "Liste([\"Derleyici\", \"Arayüz kitaplığı\"])\nIlerleme(72)"), bolum("Adımlar", "Nerede olduğunu ve kaç adım kaldığını gösterir. Düğmelerle dene.", Gorunum.Sutun([Gorunum.Adimlar(["Hesap", "Ödeme", "Onay", "Bitti"], d().adim), Gorunum.Satir([Gorunum.IkincilDugme("Geri", (() => {
-    const g = d();
-    if ((g.adim > 0)) {
-      g.adim = (g.adim - 1);
+function binlikAyir(n) {
+  const s = $fmt(n, "Int", false);
+  let sonuc = "";
+  let sayac = 0;
+  let i = ($len(s) - 1);
+  while ((i >= 0)) {
+    sonuc = ($strGet(s, i) + sonuc);
+    sayac = (sayac + 1);
+    if ((($imod(sayac, 3) === 0) && (i > 0))) {
+      sonuc = ("." + sonuc);
     }
-    guncelle(g);
-  })), Gorunum.Dugme("İleri", (() => {
-    const g = d();
-    if ((g.adim < 3)) {
-      g.adim = (g.adim + 1);
-    }
-    guncelle(g);
-  }))])]), "Adimlar([\"Hesap\", \"Ödeme\", \"Onay\", \"Bitti\"], durum.adim)"), bolum("Sayfalama", "Uzun listeleri böler. Uçlarda düğmeler kendiliğinden kapanır.", Gorunum.Sayfalama(d().sayfa, 8, ((n) => {
-    const g = d();
-    g.sayfa = n;
-    guncelle(g);
-  })), "Sayfalama(durum.sayfa, 8, |n| { durum.sayfa = n })")]);
+    i = (i - 1);
+  }
+  return sonuc;
 }
 
-function bildirimBolumu() {
-  return Gorunum.Sutun([bolum("Uyarı", "Dört ton. Simgeyle birlikte kullanmak mesajı hızlı okutur.", Gorunum.Sutun([Gorunum.Uyari(TON_BILGI, "Kaydedilmemiş değişiklikler var."), Gorunum.Uyari(TON_BASARI, "Dosya kaydedildi."), Gorunum.Uyari(TON_UYARI, "Disk alanı azalıyor."), Gorunum.Uyari(TON_HATA, "Sunucuya ulaşılamadı.")]), "Uyari(TON_BILGI, \"Kaydedilmemiş değişiklikler var.\")\nUyari(TON_HATA, \"Sunucuya ulaşılamadı.\")"), bolum("Boş durum", "Hiçbir şey yokken ne yapılacağını söyler. Boş bir liste bırakmak kullanıcıyı yolda bırakır.", Gorunum.BosDurum("klasor", "Henüz proje yok", "İlk projeni oluştur; şablonlardan biriyle başlayabilirsin.", Gorunum.Dugme("Yeni proje", (() => {
-
-  }))), "BosDurum(\"klasor\", \"Henüz proje yok\",\n         \"İlk projeni oluştur...\",\n         Dugme(\"Yeni proje\", || { yeni() }))"), bolum("Akordeon", "Uzun içeriği katlar. Açık bölüme tekrar tıklamak kapatır.", Gorunum.Akordeon(["Nar nedir?", "Nasıl kurulur?", "Hangi hedefler var?"], [Gorunum.Paragraf("Türkçe hata mesajları olan, kendi derleyicisiyle gelen küçük bir dil."), Gorunum.Paragraf("Depoyu indir, `python -m narc run dosya.nar` yaz. Başka bir şey gerekmez."), Gorunum.Paragraf("js, web, masaüstü, mobil, ghb, exe ve narb.")], d().akordeon, ((i) => {
-    const g = d();
-    g.akordeon = i;
-    guncelle(g);
-  })), "Akordeon([\"Soru 1\", \"Soru 2\"], [Paragraf(\"...\"), Paragraf(\"...\")],\n         durum.acik, |i| { durum.acik = i })"), bolum("Menü ve ipucu", "Açılır menü odak dışına çıkınca kapanır. İpucu üstüne gelince görünür.", Gorunum.Satir([Gorunum.Menu("İşlemler", ["Yeniden adlandır", "Çoğalt", "Dışa aktar", "Sil"], ((s) => {
-    const g = d();
-    g.menuSecimi = s;
-    guncelle(g);
-  })), Gorunum.Ipucu("Değişiklikleri kaydeder", Gorunum.Dugme("Kaydet", (() => {
-
-  }))), Gorunum.Metin(((d().menuSecimi === "") ? "menüden seç" : `seçilen: ${d().menuSecimi}`))]), "Menu(\"İşlemler\", [\"Çoğalt\", \"Sil\"], |s| { uygula(s) })\nIpucu(\"Değişiklikleri kaydeder\", Dugme(\"Kaydet\", || { kaydet() }))"), bolum("İletişim kutusu", "Sayfanın üstünde, ortada. Perdeye tıklamak ya da çarpı kapatır.", Gorunum.Sutun([Gorunum.Dugme("Kutuyu aç", (() => {
-    const g = d();
-    g.iletisim = true;
-    guncelle(g);
-  })), (d().iletisim ? Gorunum.Iletisim("Projeyi sil", [Gorunum.Paragraf("Bu işlem geri alınamaz. Proje ve içindeki 24 dosya silinir."), Gorunum.Satir([Gorunum.TehlikeDugmesi("Evet, sil", (() => {
-    const g = d();
-    g.iletisim = false;
-    guncelle(g);
-  })), Gorunum.IkincilDugme("Vazgeç", (() => {
-    const g = d();
-    g.iletisim = false;
-    guncelle(g);
-  }))])], (() => {
-    const g = d();
-    g.iletisim = false;
-    guncelle(g);
-  })) : Gorunum.Bos)]), "if durum.acik {\n  Iletisim(\"Projeyi sil\", [Paragraf(\"...\")], || { durum.acik = false })\n} else {\n  Bos\n}"), bolum("Sekmeler", "Aynı yerde birden çok görünüm.", Gorunum.Sutun([Gorunum.Sekmeler(["Genel", "Güvenlik", "Bildirim"], d().icSekme, ((i) => {
-    const g = d();
-    g.icSekme = i;
-    guncelle(g);
-  })), Gorunum.Kutu([Gorunum.Metin($listGet(["Genel ayarlar burada.", "Parola ve oturumlar.", "E-posta tercihleri."], d().icSekme))])]), "Sekmeler([\"Genel\", \"Güvenlik\"], durum.sekme, |i| { durum.sekme = i })"), bolum("Yükleniyor", "İskelet içerik gelmeden yerini tutar; halka kısa işler için.", Gorunum.Sutun([Gorunum.Iskelet(3), Gorunum.Donuyor("derleniyor…")]), "Iskelet(3)\nDonuyor(\"derleniyor…\")")]);
+function para(n) {
+  return (binlikAyir(n) + " ₺");
 }
 
-function kalipBolumu() {
-  return Gorunum.Sutun([Gorunum.Uyari(TON_BILGI, "Kalıplar hazır ekranlardır: bileşenlerden kurulmuş, tek satırla çağrılan tasarımlar. Hepsi `araclar/kaliplar.nar` içinde."), bolum("Giriş ekranı", "Ortalanmış kart, alanlar, birincil eylem ve alternatif yol.", girisEkrani("Nar'a hoş geldin", "Devam etmek için giriş yap", ((e, p) => {
-
-  }), (() => {
-
-  })), "girisEkrani(\"Nar'a hoş geldin\", \"Devam etmek için giriş yap\",\n            |eposta, parola| { girisYap(eposta, parola) },\n            || { kaydolSayfasi() })"), bolum("Gösterge paneli", "Dört ölçüm, bir grafik ve son hareketler.", gostergePaneli("Bu hafta", [olcum("Ziyaret", "8.412", "+12%"), olcum("Yeni üye", "312", "+4%"), olcum("Hata", "9", "-22%"), olcum("Süre", "1.2 sn", "0%")], [18, 24, 16, 30, 27, 34, 29], ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"], [hareket("Ayşe Yılmaz", "yeni sürüm yayınladı", "2 dk"), hareket("Mehmet Kaya", "bir hata kapattı", "18 dk"), hareket("Zeynep Ak", "belgeyi güncelledi", "1 sa")]), "gostergePaneli(\"Bu hafta\", olcumler, degerler, etiketler, hareketler)"), bolum("Fiyat kartları", "Üç seçenek; ortadaki öne çıkar.", fiyatKartlari([paket("Açık kaynak", "0₺", "her zaman", ["Sınırsız proje", "Topluluk desteği"], false, "Başla"), paket("Takım", "240₺", "aylık", ["Sınırsız proje", "Öncelikli destek", "Özel paketler"], true, "Takımı kur"), paket("Kurumsal", "Görüşelim", "", ["Kurulum desteği", "Eğitim", "SLA"], false, "İletişime geç")], ((ad) => {
-
-  })), "fiyatKartlari([\n  paket(\"Takım\", \"240₺\", \"aylık\", [\"...\"], true, \"Takımı kur\")\n], |ad| { sec(ad) })"), bolum("Özellik ızgarası", "Simge, başlık, bir cümle. Tanıtım sayfalarının omurgası.", ozellikIzgarasi([ozellik("kod", "Türkçe hatalar", "Derleyici ne olduğunu Türkçe söyler, satırı gösterir."), ozellik("paket", "Tek dosya", "Programın tek bir .exe olarak çıkar; kurulum istemez."), ozellik("grafik", "Ölçülü tasarım", "Renkler ve kontrastlar hesaplanır, tahmin edilmez."), ozellik("yenile", "Hızlı döngü", "Kaydet, sayfa kendini yeniler.")]), "ozellikIzgarasi([\n  ozellik(\"kod\", \"Türkçe hatalar\", \"Derleyici ne olduğunu Türkçe söyler.\")\n])"), bolum("Ayarlar listesi", "Her satırda bir ayar: adı, açıklaması ve anahtarı.", ayarListesi("Bildirimler", [ayar("E-posta", "Haftalık özet gönderilsin.", true), ayar("Masaüstü", "Derleme bitince haber ver.", false), ayar("Ses", "Hata olduğunda kısa bir ses çal.", false)], ((ad, acik) => {
-
-  })), "ayarListesi(\"Bildirimler\", [\n  ayar(\"E-posta\", \"Haftalık özet gönderilsin.\", true)\n], |ad, acik| { degistir(ad, acik) })"), bolum("Profil kartı", "Avatar, ad, rol ve iki eylem.", Gorunum.Esnek([profilKarti("Ayşe Yılmaz", "Derleyici ekibi", "", ["142 katkı", "8 paket"], (() => {
-
-  }), (() => {
-
-  })), profilKarti("Mehmet Kaya", "Arayüz", "", ["63 katkı", "2 paket"], (() => {
-
-  }), (() => {
-
-  }))]), "profilKarti(\"Ayşe Yılmaz\", \"Derleyici ekibi\", \"\",\n            [\"142 katkı\", \"8 paket\"], || { mesaj() }, || { takip() })"), bolum("Sık sorulanlar", "Katlanır soru listesi; açık olan bir tane.", sikSorulanlar([soru("Nar hangi platformlarda çalışır?", "Windows, macOS ve Linux. Tarayıcı için ayrı bir hedef var."), soru("Başka bir dile bağımlı mı?", "Derleyici Python ile yazıldı; ürettiği program bağımsız çalışır."), soru("Paket yöneticisi var mı?", "Henüz yok, yol haritasında.")], d().akordeon, ((i) => {
-    const g = d();
-    g.akordeon = i;
-    guncelle(g);
-  })), "sikSorulanlar([soru(\"Soru?\", \"Cevap.\")], durum.acik, |i| { durum.acik = i })")]);
+function geceler() {
+  return geceSayisi(d().takvim.giris, d().takvim.cikis);
 }
 
-function govdeBolumu() {
-  if ((d().sekme === 1)) {
-    return girdiBolumu();
+function konaklama() {
+  return (geceler() * GECELIK);
+}
+
+function kahvaltiBedeli() {
+  if ((!d().kahvalti)) {
+    return 0;
   }
-  if ((d().sekme === 2)) {
-    return yerlesimBolumu();
+  return ((geceler() * d().kisi) * KISI_BASI);
+}
+
+function toplam() {
+  if ((geceler() === 0)) {
+    return 0;
   }
-  if ((d().sekme === 3)) {
-    return veriBolumu();
+  return ((konaklama() + TEMIZLIK) + kahvaltiBedeli());
+}
+
+function fiyatSatiri(etiket, tutar) {
+  return Gorunum.SatirYay([Gorunum.Soluk(etiket), Gorunum.Metin(tutar)]);
+}
+
+function ozetKutusu() {
+  let ic = [];
+  ic.push(Gorunum.SatirYay([Gorunum.Sutun([Gorunum.Baslik(para(GECELIK)), Gorunum.Soluk("gecelik")]), Gorunum.Rozet("4,8 ★", "notr")]));
+  ic.push(Gorunum.Cizgi);
+  if ((geceler() === 0)) {
+    ic.push(Gorunum.BosDurum("takvim", "Tarih seçilmedi", "Takvimden giriş ve çıkış gününü seç; tutar burada çıkar.", Gorunum.Bos));
+    return Gorunum.Kutu(ic);
   }
-  if ((d().sekme === 4)) {
-    return bildirimBolumu();
+  ic.push(Gorunum.Izgara(2, [Gorunum.Alan("Giriş", $listGet(GUN_KISA, haftaninGunu(tarihYil(d().takvim.giris), tarihAy(d().takvim.giris), tarihGun(d().takvim.giris))), Gorunum.Metin(tarihMetni(d().takvim.giris))), Gorunum.Alan("Çıkış", ((d().takvim.cikis === 0) ? "seçilmedi" : $listGet(GUN_KISA, haftaninGunu(tarihYil(d().takvim.cikis), tarihAy(d().takvim.cikis), tarihGun(d().takvim.cikis)))), Gorunum.Metin(((d().takvim.cikis === 0) ? "—" : tarihMetni(d().takvim.cikis))))]));
+  if ((d().takvim.cikis === 0)) {
+    ic.push(Gorunum.Uyari(TON_BILGI, "Çıkış gününü de seç."));
+    return Gorunum.Kutu(ic);
   }
-  if ((d().sekme === 5)) {
-    return kalipBolumu();
+  ic.push(Gorunum.Cizgi);
+  ic.push(Gorunum.Alan("Kişi", "", Gorunum.Kaydirici(1, 6, d().kisi, ((v) => {
+    const g = d();
+    g.kisi = v;
+    guncelle(g);
+  }))));
+  ic.push(Gorunum.Anahtar("Kahvaltı dahil", d().kahvalti, ((v) => {
+    const g = d();
+    g.kahvalti = v;
+    guncelle(g);
+  })));
+  ic.push(Gorunum.Cizgi);
+  ic.push(fiyatSatiri((((para(GECELIK) + " × ") + $fmt(geceler(), "Int", false)) + " gece"), para(konaklama())));
+  if (d().kahvalti) {
+    ic.push(fiyatSatiri((("Kahvaltı · " + $fmt(d().kisi, "Int", false)) + " kişi"), para(kahvaltiBedeli())));
   }
-  return temelBolumu();
+  ic.push(fiyatSatiri("Temizlik bedeli", para(TEMIZLIK)));
+  ic.push(Gorunum.Cizgi);
+  ic.push(Gorunum.SatirYay([Gorunum.Metin("Toplam"), Gorunum.Baslik(para(toplam()))]));
+  ic.push(Gorunum.Dugme("Rezervasyon yap", (() => {
+    const g = d();
+    g.onaylandi = true;
+    guncelle(g);
+  })));
+  if (d().onaylandi) {
+    ic.push(Gorunum.Uyari(TON_BASARI, (((((("Rezervasyon alındı: " + kisaTarihMetni(d().takvim.giris)) + " – ") + kisaTarihMetni(d().takvim.cikis)) + ", ") + $fmt(geceler(), "Int", false)) + " gece.")));
+  }
+  return Gorunum.Kutu(ic);
 }
 
 function ciz(durum) {
-  SON_DURUM = durum;
-  return Gorunum.Sutun([Gorunum.Satir([Gorunum.Sutun([Gorunum.Satir([Gorunum.Baslik("Nar arayüz kitaplığı"), Gorunum.Rozet("v0.1", "notr")]), Gorunum.Paragraf(("Elli bileşen, altı hazır kalıp. Hepsi Nar ile yazıldı; " + "aşağıdaki her örneğin altında onu üreten kod duruyor."))]), Gorunum.Sutun([Gorunum.Anahtar("Koyu", durum.koyu, ((v) => {
+  SON = durum;
+  return Gorunum.Sutun([Gorunum.Satir([Gorunum.Sutun([Gorunum.Baslik("Mardin taş konak"), Gorunum.Satir([Gorunum.Simge("ev"), Gorunum.Soluk("Eski şehir · 2 oda · 4 kişilik")])]), Gorunum.Rozet("müsait", TON_BASARI)]), Gorunum.Bosluk(4), Gorunum.Satir([Gorunum.Genislik(620, Gorunum.Takvim(durum.takvim, ((yeni) => {
     const g = d();
-    g.koyu = v;
+    g.takvim = yeni;
+    g.onaylandi = false;
     guncelle(g);
-    temaSec((v ? "koyu" : "acik"));
-  })), Gorunum.Anahtar("Yumuşak", durum.yumusak, ((v) => {
-    const g = d();
-    g.yumusak = v;
-    guncelle(g);
-    deriSec((v ? "yumusak" : ""));
-  }))]).mobildeGizle()]).mobildeSutun(), Gorunum.Bosluk(4), Gorunum.Sekmeler(SEKMELER, durum.sekme, ((i) => {
-    const g = d();
-    g.sekme = i;
-    guncelle(g);
-  })), Gorunum.Bosluk(4), govdeBolumu(), Gorunum.Bosluk(16), Gorunum.Cizgi, Gorunum.Satir([Gorunum.Metin("Nar arayüz kitaplığı"), Gorunum.Bag("kaynak", "https://github.com/ridocs/nar-dili")])]);
+  }))), ozetKutusu()]).mobildeSutun()]);
 }
 
 function main() {
   if (($bul("#uygulama") === null)) {
     console.log("Bu program tarayıcıda çalıştırılmalı.");
-    console.log("Derle:  nar build ornekler/arayuz_galerisi.nar --target web");
+    console.log("Derle:  nar build ornekler/takvim.nar --target web");
     return;
   }
-  const baslangic = new Durum(0, "", "", 28, true, "Mardin", 62, false, "Haftalık", 40, 0, 1, false, "", 1, 0, false, true, takvimDurumu());
   deriSec("yumusak");
-  uygulama = uygulamaBaslat("#uygulama", baslangic, ciz);
-  genislikKur(1080);
+  const t = takvimDurumu();
+  uygulama = uygulamaBaslat("#uygulama", new Durum(t, 2, true, false), ciz);
+  genislikKur(1020);
 }
 
 const KADEME_SAKIN = "sakin";
@@ -2470,11 +2169,11 @@ let ODAK_SAYACI = 0;
 const SIMGE_BASI = "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>";
 const SIMGELER = new Map([["ara", "<circle cx='11' cy='11' r='7'/><path d='M16.5 16.5 21 21'/>"], ["arti", "<path d='M12 5v14M5 12h14'/>"], ["carpi", "<path d='M6 6l12 12M18 6L6 18'/>"], ["onay", "<path d='M4.5 12.5 9.5 17.5 19.5 6.5'/>"], ["ok-sag", "<path d='M9 5l7 7-7 7'/>"], ["ok-sol", "<path d='M15 5l-7 7 7 7'/>"], ["ok-asagi", "<path d='M5 9l7 7 7-7'/>"], ["ok-yukari", "<path d='M5 15l7-7 7 7'/>"], ["bilgi", "<circle cx='12' cy='12' r='9'/><path d='M12 11.5v5.5'/><circle cx='12' cy='7.8' r='.9' fill='currentColor' stroke='none'/>"], ["basari", "<circle cx='12' cy='12' r='9'/><path d='M7.8 12.3 10.8 15.3 16.4 8.9'/>"], ["uyari", "<path d='M12 3.5 22 20.5H2Z'/><path d='M12 9.5v4.5'/><circle cx='12' cy='17.2' r='.9' fill='currentColor' stroke='none'/>"], ["hata", "<circle cx='12' cy='12' r='9'/><path d='M8.8 8.8l6.4 6.4M15.2 8.8l-6.4 6.4'/>"], ["kalp", "<path d='M12 20.5 4.2 12.9a4.6 4.6 0 0 1 6.5-6.5l1.3 1.3 1.3-1.3a4.6 4.6 0 0 1 6.5 6.5Z'/>"], ["yildiz", "<path d='M12 3.5l2.7 5.8 6.3.8-4.6 4.3 1.2 6.2-5.6-3.1-5.6 3.1 1.2-6.2L3 10.1l6.3-.8Z'/>"], ["ayar", "<circle cx='12' cy='12' r='3.2'/><path d='M12 2.5v3M12 18.5v3M21.5 12h-3M5.5 12h-3M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1M18.7 18.7l-2.1-2.1M7.4 7.4 5.3 5.3'/>"], ["kullanici", "<circle cx='12' cy='8' r='3.8'/><path d='M4.5 20.5a7.5 7.5 0 0 1 15 0'/>"], ["ev", "<path d='M4 10.5 12 4l8 6.5V20.5H4Z'/><path d='M9.5 20.5v-6h5v6'/>"], ["dosya", "<path d='M6 3h8l4 4v14H6Z'/><path d='M14 3v4h4'/>"], ["klasor", "<path d='M3 6h6l2 2.5h10V19.5H3Z'/>"], ["cop", "<path d='M4 6.5h16'/><path d='M7.5 6.5V4h9v2.5'/><path d='M6 6.5 7 21h10l1-14.5'/>"], ["kalem", "<path d='M4 20h4L20 8l-4-4L4 16Z'/><path d='M14.5 5.5 18.5 9.5'/>"], ["indir", "<path d='M12 3.5v11.5'/><path d='M7.2 10.5 12 15.3l4.8-4.8'/><path d='M4 20h16'/>"], ["yukle", "<path d='M12 15.5V4'/><path d='M7.2 8.8 12 4l4.8 4.8'/><path d='M4 20h16'/>"], ["gunes", "<circle cx='12' cy='12' r='4.2'/><path d='M12 2v2.5M12 19.5V22M22 12h-2.5M4.5 12H2M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8M19.1 19.1l-1.8-1.8M6.7 6.7 4.9 4.9'/>"], ["ay", "<path d='M20.5 14.6A8.6 8.6 0 1 1 9.4 3.5a7 7 0 0 0 11.1 11.1Z'/>"], ["menu", "<path d='M4 7h16M4 12h16M4 17h16'/>"], ["nokta", "<circle cx='6' cy='12' r='1.3' fill='currentColor' stroke='none'/><circle cx='12' cy='12' r='1.3' fill='currentColor' stroke='none'/><circle cx='18' cy='12' r='1.3' fill='currentColor' stroke='none'/>"], ["kilit", "<rect x='4.5' y='10.5' width='15' height='10' rx='2.2'/><path d='M8 10.5V7a4 4 0 0 1 8 0v3.5'/>"], ["posta", "<rect x='3' y='5' width='18' height='14' rx='2.2'/><path d='M3.6 6.6 12 13l8.4-6.4'/>"], ["takvim", "<rect x='3.5' y='5.5' width='17' height='15' rx='2.2'/><path d='M3.5 10.2h17'/><path d='M8 3v4.5M16 3v4.5'/>"], ["saat", "<circle cx='12' cy='12' r='9'/><path d='M12 6.8V12l3.6 2.2'/>"], ["grafik", "<path d='M3 17.5 9 11l4 4 8-8.5'/><path d='M15 6.5h6v6'/>"], ["filtre", "<path d='M3 5h18l-7 8.2V20l-4-2v-4.8Z'/>"], ["yenile", "<path d='M20.5 12a8.5 8.5 0 1 1-2.6-6.1'/><path d='M20.5 3.5v5h-5'/>"], ["kod", "<path d='M9 7.5 4 12l5 4.5'/><path d='M15 7.5 20 12l-5 4.5'/>"], ["oyna", "<path d='M7.5 4.8 19 12 7.5 19.2Z'/>"], ["dur", "<rect x='6' y='5.5' width='4' height='13' rx='1'/><rect x='14' y='5.5' width='4' height='13' rx='1'/>"], ["bag", "<path d='M10.5 13.5a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.4 1.4'/><path d='M13.5 10.5a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.4-1.4'/>"], ["paket", "<path d='M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5Z'/><path d='M3.5 7.5 12 12l8.5-4.5M12 12v9'/>"]]);
 let RADYO_SAYACI = 0;
-let GIRIS_EPOSTA = "";
-let GIRIS_PAROLA = "";
+const GECELIK = 1850;
+const TEMIZLIK = 350;
+const KISI_BASI = 120;
 let uygulama = null;
-let SON_DURUM = null;
-const SEKMELER = ["Temel", "Girdi", "Yerleşim", "Veri", "Geri bildirim", "Kalıplar"];
+let SON = null;
 
 $bootstrap(main);
 

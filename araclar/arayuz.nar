@@ -32,6 +32,7 @@
 // Bir görünüm parçası. Kendi içinde yine görünümler taşıyabilir.
 import "hareket.nar"
 import "arayuz_stil.nar"
+import "tarih.nar"
 
 enum Gorunum {
   // yazı
@@ -92,6 +93,7 @@ enum Gorunum {
   BosDurum(String, String, String, Gorunum)   // simge, başlık, açıklama, eylem
   Sayfalama(Int, Int, (Int) -> Void)          // şu an, toplam, gidince
   Akordeon([String], [Gorunum], Int, (Int) -> Void)  // başlıklar, gövdeler, açık
+  Takvim(TakvimDurumu, (TakvimDurumu) -> Void)  // tarih aralığı seçici
   Menu(String, [String], (String) -> Void)    // etiket, öğeler, seçince
   Ipucu(String, Gorunum)                      // üstüne gelince çıkan not
   Iletisim(String, [Gorunum], () -> Void)     // başlık, içerik, kapanınca
@@ -425,6 +427,7 @@ fn ogeYap(g: Gorunum) -> Element = match g {
     sayfalamaOgesi(simdi, toplam, gidince)
   Akordeon(basliklar, govdeler, acik, degisince) ->
     akordeonOgesi(basliklar, govdeler, acik, degisince)
+  Takvim(durum, degisince) -> takvimOgesi(durum, degisince)
   Menu(etiket, ogeler, secince) -> menuOgesi(etiket, ogeler, secince)
   Ipucu(not, ic) -> ipucuOgesi(not, ic)
   Iletisim(baslik, cocuklar, kapaninca) ->
@@ -1140,6 +1143,223 @@ fn iletisimOgesi(baslik: String, cocuklar: [Gorunum],
   perde.dinle("click", kapaninca)
   perde.ekle(kutu)
   return perde
+}
+
+// --- takvim ---------------------------------------------------------------
+//
+// Giriş ve çıkış tarihi seçtiren aralık takvimi. Bileşen kendi durumunu
+// tutmaz: hangi ay görünüyor, hangi günler seçili — hepsi `TakvimDurumu`
+// içinde gelir, tıklama sonrası yenisi geri verilir. Böylece seçilen
+// tarihler uygulamanın durumunda durur, takvimin içinde saklı kalmaz.
+//
+//     Takvim(durum.takvim, |yeni| { durum.takvim = yeni })
+
+struct TakvimDurumu {
+  var yil: Int        // görünen ilk ayın yılı
+  var ay: Int         // görünen ilk ay (1-12)
+  var giris: Int      // seçilen giriş tarihi, 0 ise seçilmedi
+  var cikis: Int      // seçilen çıkış tarihi, 0 ise seçilmedi
+  var enErken: Int    // bundan önceki günler seçilemez (0: sınır yok)
+  var enGec: Int      // bundan sonraki günler seçilemez (0: sınır yok)
+  var aySayisi: Int   // yan yana kaç ay (1 ya da 2)
+  var tekTarih: Bool  // true ise aralık değil tek gün seçilir
+}
+
+// Bugünün ayını gösteren, geçmişi kapalı, iki aylık bir takvim.
+fn takvimDurumu() -> TakvimDurumu {
+  let b = bugun()
+  return TakvimDurumu {
+    yil: tarihYil(b), ay: tarihAy(b), giris: 0, cikis: 0,
+    enErken: b, enGec: 0, aySayisi: 2, tekTarih: false
+  }
+}
+
+fn takvimKopyala(d: TakvimDurumu) -> TakvimDurumu = TakvimDurumu {
+  yil: d.yil, ay: d.ay, giris: d.giris, cikis: d.cikis,
+  enErken: d.enErken, enGec: d.enGec, aySayisi: d.aySayisi,
+  tekTarih: d.tekTarih
+}
+
+fn takvimSecilebilirMi(d: TakvimDurumu, t: Int) -> Bool {
+  if d.enErken != 0 && t < d.enErken {
+    return false
+  }
+  if d.enGec != 0 && t > d.enGec {
+    return false
+  }
+  return true
+}
+
+// Bir güne tıklanınca ne olacağını burası bilir; çağıran taraf yalnız
+// sonucu alır. Kural: giriş yoksa giriş seçilir; giriş varsa ve tıklanan
+// gün sonraysa çıkış seçilir; ikisi de doluysa seçim baştan başlar.
+fn takvimTikla(d: TakvimDurumu, t: Int) -> TakvimDurumu {
+  let yeni = takvimKopyala(d)
+  if d.tekTarih {
+    yeni.giris = t
+    yeni.cikis = 0
+    return yeni
+  }
+  if d.giris == 0 || d.cikis != 0 {
+    yeni.giris = t
+    yeni.cikis = 0
+    return yeni
+  }
+  if t > d.giris {
+    yeni.cikis = t
+    return yeni
+  }
+  // Girişten önceki bir güne tıklamak seçimi oraya taşır; kullanıcı
+  // "yanlış gün seçtim" demek istiyordur, hata vermek gereksiz.
+  yeni.giris = t
+  yeni.cikis = 0
+  return yeni
+}
+
+fn takvimGunSinifi(d: TakvimDurumu, t: Int) -> String {
+  var sinif = "nar-gun"
+  if !takvimSecilebilirMi(d, t) {
+    sinif += " nar-gun-kapali"
+  }
+  if t == bugun() {
+    sinif += " nar-gun-bugun"
+  }
+  let tekSecim = d.giris != 0 && d.cikis == 0
+  if t == d.giris && t == d.cikis {
+    return sinif + " nar-gun-bas nar-gun-tek"
+  }
+  if t == d.giris {
+    // Çıkış henüz seçilmediyse uç değil tek nokta olarak görünür.
+    if tekSecim {
+      return sinif + " nar-gun-bas nar-gun-tek"
+    }
+    return sinif + " nar-gun-bas"
+  }
+  if t == d.cikis {
+    return sinif + " nar-gun-son"
+  }
+  if d.giris != 0 && d.cikis != 0 && t > d.giris && t < d.cikis {
+    return sinif + " nar-gun-arada"
+  }
+  return sinif
+}
+
+// Tek bir ayın ızgarası: hafta başlıkları, baştaki boşluklar ve günler.
+fn takvimAyi(d: TakvimDurumu, yil: Int, ay: Int,
+             degisince: (TakvimDurumu) -> Void) -> Element {
+  let sarmal = sinifliOge("div", "nar-ay")
+  sarmal.ekle(yaziOgesi("div", "nar-ay-adi", ayAdi(ay) + " " + str(yil)))
+
+  let basliklar = sinifliOge("div", "nar-gun-basliklari")
+  for g in GUN_KISA {
+    basliklar.ekle(yaziOgesi("div", "nar-gun-basligi", g))
+  }
+  sarmal.ekle(basliklar)
+
+  let izgara = sinifliOge("div", "nar-gunler")
+  // Ayın ilk günü haftanın kaçıncı günü ise o kadar boş hücre konur.
+  let bosluk = haftaninGunu(yil, ay, 1)
+  var i = 0
+  while i < bosluk {
+    izgara.ekle(sinifliOge("div", "nar-gun nar-gun-bos"))
+    i += 1
+  }
+  var gun = 1
+  let sonGun = ayGunSayisi(yil, ay)
+  while gun <= sonGun {
+    let t = tarih(yil, ay, gun)
+    let hucre = sinifliOge("button", takvimGunSinifi(d, t))
+    hucre.ozellikYaz("type", "button")
+    hucre.metinYaz(str(gun))
+    hucre.ozellikYaz("aria-label", tarihMetni(t))
+    if takvimSecilebilirMi(d, t) {
+      hucre.dinle("click", || {
+        degisince(takvimTikla(d, t))
+      })
+    } else {
+      hucre.ozellikYaz("disabled", "disabled")
+    }
+    izgara.ekle(hucre)
+    gun += 1
+  }
+  sarmal.ekle(izgara)
+  return sarmal
+}
+
+fn takvimOzeti(d: TakvimDurumu) -> Element {
+  let kutu = sinifliOge("div", "nar-takvim-ozet")
+  if d.giris == 0 {
+    kutu.ekle(yaziOgesi("div", "nar-takvim-aralik", "Tarih seç"))
+    let ipucu = if d.tekTarih { "bir gün seç" } else { "önce giriş, sonra çıkış" }
+    kutu.ekle(yaziOgesi("div", "nar-takvim-gece", ipucu))
+    return kutu
+  }
+  if d.tekTarih {
+    kutu.ekle(yaziOgesi("div", "nar-takvim-aralik", tarihMetni(d.giris)))
+    kutu.ekle(yaziOgesi("div", "nar-takvim-gece", GUN_KISA[haftaninGunu(tarihYil(d.giris), tarihAy(d.giris), tarihGun(d.giris))]))
+    return kutu
+  }
+  if d.cikis == 0 {
+    kutu.ekle(yaziOgesi("div", "nar-takvim-aralik",
+                        kisaTarihMetni(d.giris) + " — …"))
+    kutu.ekle(yaziOgesi("div", "nar-takvim-gece", "çıkış gününü seç"))
+    return kutu
+  }
+  kutu.ekle(yaziOgesi("div", "nar-takvim-aralik",
+                      kisaTarihMetni(d.giris) + " — " + kisaTarihMetni(d.cikis)))
+  let gece = geceSayisi(d.giris, d.cikis)
+  kutu.ekle(yaziOgesi("div", "nar-takvim-gece", str(gece) + " gece"))
+  return kutu
+}
+
+fn takvimOgesi(d: TakvimDurumu, degisince: (TakvimDurumu) -> Void) -> Element {
+  let kok = sinifliOge("div", "nar-takvim")
+
+  // Başlık: aylar arasında gezinme.
+  let basi = sinifliOge("div", "nar-takvim-basi")
+  basi.ekle(ikonDugmesi("ok-sol", "önceki ay", || {
+    let yeni = takvimKopyala(d)
+    yeni.yil = oncekiAyYili(d.yil, d.ay)
+    yeni.ay = oncekiAyi(d.ay)
+    degisince(yeni)
+  }))
+  var baslik = ayAdi(d.ay) + " " + str(d.yil)
+  if d.aySayisi > 1 {
+    let ikinciAy = sonrakiAyi(d.ay)
+    let ikinciYil = sonrakiAyYili(d.yil, d.ay)
+    baslik += " – " + ayAdi(ikinciAy) + " " + str(ikinciYil)
+  }
+  basi.ekle(yaziOgesi("div", "nar-takvim-baslik", baslik))
+  basi.ekle(ikonDugmesi("ok-sag", "sonraki ay", || {
+    let yeni = takvimKopyala(d)
+    yeni.yil = sonrakiAyYili(d.yil, d.ay)
+    yeni.ay = sonrakiAyi(d.ay)
+    degisince(yeni)
+  }))
+  kok.ekle(basi)
+
+  // Aylar
+  let aylar = sinifliOge("div", "nar-takvim-aylar")
+  aylar.ekle(takvimAyi(d, d.yil, d.ay, degisince))
+  if d.aySayisi > 1 {
+    aylar.ekle(takvimAyi(d, sonrakiAyYili(d.yil, d.ay), sonrakiAyi(d.ay),
+                         degisince))
+  }
+  kok.ekle(aylar)
+
+  // Özet ve temizleme
+  let alt = sinifliOge("div", "nar-takvim-alt")
+  alt.ekle(takvimOzeti(d))
+  if d.giris != 0 {
+    alt.ekle(dugmeOgesi("nar-dugme-sessiz", "Temizle", || {
+      let yeni = takvimKopyala(d)
+      yeni.giris = 0
+      yeni.cikis = 0
+      degisince(yeni)
+    }))
+  }
+  kok.ekle(alt)
+  return kok
 }
 
 // --- görsel ayarlar -------------------------------------------------------

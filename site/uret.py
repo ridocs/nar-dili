@@ -39,7 +39,7 @@ import oyun  # noqa: E402
 import tasarim  # noqa: E402
 from tasarim import (  # noqa: E402
     IKON_ARA, IKON_AY, IKON_BAG, IKON_CIZGI, IKON_GITHUB, IKON_GUNES,
-    IKON_KOD, IKON_KOPYA, IKON_OK, IKON_ONAY, IKON_BILESEN, IKON_OYNAT,
+    IKON_KOD, IKON_KOPYA, IKON_OK, IKON_ONAY, IKON_BILESEN, IKON_OYNAT, IKON_TAKVIM,
 )
 from icerik import (  # noqa: E402
     ALT_BASLIK, BASLIK, BOLUMLER, DEPO, GIRIS, HEDEFLER, NASIL_CALISTIRILIR,
@@ -260,6 +260,11 @@ def bolum_dizini_html() -> str:
     ogeler.append(
         f'<li><a href="bilesenler/">{IKON_BILESEN}'
         f'<span class="ad">Bileşen vitrini</span>'
+        f'<span class="adet">→</span></a></li>'
+    )
+    ogeler.append(
+        f'<li><a href="takvim/">{IKON_TAKVIM}'
+        f'<span class="ad">Takvim örneği</span>'
         f'<span class="adet">→</span></a></li>'
     )
     konu_sayisi = sum(len(b["konular"]) for b in BOLUMLER)
@@ -515,6 +520,20 @@ def main() -> int:
             print("bileşen vitrini üretilemedi:\n" + (sonuc.stderr or sonuc.stdout))
             return 1
         print(f"yazıldı: {vitrin / 'index.html'} (bileşen vitrini)")
+
+        # Takvim demosu: aralık seçicinin gerçek bir ekranda hâli.
+        takvim = args.cikti.parent / "takvim"
+        takvim.mkdir(parents=True, exist_ok=True)
+        sonuc = subprocess.run(
+            [sys.executable, "-m", "narc", "build",
+             str(KOK / "ornekler" / "takvim.nar"),
+             "--target", "web", "-o", str(takvim / "index.html")],
+            cwd=KOK, capture_output=True, text=True, encoding="utf-8",
+        )
+        if sonuc.returncode != 0:
+            print("takvim demosu üretilemedi:\n" + (sonuc.stderr or sonuc.stdout))
+            return 1
+        print(f"yazıldı: {takvim / 'index.html'} (takvim demosu)")
     return 0
 
 

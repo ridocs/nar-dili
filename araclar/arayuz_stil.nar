@@ -350,6 +350,14 @@ let STIL = """
    genişliktir. Bu kural olmadan üç kutu geniş ekranda da alt alta
    diziliyor, `Esnek` hiç sarmıyordu. */
 .nar-satir > .nar-kutu, .nar-esnek > .nar-kutu { width: auto; flex: 1 1 160px; }
+/* Genişliği sınırlanmış sarmalayıcı da yer paylaşır; yoksa satırda
+   içeriği kadar daralıp verilen ölçüye hiç ulaşmıyordu. */
+.nar-satir > .nar-en, .nar-esnek > .nar-en { flex: 1 1 auto; }
+/* Satır öğeleri ortalanır (rozet, düğme, metin böyle doğru durur) ama
+   yan yana konan kutular üstten hizalanıp aynı boyu paylaşmalı. */
+.nar-satir > .nar-kutu, .nar-satir > .nar-kart, .nar-satir > .nar-takvim,
+.nar-satir > .nar-en, .nar-satir > .nar-tablo-sarmal,
+.nar-satir > .nar-akordeon { align-self: stretch; }
 .nar-ortala { display: flex; justify-content: center; width: 100%; }
 /* Satırın iki ucuna yaslar: solda ad, sağda değer. Dar ekranda sarar. */
 .nar-satir-yay { display: flex; flex-direction: row; align-items: center;
@@ -570,6 +578,81 @@ let STIL = """
   opacity: 0; transition: opacity var(--nar-gecis); }
 .nar-ipucu-sarmal:hover .nar-ipucu-balon,
 .nar-ipucu-sarmal:focus-within .nar-ipucu-balon { opacity: 1; }
+
+/* --- takvim ------------------------------------------------------------- */
+/* Bir aralık seçicidir: giriş günü, aradaki geceler ve çıkış günü ayrı
+   görünür. Uçlar yuvarlak, aradakiler düz — böylece seçim tek bir şerit
+   gibi okunur. */
+
+.nar-takvim { display: flex; flex-direction: column; gap: var(--nar-b3);
+  width: 100%; background: var(--nar-yuzey);
+  border: 1px solid var(--nar-kenar); border-radius: 12px;
+  padding: var(--nar-b4); box-shadow: var(--nar-golge-1); }
+
+.nar-takvim-basi { display: flex; align-items: center;
+  justify-content: space-between; gap: var(--nar-b3); width: 100%; }
+.nar-takvim-baslik { font-size: var(--nar-yazi-m); font-weight: 620;
+  letter-spacing: -0.01em; }
+
+.nar-takvim-aylar { display: flex; gap: var(--nar-b5); width: 100%; }
+.nar-ay { display: flex; flex-direction: column; gap: 6px; flex: 1;
+  min-width: 0; }
+.nar-ay-adi { text-align: center; font-size: var(--nar-yazi-s);
+  font-weight: 620; color: var(--nar-metin); padding-bottom: 2px; }
+
+.nar-gun-basliklari, .nar-gunler {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.nar-gun-basliklari { gap: 2px; }
+.nar-gun-basligi { text-align: center; font-size: var(--nar-yazi-xs);
+  font-weight: 620; letter-spacing: 0.04em; color: var(--nar-soluk);
+  padding-bottom: 4px; }
+/* Hücreler arası boşluk yok: seçili aralık kesintisiz bir şerit olsun. */
+.nar-gunler { gap: 0 0; row-gap: 2px; }
+
+.nar-gun { position: relative; display: flex; align-items: center;
+  justify-content: center; aspect-ratio: 1 / 1; min-height: 34px;
+  font-size: var(--nar-yazi-s); font-variant-numeric: tabular-nums;
+  border: none; background: transparent; color: var(--nar-metin);
+  font-family: inherit; cursor: pointer; border-radius: 999px;
+  transition: background-color var(--nar-gecis), color var(--nar-gecis); }
+.nar-gun:hover { background: var(--nar-yuzey-2); }
+.nar-gun-bos { visibility: hidden; pointer-events: none; }
+.nar-gun-kapali { color: var(--nar-soluk); opacity: .45;
+  cursor: not-allowed; }
+.nar-gun-kapali:hover { background: transparent; }
+/* Bugün: altında küçük bir nokta. Renk ayırt etmeye yetmiyor. */
+.nar-gun-bugun::after { content: ''; position: absolute; bottom: 5px;
+  left: 50%; transform: translateX(-50%); width: 4px; height: 4px;
+  border-radius: 999px; background: var(--nar-vurgu); }
+
+.nar-gun-arada { background: var(--nar-vurgu-zemin); border-radius: 0; }
+.nar-gun-arada:hover { background: var(--nar-vurgu-zemin); }
+.nar-gun-bas, .nar-gun-son {
+  background: var(--nar-vurgu); color: var(--nar-dugme-yazi);
+  font-weight: 620; }
+.nar-gun-bas:hover, .nar-gun-son:hover { background: var(--nar-vurgu-koyu); }
+.nar-gun-bas::after, .nar-gun-son::after { background: var(--nar-dugme-yazi); }
+/* Şeridin uçları: giriş günü solda yuvarlak, çıkış günü sağda. */
+.nar-gun-bas { border-radius: 999px 0 0 999px; }
+.nar-gun-son { border-radius: 0 999px 999px 0; }
+.nar-gun-tek { border-radius: 999px; }
+/* Aralık bir hafta satırında bitiyorsa şerit orada da yuvarlansın;
+   düz kesilen kenar seçimin devam ettiği izlenimi veriyordu. */
+.nar-gunler > .nar-gun-arada:nth-child(7n + 1) { border-radius: 999px 0 0 999px; }
+.nar-gunler > .nar-gun-arada:nth-child(7n) { border-radius: 0 999px 999px 0; }
+
+.nar-takvim-alt { display: flex; align-items: center;
+  justify-content: space-between; gap: var(--nar-b3); width: 100%;
+  flex-wrap: wrap; border-top: 1px solid var(--nar-kenar);
+  padding-top: var(--nar-b3); }
+.nar-takvim-ozet { display: flex; flex-direction: column; gap: 2px; }
+.nar-takvim-aralik { font-size: var(--nar-yazi-m); font-weight: 560; }
+.nar-takvim-gece { font-size: var(--nar-yazi-s); color: var(--nar-soluk); }
+
+@media (max-width: 600px) {
+  /* İki ay yan yana 400 px'e sığmıyor; ikincisi gizlenir. */
+  .nar-takvim-aylar > .nar-ay + .nar-ay { display: none; }
+}
 
 /* --- uyum --------------------------------------------------------------- */
 /* `.mobildeGizle()`, `.masaustundeGizle()`, `.mobildeSutun()` */
