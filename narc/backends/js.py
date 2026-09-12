@@ -14,7 +14,7 @@ from .. import runtime_budama
 from ..checker import Checker
 from ..types import (
     ELEMENT, FLOAT, INT, ISTEK, KOMUT, OLAY, STRING, YANIT, EnumT, ListT, MapT, OptT,
-    Prim, StructT, Type, TypeVar, unwrap_optional,
+    Prim, StructT, TupleT, Type, TypeVar, unwrap_optional,
 )
 
 RUNTIME_PATH = Path(__file__).resolve().parent.parent / "runtime" / "nar_runtime.js"
@@ -455,6 +455,13 @@ class JsBackend:
         self.write("}")
 
     def emit_stmt(self, stmt: A.Stmt) -> None:
+        if isinstance(stmt, A.LetStmt) and stmt.names:
+            # `let (a, b) = ifade` — JavaScript'in dizi açması birebir uyar.
+            adlar = ", ".join(self.name(a) for a in stmt.names)
+            anahtar = "let" if stmt.mutable else "const"
+            self.write(f"{anahtar} [{adlar}] = {self.expr(stmt.value)};")
+            return
+
         if isinstance(stmt, A.LetStmt):
             self.emit_let(stmt)
 
@@ -777,6 +784,11 @@ class JsBackend:
                 return self.desen_baglari[node.name]
             return self.name(node.name)
 
+        if isinstance(node, A.TupleLit):
+            # Tuple bir dizidir: `.0` erişimi `[0]` olur, ek bir çalışma
+            # zamanı yapısı gerekmez.
+            return "[" + ", ".join(self.expr(i) for i in node.items) + "]"
+
         if isinstance(node, A.ListLit):
             return "[" + ", ".join(self.expr(i) for i in node.items) + "]"
 
@@ -918,7 +930,7 @@ class JsBackend:
     @staticmethod
     def needs_deep_eq(ty: Type | None) -> bool:
         base = unwrap_optional(ty) if ty is not None else None
-        return isinstance(base, (StructT, EnumT, ListT, MapT))
+        return isinstance(base, (StructT, EnumT, ListT, MapT, TupleT))
 
     def index_read(self, obj_ty: Type | None, obj: str, idx: str) -> str:
         base = unwrap_optional(obj_ty) if obj_ty is not None else None
@@ -958,6 +970,9 @@ class JsBackend:
             return f"{enum_name}.{self.name(node.name)}"
 
         obj = self.expr(node.obj)
+        if resolved == "tuple":
+            # Tuple bir dizi olarak saklanıyor; `t.0` -> `t[0]`.
+            return f"{obj}?.[{node.name}]" if node.safe else f"{obj}[{node.name}]"
         if node.safe:
             return f"{obj}?.{self.name(node.name)}"
         return f"{obj}.{self.name(node.name)}"

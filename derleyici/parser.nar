@@ -326,10 +326,13 @@ struct Cozumleyici {
       }
       self.bekle(")", "')'")
 
-      // `->` gelmiyorsa parantez gruplandırmadır: `((Int) -> Bool)?`
+      // `->` gelmiyorsa: tek tip gruplamadır, birden çoksa tuple tipi.
       if !self.suradaMi("->") {
         if params.len() == 1 {
           return params[0]
+        }
+        if params.len() >= 2 {
+          return TipD { konum: k, ic: TTuple(params) }
         }
         self.hataVer("'->' (fonksiyon tipinin dönüş oku) bekleniyordu")
         return TipD { konum: k, ic: BOS_TIP }
@@ -663,6 +666,23 @@ struct Cozumleyici {
     let k = self.konum()
     let anahtar = self.ilerle()          // let | var
     let degisebilir = anahtar.tur == "var"
+
+    // `let (a, b) = ifade` — tuple'ı adlarına açar.
+    if self.suradaMi("(") {
+      self.ilerle()
+      var adlar: [String] = [self.beklenenAd("değişken adı")]
+      while self.iyiMi() && self.al(",") {
+        adlar.push(self.beklenenAd("değişken adı"))
+      }
+      self.bekle(")", "')'")
+      self.bekle("=", "'='")
+      let acmaDegeri = self.ifadeCozumle()
+      if adlar.len() < 2 {
+        self.hataVer("tuple açmak için en az iki ad gerekir")
+      }
+      return self.deyimD(k, SLet("", none, acmaDegeri, degisebilir, adlar))
+    }
+
     let ad = self.beklenenAd("değişken adı")
 
     var tip: TipD? = none
@@ -680,7 +700,7 @@ struct Cozumleyici {
     if deger == none && !degisebilir {
       self.hataVer("değişmez '${ad}' bildiriminde başlangıç değeri zorunlu")
     }
-    return self.deyimD(k, SLet(ad, tip, deger, degisebilir))
+    return self.deyimD(k, SLet(ad, tip, deger, degisebilir, []))
   }
 
   // Koşul ifadesi: `{` blok başlangıcı sayıldığı için literal kapalıdır.
@@ -926,6 +946,12 @@ struct Cozumleyici {
 
       if tur == "." {
         self.ilerle()
+        // `t.0` — tuple öğesi sırasıyla okunur.
+        if self.suradaMi("int") {
+          let sira = self.ilerle()
+          e = self.ifadeD(k, IAlan(e, sira.metin, false))
+          continue
+        }
         e = self.ifadeD(k, IAlan(e, self.beklenenAd("alan ya da metot adı"), false))
         continue
       }
@@ -936,8 +962,8 @@ struct Cozumleyici {
       }
       if tur == "(" {
         self.ilerle()
-        let cagriArgs = self.argumanlarCozumle()
-      e = self.ifadeD(k, ICagri(e, cagriArgs.args, cagriArgs.adlar))
+        let (cagriArgs, cagriAdlar) = self.argumanlarCozumle()
+        e = self.ifadeD(k, ICagri(e, cagriArgs, cagriAdlar))
         continue
       }
       if tur == "[" {
@@ -1044,7 +1070,8 @@ struct Cozumleyici {
     return self.ifadeD(k, IStruct(adiniAl(tipIfadesi), targs, alanlar))
   }
 
-  fn argumanlarCozumle() -> Argumanlar {
+  // Argümanlar ve adları. `f(1, ad: 2)` için adlar ["", "ad"].
+  fn argumanlarCozumle() -> ([IfadeD], [String]) {
     var args: [IfadeD] = []
     var adlar: [String] = []
     let onceki = self.structLitYok
@@ -1072,7 +1099,7 @@ struct Cozumleyici {
 
     self.structLitYok = onceki
     self.bekle(")", "')'")
-    return Argumanlar { args: args, adlar: adlar }
+    return (args, adlar)
   }
 
   fn temelIfadeCozumle() -> IfadeD {
@@ -1115,6 +1142,21 @@ struct Cozumleyici {
       self.satirSonlariniAtla()
       let ic = self.ifadeCozumle()
       self.satirSonlariniAtla()
+      // Virgül varsa bu gruplama değil, tuple: `(a, b)`.
+      if self.suradaMi(",") {
+        var ogeler: [IfadeD] = [ic]
+        while self.iyiMi() && self.al(",") {
+          self.satirSonlariniAtla()
+          if self.suradaMi(")") {
+            break
+          }
+          ogeler.push(self.ifadeCozumle())
+          self.satirSonlariniAtla()
+        }
+        self.structLitYok = onceki
+        self.bekle(")", "')'")
+        return self.ifadeD(k, ITuple(ogeler))
+      }
       self.structLitYok = onceki
       self.bekle(")", "')'")
       // Parantez yeni bir düğüm kurmaz; içerideki ifadenin konumu korunur.
@@ -1541,6 +1583,7 @@ fn konumuTasi(d: IfadeD, k: Konum) -> IfadeD =
 fn icKonumuTasi(e: Ifade, k: Konum) -> Ifade = match e {
   IMetin(parcalar) -> IMetin(parcalar.map(|p| parcaKonumuTasi(p, k)))
   IListe(ogeler) -> IListe(ogeler.map(|o| konumuTasi(o, k)))
+  ITuple(ogeler) -> ITuple(ogeler.map(|o| konumuTasi(o, k)))
   IEsleme(ciftler) -> IEsleme(ciftler.map(|c| IfadeCifti {
     anahtar: konumuTasi(c.anahtar, k), deger: konumuTasi(c.deger, k)
   }))
@@ -1605,8 +1648,8 @@ fn deyimKonumuTasi(d: DeyimD, k: Konum) -> DeyimD = DeyimD {
 }
 
 fn icDeyimKonumuTasi(s: Deyim, k: Konum) -> Deyim = match s {
-  SLet(ad, tip, deger, degisebilir) -> SLet(
-    ad, tip, if deger == none { none } else { konumuTasi(deger!, k) }, degisebilir)
+  SLet(ad, tip, deger, degisebilir, adlar) -> SLet(
+    ad, tip, if deger == none { none } else { konumuTasi(deger!, k) }, degisebilir, adlar)
   SAtama(op, hedef, deger) -> SAtama(op, konumuTasi(hedef, k), konumuTasi(deger, k))
   SIfade(e) -> SIfade(konumuTasi(e, k))
   SDonus(e) -> SDonus(if e == none { none } else { konumuTasi(e!, k) })

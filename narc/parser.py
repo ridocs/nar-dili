@@ -281,10 +281,13 @@ class Parser:
                     params.append(self.parse_type())
             self.expect(")", "')'")
 
-            # `->` gelmiyorsa parantez gruplandırmadır: `((Int) -> Bool)?`
+            # `->` gelmiyorsa: tek tip parantez içindeyse gruplama
+            # (`((Int) -> Bool)?`), birden çoksa tuple tipi.
             if not self.at("->"):
                 if len(params) == 1:
                     return params[0]
+                if len(params) >= 2:
+                    return A.TupleType(tok.span, params)
                 raise NarError(
                     "'->' (fonksiyon tipinin dönüş oku) bekleniyordu",
                     self.cur.span,
@@ -459,6 +462,24 @@ class Parser:
     def parse_let(self) -> A.LetStmt:
         tok = self.advance()  # let | var
         mutable = tok.kind == "var"
+
+        # `let (a, b) = ifade` — tuple'ı adlarına açar.
+        if self.at("("):
+            self.advance()
+            adlar = [self.expect("ident", "değişken adı").value]
+            while self.match(","):
+                adlar.append(self.expect("ident", "değişken adı").value)
+            self.expect(")", "')'")
+            self.expect("=", "'='")
+            deger = self.parse_expr()
+            if len(adlar) < 2:
+                raise NarError(
+                    "tuple açmak için en az iki ad gerekir",
+                    tok.span,
+                    hint="tek değer için: let a = ifade",
+                )
+            return A.LetStmt(tok.span, "", None, deger, mutable, adlar)
+
         name = self.expect("ident", "değişken adı").value
         type_expr = None
         if self.match(":"):
@@ -681,6 +702,12 @@ class Parser:
 
             if tok.kind == ".":
                 self.advance()
+                # `t.0` — tuple öğesi sırasıyla okunur.
+                if self.cur.kind == "int":
+                    sira = self.advance()
+                    expr = A.FieldAccess(tok.span, expr, str(sira.value),
+                                         safe=False)
+                    continue
                 name = self.expect("ident", "alan ya da metot adı").value
                 expr = A.FieldAccess(tok.span, expr, name, safe=False)
 
@@ -859,13 +886,25 @@ class Parser:
             self.advance()
             saved = self.no_struct_lit
             self.no_struct_lit = False
+            tuple_ogeleri = None
             try:
                 self.skip_newlines()
                 inner = self.parse_expr()
                 self.skip_newlines()
+                # Virgül varsa bu bir gruplama değil, tuple: `(a, b)`.
+                if self.at(","):
+                    tuple_ogeleri = [inner]
+                    while self.match(","):
+                        self.skip_newlines()
+                        if self.at(")"):
+                            break
+                        tuple_ogeleri.append(self.parse_expr())
+                        self.skip_newlines()
             finally:
                 self.no_struct_lit = saved
             self.expect(")", "')'")
+            if tuple_ogeleri is not None:
+                return A.TupleLit(tok.span, tuple_ogeleri)
             return inner
 
         if tok.kind == "[":

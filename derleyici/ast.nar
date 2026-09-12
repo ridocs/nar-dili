@@ -37,15 +37,10 @@ struct TipD {
 enum TipIfadesi {
   TAd(String, [TipD])                    // Int, Kutu<Int>
   TListe(TipD)                           // [Int]
+  TTuple([TipD])                         // (Int, String)
   TEsleme(TipD, TipD)                    // {String: Int}
   TOpsiyonel(TipD)                       // Int?
   TIslev([TipD], TipD?)                  // (Int) -> Bool
-}
-
-// Çağrı argümanları ve adları. `f(1, ad: 2)` için adlar ["", "ad"].
-struct Argumanlar {
-  args: [IfadeD]
-  adlar: [String]
 }
 
 struct Parametre {
@@ -88,6 +83,7 @@ enum Ifade {
   IAd(String)
   IBen                                   // self
   IListe([IfadeD])
+  ITuple([IfadeD])                       // (a, b)
   IEsleme([IfadeCifti])
   IStruct(String, [TipD], [AlanDegeri])
   ITekli(String, IfadeD)                 // -x, !x
@@ -153,7 +149,7 @@ enum Yoksa {
 }
 
 enum Deyim {
-  SLet(String, TipD?, IfadeD?, Bool)        // ad, tip, değer, değişebilir mi
+  SLet(String, TipD?, IfadeD?, Bool, [String])  // ad, tip, değer, değişebilir, açma adları
   SAtama(String, IfadeD, IfadeD)            // işleç, hedef, değer
   SIfade(IfadeD)
   SDonus(IfadeD?)
@@ -333,6 +329,7 @@ fn yazTipGovdesi(t: TipIfadesi) -> String = match t {
     dugum("tad", [tirnakla(ad), dizi(args.map(|a| yazTip(a)))])
   }
   TListe(e) -> dugum("tliste", [yazTip(e)])
+  TTuple(ogeler) -> dugum("ttuple", [dizi(ogeler.map(|o| yazTip(o)))])
   TEsleme(k, v) -> dugum("tesleme", [yazTip(k), yazTip(v)])
   TOpsiyonel(i) -> dugum("topsiyonel", [yazTip(i)])
   TIslev(p, r) -> dugum("tislev", [dizi(p.map(|x| yazTip(x))), yazTipOps(r)])
@@ -363,6 +360,7 @@ fn yazIfade(e: Ifade) -> String = match e {
   IAd(ad) -> dugum("ad", [tirnakla(ad)])
   IBen -> dugum("self", [])
   IListe(ogeler) -> dugum("liste", [dizi(ogeler.map(|o| yazIfadeD(o)))])
+  ITuple(ogeler) -> dugum("tuple", [dizi(ogeler.map(|o| yazIfadeD(o)))])
   IEsleme(ciftler) -> dugum("esleme", [dizi(ciftler.map(|c| yazCift(c)))])
   IStruct(ad, targs, alanlar) -> dugum("structlit", [
     tirnakla(ad),
@@ -438,8 +436,9 @@ fn yazIfadeOps(e: IfadeD?) -> String {
 fn yazDeyimD(d: DeyimD) -> String = konumla(yazDeyim(d.ic), d.konum)
 
 fn yazDeyim(s: Deyim) -> String = match s {
-  SLet(ad, tip, deger, degisebilir) -> dugum("let", [
-    tirnakla(ad), yazTipOps(tip), yazIfadeOps(deger), mantik(degisebilir)
+  SLet(ad, tip, deger, degisebilir, adlar) -> dugum("let", [
+    tirnakla(ad), yazTipOps(tip), yazIfadeOps(deger), mantik(degisebilir),
+    dizi(adlar.map(|a| tirnakla(a)))
   ])
   SAtama(op, hedef, deger) -> dugum("atama", [tirnakla(op), yazIfadeD(hedef), yazIfadeD(deger)])
   SIfade(e) -> dugum("ifadedeyimi", [yazIfadeD(e)])

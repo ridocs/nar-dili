@@ -19,6 +19,7 @@
 enum Tip {
   TipPrim(String)                 // Int | Float | Bool | String | Void | Element | Olay
   TipListe(Tip)
+  TipTuple([Tip])                 // (Int, String) — sırayla okunan öğeler
   TipEsleme(Tip, Tip)
   TipOpsiyonel(Tip)
   TipIslev([Tip], Tip)
@@ -224,6 +225,7 @@ fn parametreEslemesi(params: [String], args: [Tip]) -> [AdTip] {
 fn tipMetni(t: Tip) -> String = match t {
   TipPrim(ad) -> ad
   TipListe(e) -> "[" + tipMetni(e) + "]"
+  TipTuple(ogeler) -> "(" + ogeler.map(|o| tipMetni(o)).join(", ") + ")"
   TipEsleme(k, v) -> "{" + tipMetni(k) + ": " + tipMetni(v) + "}"
   TipOpsiyonel(i) -> tipMetni(i) + "?"
   TipIslev(p, r) -> "(" + p.map(|x| tipMetni(x)).join(", ") + ") -> " + tipMetni(r)
@@ -247,6 +249,19 @@ fn argMetni(args: [Tip]) -> String {
 // --- eşitlik --------------------------------------------------------------
 
 // Struct ve enum adlarıyla, geri kalanı yapısıyla karşılaştırılır.
+// İki tuple aynı uzunlukta ve öğeleri sırayla aynı tipteyse eşittir.
+fn tupleEsit(a: [Tip], b: [Tip]) -> Bool {
+  if a.len() != b.len() {
+    return false
+  }
+  for (i, t) in a {
+    if !tipEsit(t, b[i]) {
+      return false
+    }
+  }
+  return true
+}
+
 fn tipEsit(a: Tip, b: Tip) -> Bool = match a {
   TipPrim(ad) -> match b {
     TipPrim(bd) -> ad == bd
@@ -254,6 +269,10 @@ fn tipEsit(a: Tip, b: Tip) -> Bool = match a {
   }
   TipListe(e) -> match b {
     TipListe(be) -> tipEsit(e, be)
+    _ -> false
+  }
+  TipTuple(ogeler) -> match b {
+    TipTuple(bogeler) -> tupleEsit(ogeler, bogeler)
     _ -> false
   }
   TipEsleme(k, v) -> match b {
@@ -344,6 +363,7 @@ fn yerineKoy(t: Tip, esleme: [AdTip]) -> Tip {
     TipDegisken(ad) -> return adaGoreTip(esleme, ad) ?? t
     TipOpsiyonel(i) -> return opsiyonelYap(yerineKoy(i, esleme))
     TipListe(e) -> return TipListe(yerineKoy(e, esleme))
+    TipTuple(ogeler) -> return TipTuple(ogeler.map(|o| yerineKoy(o, esleme)))
     TipEsleme(k, v) -> return TipEsleme(yerineKoy(k, esleme), yerineKoy(v, esleme))
     TipIslev(p, r) -> return TipIslev(
       p.map(|x| yerineKoy(x, esleme)), yerineKoy(r, esleme))

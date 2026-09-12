@@ -20,7 +20,7 @@ from .types import (
     ORDERED,
     PRIMITIVES, STRING, VOID, YANIT,
     AnyT, EnumT, FnT, InterfaceT, ListT, MapT, NeverT, NoneT, OptT, Prim,
-    RangeT, StructT,
+    RangeT, StructT, TupleT,
     Type, TypeVar, assignable, birlestir, common_type, is_optional, subst,
     tipdegiskeni_var_mi, tipdegiskenleri, tipdegiskenlerini_serbest_birak,
     unwrap_optional, uygula_enum, uygula_struct,
@@ -487,6 +487,9 @@ class Checker:
             self.error(f"bilinmeyen tip: '{node.name}'", node.span)
             return ANY
 
+        if isinstance(node, A.TupleType):
+            return TupleT(tuple(self.resolve_type(e) for e in node.elems))
+
         if isinstance(node, A.ListType):
             return ListT(self.resolve_type(node.elem))
         if isinstance(node, A.MapType):
@@ -615,7 +618,40 @@ class Checker:
         else:  # pragma: no cover
             self.error(f"denetlenemeyen deyim: {type(stmt).__name__}", stmt.span)
 
+    def check_let_acma(self, stmt: A.LetStmt, env: Env) -> None:
+        """`let (a, b) = ifade` — tuple'ı adlarına dağıtır."""
+        got = self.check_expr(stmt.value, env)
+        taban = unwrap_optional(got)
+        if isinstance(taban, AnyT):
+            for ad in stmt.names:
+                env.define(ad, ANY, stmt.mutable, span=stmt.span)
+            return
+        if not isinstance(taban, TupleT):
+            self.error(
+                f"tuple açılabilir; '{got}' açılamaz",
+                stmt.value.span,
+                hint="sağ taraf (Int, String) gibi bir tuple olmalı",
+            )
+            for ad in stmt.names:
+                env.define(ad, ANY, stmt.mutable, span=stmt.span)
+            return
+        if len(stmt.names) != len(taban.elems):
+            self.error(
+                f"{len(taban.elems)} öğeli tuple {len(stmt.names)} ada "
+                "açılamaz",
+                stmt.span,
+                hint=f"ad sayısı öğe sayısıyla aynı olmalı: {taban}",
+            )
+        for i, ad in enumerate(stmt.names):
+            tip = taban.elems[i] if i < len(taban.elems) else ANY
+            if ad in env.names:
+                self.error(f"'{ad}' bu kapsamda zaten tanımlı", stmt.span)
+            env.define(ad, tip, stmt.mutable, span=stmt.span)
+
     def check_let(self, stmt: A.LetStmt, env: Env) -> None:
+        if stmt.names:
+            self.check_let_acma(stmt, env)
+            return
         declared = self.resolve_type(stmt.type_expr) if stmt.type_expr else None
 
         if stmt.value is None:
@@ -1107,6 +1143,9 @@ class Checker:
                 return ANY
             return binding.ty
 
+        if isinstance(node, A.TupleLit):
+            return self.check_tuple_lit(node, env, expected)
+
         if isinstance(node, A.ListLit):
             return self.check_list_lit(node, env, expected)
 
@@ -1167,6 +1206,27 @@ class Checker:
 
         self.error(f"denetlenemeyen ifade: {type(node).__name__}", node.span)  # pragma: no cover
         return ANY
+
+    def check_tuple_lit(self, node: A.TupleLit, env: Env,
+                        expected: Type | None) -> Type:
+        """`(a, b)` — her öğe kendi tipini korur.
+
+        Beklenen tip biliniyorsa öğelere ipucu olarak geçer; böylece
+        `let t: (Int, Float) = (1, 2)` içindeki 2 float olur.
+        """
+        hedef = unwrap_optional(expected) if expected is not None else None
+        ipuclari = hedef.elems if isinstance(hedef, TupleT) else ()
+        tipler = []
+        for i, oge in enumerate(node.items):
+            ipucu = ipuclari[i] if i < len(ipuclari) else None
+            tipler.append(self.check_expr(oge, env, ipucu))
+        if len(tipler) > 4:
+            self.warn(
+                f"{len(tipler)} öğeli tuple okunması zor",
+                node.span,
+                hint="alanların adı anlam taşıyorsa struct kullan",
+            )
+        return TupleT(tuple(tipler))
 
     def check_list_lit(self, node: A.ListLit, env: Env, expected: Type | None) -> Type:
         hint = None
@@ -1669,6 +1729,26 @@ class Checker:
         if isinstance(base, AnyT):
             node.__dict__["resolved"] = "field"
             return ANY
+
+        if isinstance(base, TupleT):
+            # Tuple öğeleri sırayla okunur: `t.0`, `t.1`.
+            if not node.name.isdigit():
+                self.error(
+                    f"tuple'ın '{node.name}' diye bir alanı yok",
+                    node.span,
+                    hint=f"öğeler sırayla okunur: .0 – .{len(base.elems) - 1}",
+                )
+                return ANY
+            sira = int(node.name)
+            if sira >= len(base.elems):
+                self.error(
+                    f"tuple'ın {len(base.elems)} öğesi var; .{sira} yok",
+                    node.span,
+                    hint=f"geçerli olanlar: .0 – .{len(base.elems) - 1}",
+                )
+                return ANY
+            node.__dict__["resolved"] = "tuple"
+            return base.elems[sira]
 
         # `fn f<T: Yazdirilabilir>(x: T)` içinde x.yaz() çağrılabilir.
         if isinstance(base, TypeVar):

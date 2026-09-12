@@ -216,6 +216,18 @@ class BytecodeUretici:
 
     def deyim(self, s: A.Stmt):
         if isinstance(s, A.LetStmt):
+            if s.names:
+                # `let (a, b) = ifade` — deger bir kez hesaplanip gecici
+                # bir yerelde tutulur, sonra ogeleri adlara dagitilir.
+                self.ifade(s.value)
+                gecici = self.kapsam.tanimla(" acma")
+                self.yaz(K.YEREL_YAZ, gecici, s)
+                for sira, ad in enumerate(s.names):
+                    self.yaz(K.YEREL_OKU, gecici)
+                    self.yaz(K.SABIT, self.sabit(sira))
+                    self.yaz(K.DIZIN_OKU, dugum=s)
+                    self.yaz(K.YEREL_YAZ, self.kapsam.tanimla(ad), s)
+                return
             if s.value is not None:
                 self.ifade(s.value)
             else:
@@ -607,7 +619,8 @@ class BytecodeUretici:
             if indis is None:
                 raise UretimHatasi("'self' bu kapsamda yok")
             self.yaz(K.YEREL_OKU, indis, e)
-        elif isinstance(e, A.ListLit):
+        elif isinstance(e, (A.TupleLit, A.ListLit)):
+            # Tuple da liste gibi saklanir; `.0` indeksleme olur.
             for o in e.items:
                 self.ifade(o)
             self.yaz(K.LISTE, len(e.items), e)
@@ -785,6 +798,11 @@ class BytecodeUretici:
             self.yaz(K.VARYANT, self.sabit(f"{enum_adi}.{e.name}:0"), e)
             return
         self.ifade(e.obj)
+        if cozum == "tuple" and not e.safe:
+            # Tuple liste olarak saklanir; `t.0` indekslemedir.
+            self.yaz(K.SABIT, self.sabit(int(e.name)), e)
+            self.yaz(K.DIZIN_OKU, dugum=e)
+            return
         if e.safe:
             # `a?.b` — nesne none ise sonuç none; alan hiç okunmaz.
             oku = self.yaz(K.ATLA_VAR_TUT, 0, e)

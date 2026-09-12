@@ -195,6 +195,7 @@ struct Denetleyici {
   fn tipCoz(t: TipD) -> Tip = match t.ic {
     TAd(ad, args) -> self.adliTipCoz(ad, args, t.konum)
     TListe(e) -> TipListe(self.tipCoz(e))
+    TTuple(ogeler) -> TipTuple(ogeler.map(|o| self.tipCoz(o)))
     TEsleme(k, v) -> self.eslemeTipiCoz(k, v, t.konum)
     TOpsiyonel(i) -> opsiyonelYap(self.tipCoz(i))
     TIslev(p, r) -> TipIslev(p.map(|x| self.tipCoz(x)), self.tipCozOps(r))
@@ -418,9 +419,9 @@ struct Denetleyici {
     for o in self.modul.ogeler {
       match o.ic {
         OStruct(ad, tparams, _, alanlar, metotlar) ->
-        self.structGovdesiniTopla(ad, tparams, alanlar, metotlar)
+          self.structGovdesiniTopla(ad, tparams, alanlar, metotlar)
         OEnum(ad, tparams, _, varyantlar, metotlar) ->
-        self.enumGovdesiniTopla(ad, tparams, varyantlar, metotlar)
+          self.enumGovdesiniTopla(ad, tparams, varyantlar, metotlar)
         _ -> {}
       }
     }

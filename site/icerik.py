@@ -894,6 +894,45 @@ fn main() {
 }''',
             },
             {
+                "id": "tuple",
+                "baslik": "Tuple — iki değeri birlikte döndürmek",
+                "aciklama": """
+Bir fonksiyon tek değer döndürür; iki şey döndürmek gerektiğinde eskiden
+bunun için bir <code>struct</code> açmak gerekirdi. <strong>Tuple</strong>
+tam bu boşluğu doldurur: parantez içinde birkaç değer, alan adı yok,
+sırayla okunur.
+<p><code>let (a, b) = ...</code> ile tuple doğrudan adlarına açılır;
+öğeye tek tek <code>.0</code>, <code>.1</code> ile de erişilebilir.</p>
+<p><strong>Ne zaman struct'a geçmeli:</strong> alanların adı anlam
+taşımaya başladığında. <code>(Int, Int)</code> okunurken hangisinin
+bölüm hangisinin kalan olduğu belli değilse, orası artık bir struct
+yeridir — dört öğeyi geçen tuple için derleyici de uyarır.</p>
+""",
+                "kod": '''fn bolVeKalan(a: Int, b: Int) -> (Int, Int) = (a / b, a % b)
+
+fn enUzunKelime(cumle: String) -> (String, Int) {
+  var enUzun = ""
+  for k in cumle.split(" ") {
+    if k.len() > enUzun.len() {
+      enUzun = k
+    }
+  }
+  return (enUzun, enUzun.len())
+}
+
+fn main() {
+  let (bolum, kalan) = bolVeKalan(17, 5)
+  print(str(bolum) + " kalan " + str(kalan))
+
+  let (kelime, uzunluk) = enUzunKelime("bugün hava çok güzel")
+  print(kelime + " — " + str(uzunluk) + " harf")
+
+  // Tek tek de okunur:
+  let ikili = bolVeKalan(9, 2)
+  print(str(ikili.0) + "/" + str(ikili.1))
+}''',
+            },
+            {
                 "id": "kosullu-kol",
                 "baslik": "Koşullu kol ve aralık — if zincirini kısaltmak",
                 "aciklama": """

@@ -37,6 +37,12 @@ class ListType(TypeExpr):
 
 
 @dataclass
+class TupleType(TypeExpr):
+    """`(Int, String)` — parantez içinde en az iki tip."""
+    elems: list[TypeExpr] = field(default_factory=list)
+
+
+@dataclass
 class MapType(TypeExpr):
     key: TypeExpr = None    # type: ignore[assignment]
     value: TypeExpr = None  # type: ignore[assignment]
@@ -93,6 +99,11 @@ class Ident(Expr):
 @dataclass
 class SelfExpr(Expr):
     pass
+
+
+@dataclass
+class TupleLit(Expr):
+    items: list[Expr] = field(default_factory=list)
 
 
 @dataclass
@@ -261,6 +272,8 @@ class LetStmt(Stmt):
     type_expr: Optional[TypeExpr] = None
     value: Optional[Expr] = None
     mutable: bool = False
+    # `let (a, b) = ifade` — tuple açma. Boşsa tek adlı sıradan bildirim.
+    names: list[str] = field(default_factory=list)
     ty: object = field(default=None, init=False, repr=False)
 
 

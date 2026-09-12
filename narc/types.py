@@ -35,6 +35,20 @@ class ListT(Type):
 
 
 @dataclass(eq=True, frozen=True)
+class TupleT(Type):
+    """`(Int, String)` — birkaç değeri bir arada taşıyan hafif tip.
+
+    Struct'tan farkı: alan adı yoktur, sırayla okunur (`t.0`). Küçük
+    dönüşler için vardır; alanların adı anlam taşımaya başladığında
+    struct'a geçmek gerekir.
+    """
+    elems: tuple[Type, ...]
+
+    def __str__(self) -> str:
+        return "(" + ", ".join(str(e) for e in self.elems) + ")"
+
+
+@dataclass(eq=True, frozen=True)
 class MapT(Type):
     key: Type
     value: Type

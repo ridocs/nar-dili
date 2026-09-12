@@ -87,6 +87,8 @@ def _tip(t) -> str:
         if t.args:
             return dugum("tad", kacir(t.name), liste(tip(a) for a in t.args))
         return dugum("tad", kacir(t.name))
+    if isinstance(t, A.TupleType):
+        return dugum("ttuple", liste(tip(e) for e in t.elems))
     if isinstance(t, A.ListType):
         return dugum("tliste", tip(t.elem))
     if isinstance(t, A.MapType):
@@ -136,6 +138,8 @@ def _ifade(e) -> str:
     if isinstance(e, A.SelfExpr):
         return dugum("self")
 
+    if isinstance(e, A.TupleLit):
+        return dugum("tuple", liste(ifade(i) for i in e.items))
     if isinstance(e, A.ListLit):
         return dugum("liste", liste(ifade(i) for i in e.items))
     if isinstance(e, A.MapLit):
@@ -240,7 +244,8 @@ def deyim(s) -> str:
 def _deyim(s) -> str:
     if isinstance(s, A.LetStmt):
         return dugum("let", kacir(s.name), tip(s.type_expr), ifade(s.value),
-                     "true" if s.mutable else "false")
+                     "true" if s.mutable else "false",
+                     liste(kacir(a) for a in s.names))
     if isinstance(s, A.Assign):
         return dugum("atama", kacir(s.op), ifade(s.target), ifade(s.value))
     if isinstance(s, A.ExprStmt):

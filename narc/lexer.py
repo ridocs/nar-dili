@@ -178,12 +178,18 @@ class Lexer:
             self._add("int", value, line, col)
             return
 
+        # `t.1.0` — noktadan sonra gelen sayı tuple sırasıdır. Bir önceki
+        # token nokta ise ondalık okumaya kalkmamalı, yoksa `1.0` tek bir
+        # float olur ve ikinci erişim kaybolurdu.
+        nokta_ardindan = bool(self.tokens) and self.tokens[-1].kind == "."
+
         is_float = False
         while self.i < len(self.src):
             c = self._peek()
             if c.isdigit() or c == "_":
                 self._advance()
-            elif c == "." and self._peek(1).isdigit() and not is_float:
+            elif (c == "." and not nokta_ardindan
+                  and self._peek(1).isdigit() and not is_float):
                 is_float = True
                 self._advance()
             elif c in "eE" and (self._peek(1).isdigit() or (self._peek(1) in "+-" and self._peek(2).isdigit())):
