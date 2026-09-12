@@ -523,6 +523,16 @@ class Parser:
 
     def parse_while(self) -> A.While:
         span = self.expect("while").span
+
+        # `while let ad = ifade`: değer geldiği sürece dön.
+        if self.at("let"):
+            self.advance()
+            bag_ad = self.expect("ident", "değişken adı").value
+            self.expect("=", "'='")
+            bag_ifade = self.parse_condition()
+            body = self.parse_block()
+            return A.While(span, None, body, bag_ad, bag_ifade)
+
         cond = self.parse_condition()
         body = self.parse_block()
         return A.While(span, cond, body)

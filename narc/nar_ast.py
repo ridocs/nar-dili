@@ -296,6 +296,10 @@ class If(Stmt):
 class While(Stmt):
     cond: Expr = None   # type: ignore[assignment]
     body: Block = None  # type: ignore[assignment]
+    # `while let ad = ifade`: her turda opsiyonel yeniden hesaplanır,
+    # none gelince döngü biter. `bag_ad` boşsa sıradan `while`dır.
+    bag_ad: str = ""
+    bag_ifade: Optional[Expr] = None
 
 
 @dataclass

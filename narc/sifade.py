@@ -253,7 +253,9 @@ def _deyim(s) -> str:
                          blok(s.then), yoksa(s.otherwise))
         return dugum("eger", ifade(s.cond), blok(s.then), yoksa(s.otherwise))
     if isinstance(s, A.While):
-        return dugum("while", ifade(s.cond), blok(s.body))
+        return dugum("while", ifade(s.cond), blok(s.body),
+                     kacir(s.bag_ad) if s.bag_ad else "-",
+                     ifade(s.bag_ifade))
     if isinstance(s, A.For):
         return dugum("for", liste(kacir(n) for n in s.names),
                      ifade(s.iterable), blok(s.body))

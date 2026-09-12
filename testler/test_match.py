@@ -131,6 +131,58 @@ fn main() {
 ''', "1 küçük tek\n8 çift\n15 öteki")
 
 
+    def test_while_let(self):
+        """Değer geldiği sürece döner; `none` gelince biter."""
+        self.iki_motor('''
+var kalan = [3, 2, 1]
+
+fn sonrakiAl() -> Int? {
+  if kalan.len() == 0 {
+    return none
+  }
+  return kalan.pop()
+}
+
+fn main() {
+  while let n = sonrakiAl() {
+    print(str(n))
+  }
+  print("bitti")
+}
+''', "1\n2\n3\nbitti")
+
+    def test_while_let_hic_donmeyebilir(self):
+        self.iki_motor('''
+fn yok() -> String? = none
+
+fn main() {
+  while let s = yok() {
+    print(s)
+  }
+  print("hiç dönmedi")
+}
+''', "hiç dönmedi")
+
+    def test_while_let_break_ile_kesilir(self):
+        self.iki_motor('''
+var n = 0
+
+fn say() -> Int? {
+  n += 1
+  return n
+}
+
+fn main() {
+  while let x = say() {
+    if x > 3 {
+      break
+    }
+    print(str(x))
+  }
+}
+''', "1\n2\n3")
+
+
 class MatchHataTesti(unittest.TestCase):
     def test_kosullu_kol_matchi_tamamlamaz(self):
         """`x if ...` her değeri tutmaz; tek başına match'i kapatamaz."""
@@ -162,6 +214,12 @@ class MatchHataTesti(unittest.TestCase):
                     'fn f(r: R) -> String = match r {\n'
                     '  A..=B -> "a"\n  _ -> "b"\n}\n'
                     'fn main() { print(f(R.A)) }'))
+
+    def test_while_let_opsiyonel_bekler(self):
+        self.assertIn(
+            "'while let' opsiyonel bir değer bekler",
+            hatalar('fn f() -> Int = 1\n'
+                    'fn main() {\n  while let x = f() {\n    print(str(x))\n  }\n}'))
 
     def test_siralanamayan_tip_aralik_olamaz(self):
         self.assertIn(

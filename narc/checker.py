@@ -587,16 +587,19 @@ class Checker:
             self.check_if(stmt, env)
 
         elif isinstance(stmt, A.While):
-            # Koşul her turda yeniden değerlendirilir; erken çıkış ise
-            # döngüden önce bir kez konurdu.
-            with self.yasakta("while koşulunda"):
-                cond = self.check_expr(stmt.cond, env, BOOL)
-            self.expect_bool(cond, stmt.cond.span, "while koşulu")
-            self.loop_depth += 1
-            body_env = env.child()
-            self.apply_narrowing(stmt.cond, body_env, True)
-            self.check_block(stmt.body, body_env)
-            self.loop_depth -= 1
+            if stmt.bag_ad:
+                self.check_while_bagli(stmt, env)
+            else:
+                # Koşul her turda yeniden değerlendirilir; erken çıkış ise
+                # döngüden önce bir kez konurdu.
+                with self.yasakta("while koşulunda"):
+                    cond = self.check_expr(stmt.cond, env, BOOL)
+                self.expect_bool(cond, stmt.cond.span, "while koşulu")
+                self.loop_depth += 1
+                body_env = env.child()
+                self.apply_narrowing(stmt.cond, body_env, True)
+                self.check_block(stmt.body, body_env)
+                self.loop_depth -= 1
 
         elif isinstance(stmt, A.For):
             self.check_for(stmt, env)
@@ -734,6 +737,32 @@ class Checker:
             else_env = env.child()
             self.apply_narrowing(stmt.cond, else_env, False)
             self.check_if(stmt.otherwise, else_env)
+
+    def check_while_bagli(self, stmt: A.While, env: Env) -> None:
+        """`while let ad = ifade` — değer geldiği sürece döner.
+
+        İfade her turda yeniden hesaplanır; `none` gelince döngü biter.
+        Açılmış değer yalnız gövdede görünür.
+        """
+        with self.yasakta("while koşulunda"):
+            ty = self.check_expr(stmt.bag_ifade, env)
+        if isinstance(ty, OptT):
+            ic = ty.inner
+        elif isinstance(ty, AnyT):
+            ic = ANY
+        else:
+            self.error(
+                f"'while let' opsiyonel bir değer bekler, '{ty}' bulundu",
+                stmt.bag_ifade.span,
+                hint="olmayabilen bir değer için tipi 'T?' olmalı",
+            )
+            ic = ty
+
+        self.loop_depth += 1
+        govde_env = env.child()
+        govde_env.define(stmt.bag_ad, ic, False)
+        self.check_block(stmt.body, govde_env)
+        self.loop_depth -= 1
 
     def check_if_bagli(self, stmt: A.If, env: Env) -> None:
         """`if let ad = ifade` — açılmış değer yalnız `then` dalında görünür."""

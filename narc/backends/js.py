@@ -474,7 +474,15 @@ class JsBackend:
             self.emit_if(stmt)
 
         elif isinstance(stmt, A.While):
-            self.write(f"while ({self.expr(stmt.cond)}) {{")
+            if stmt.bag_ad:
+                # `while let`: değer her turda yeniden hesaplanır, `null`
+                # gelince döngü biter. Atama döngü koşulunun içinde durur
+                # ki ad gövdeye taze gelsin.
+                ad = self.name(stmt.bag_ad)
+                self.write(f"for (let {ad}; ({ad} = "
+                           f"{self.expr(stmt.bag_ifade)}) !== null;) {{")
+            else:
+                self.write(f"while ({self.expr(stmt.cond)}) {{")
             self.indent += 1
             self.emit_body(stmt.body)
             self.indent -= 1

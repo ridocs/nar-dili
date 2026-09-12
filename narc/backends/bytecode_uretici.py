@@ -371,8 +371,19 @@ class BytecodeUretici:
 
     def _while(self, s: A.While):
         basi = self.su_an()
-        self.ifade(s.cond)
-        cikis = self.yaz(K.ATLA_YANLIS, 0, s)
+        if s.bag_ad:
+            # `while let`: her turda değeri hesapla, yerele yaz, none ise çık.
+            self.kapsam.blok_ac()
+            indis = self.kapsam.tanimla(s.bag_ad)
+            self.ifade(s.bag_ifade)
+            self.yaz(K.YEREL_YAZ, indis)
+            self.yaz(K.YEREL_OKU, indis)
+            self.yaz(K.YOK)
+            self.yaz(K.ESIT_DEGIL)
+            cikis = self.yaz(K.ATLA_YANLIS, 0, s)
+        else:
+            self.ifade(s.cond)
+            cikis = self.yaz(K.ATLA_YANLIS, 0, s)
 
         self.dongu_yiginlari.append(([], []))
         self.blok(s.body)
@@ -384,6 +395,8 @@ class BytecodeUretici:
         self.islev.yamala(cikis, self.su_an())
         for yer in kirilmalar:
             self.islev.yamala(yer, self.su_an())
+        if s.bag_ad:
+            self.kapsam.blok_kapat()
 
     def _for(self, s: A.For):
         """`for` her zaman bir liste üzerinde döner.
