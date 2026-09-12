@@ -103,14 +103,36 @@ derleyici/        Derleyicinin Nar ile yazılmış parçaları
   tipler.nar        tip sistemi
   denetleyici.nar   tip denetleyici (bildirim aşaması)
 araclar/          Nar ile yazılmış kütüphaneler
-  arayuz.nar        bildirimsel arayüz
+  arayuz.nar        bildirimsel arayüz (50 bileşen)
+  arayuz_stil.nar   arayüzün görsel dili
+  kaliplar.nar      hazır ekranlar (giriş, panel, fiyat…)
   web.nar           web sunucusu çatısı
   json.nar          JSON okuma/yazma
   bicimlendirici.nar  kod biçimlendirici (`nar fmt`)
+  ide_uygulamasi.nar  düzenleyicinin davranışı
+  ide_sunucusu.nar    düzenleyicinin sunucusu
 ornekler/         Çalışan örnek programlar
 testler/          Test paketi
 site/             Belgeler sitesi üreteci
 ```
+
+## Düzenleyici
+
+```
+nar ide                  Nar IDE'yi açar (sunucusu Nar ile yazılmıştır)
+nar ide --motor python   sunucunun Python sürümü — denetim gözle görülür hızlı
+```
+
+Düzenleyicinin arayüzü, renklendiricisi, biçimlendiricisi, kod önerileri
+ve sunucusu Nar ile yazılmıştır. Derleyicinin kendisi hâlâ Python'da;
+Nar sunucusu ona `nar api` komutuyla ulaşır. Ölçüldü: bir denetim
+Python sunucusunda 3,8 ms, Nar sunucusunda 111 ms sürüyor — aradaki
+fark Python yorumlayıcısının her denetimde yeniden başlamasından geliyor,
+dilden değil. Derleyici Nar'a taşındığında bu köprü gereksizleşecek.
+
+Düzenleyicide: dosya ağacı, anahat, komut paleti (Ctrl+K), ara ve
+değiştir (Ctrl+F), kod önerileri (Tab), hata baloncuğu ve tek tıkla
+düzeltmeler, Sorunlar paneli, üretilen JavaScript ve Ekran sekmesi.
 
 ## Kendi kendini derlemeye doğru
 

@@ -14,7 +14,8 @@ from __future__ import annotations
 from . import nar_ast as A
 from .diagnostics import NarError, NarErrors, NarUyari, duzenle
 from .types import (
-    ANY, BOOL, ELEMENT, FLOAT, INT, ISTEK, NEVER, NONE, NUMERIC, OLAY, ORDERED,
+    ANY, BOOL, ELEMENT, FLOAT, INT, ISTEK, KOMUT, NEVER, NONE, NUMERIC, OLAY,
+    ORDERED,
     PRIMITIVES, STRING, VOID, YANIT,
     AnyT, EnumT, FnT, InterfaceT, ListT, MapT, NeverT, NoneT, OptT, Prim,
     RangeT, StructT,
@@ -32,7 +33,7 @@ BUILTIN_NAMES = {
     # Dosya ve program işlemleri — yalnızca Node hedefinde anlamlıdır.
     "dosyaOku", "dosyaYaz", "dosyaEkle", "dosyaVarMi", "dosyaSil",
     "klasorListele", "klasorMu", "klasorOlustur",
-    "satirOku", "tumGirdi", "argumanlar", "cik",
+    "satirOku", "tumGirdi", "argumanlar", "cik", "komutCalistir",
     # Zaman — her ortamda çalışır.
     "simdi", "zamanMetni",
     # Sunucu — yalnızca Node hedefinde anlamlıdır.
@@ -72,6 +73,8 @@ def _sistem_imzalari() -> dict[str, FnT]:
         "tumGirdi": FnT((), STRING),
         "argumanlar": FnT((), ListT(STRING)),
         "cik": FnT((INT,), NEVER),
+        # Başka bir programı çalıştırır ve bitmesini bekler.
+        "komutCalistir": FnT((STRING, ListT(STRING)), KOMUT),
         "simdi": FnT((), INT),
         "zamanMetni": FnT((), STRING),
         # Karakter kodundan metin: koddan(65) → "A"
@@ -2279,6 +2282,13 @@ def builtin_method(base: Type, name: str) -> FnT | None:
             "ip": FnT((), STRING),
         }.get(name)
 
+    if base == KOMUT:
+        return {
+            "cikis": FnT((), INT),      # 0 ise program başarıyla bitti
+            "cikti": FnT((), STRING),   # standart çıktı
+            "hata": FnT((), STRING),    # standart hata akışı
+        }.get(name)
+
     if base == YANIT:
         return {
             "baslikYaz": FnT((STRING, STRING), YANIT),
@@ -2366,6 +2376,7 @@ _BUILTIN_MEMBER_NAMES = {
                 "isaretli", "isaretliYaz"],
     "Olay": ["tus", "ctrl", "shift", "alt", "engelle", "durdur", "kaynak", "x", "y"],
     "Istek": ["yontem", "yol", "sorgu", "baslik", "govde", "ip"],
+    "Komut": ["cikis", "cikti", "hata"],
     "Yanit": ["baslikYaz", "durumYaz"],
 }
 

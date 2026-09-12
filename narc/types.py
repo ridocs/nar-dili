@@ -287,13 +287,16 @@ OLAY = Prim("Olay")
 ISTEK = Prim("Istek")
 # Sunucudan dönen HTTP yanıtı. `yanit(...)` ailesiyle üretilir.
 YANIT = Prim("Yanit")
+# Çalıştırılan bir programın sonucu: çıkış kodu, çıktısı ve hata akışı.
+# Yalnızca Node hedefinde anlamlıdır.
+KOMUT = Prim("Komut")
 NONE = NoneT()
 NEVER = NeverT()
 ANY = AnyT()
 
 PRIMITIVES = {"Int": INT, "Float": FLOAT, "Bool": BOOL, "String": STRING,
               "Void": VOID, "Element": ELEMENT, "Olay": OLAY,
-              "Istek": ISTEK, "Yanit": YANIT}
+              "Istek": ISTEK, "Yanit": YANIT, "Komut": KOMUT}
 NUMERIC = (INT, FLOAT)
 ORDERED = (INT, FLOAT, STRING)
 

@@ -13,7 +13,7 @@ from .. import nar_ast as A
 from .. import runtime_budama
 from ..checker import Checker
 from ..types import (
-    ELEMENT, FLOAT, INT, ISTEK, OLAY, STRING, YANIT, EnumT, ListT, MapT, OptT,
+    ELEMENT, FLOAT, INT, ISTEK, KOMUT, OLAY, STRING, YANIT, EnumT, ListT, MapT, OptT,
     Prim, StructT, Type, TypeVar, unwrap_optional,
 )
 
@@ -134,6 +134,12 @@ YANIT_METHODS = {
     "durumYaz": "$yanitDurum({0}, {1})",
 }
 
+KOMUT_METHODS = {
+    "cikis": "{0}.cikis",
+    "cikti": "{0}.cikti",
+    "hata": "{0}.hata",
+}
+
 OLAY_METHODS = {
     "tus": "({0}.key || \"\")",
     "ctrl": "(({0}.ctrlKey || {0}.metaKey) === true)",
@@ -148,6 +154,7 @@ OLAY_METHODS = {
 
 # Dosya, girdi ve zaman yerleşiklerinin çalışma zamanı karşılıkları.
 SISTEM_ISLEVLERI = {
+    "komutCalistir": "$komutCalistir",
     "dosyaOku": "$dosyaOku",
     "dosyaYaz": "$dosyaYaz",
     "dosyaEkle": "$dosyaEkle",
@@ -993,6 +1000,8 @@ class JsBackend:
             table = ISTEK_METHODS
         elif base == YANIT:
             table = YANIT_METHODS
+        elif base == KOMUT:
+            table = KOMUT_METHODS
         elif base == OLAY:
             table = OLAY_METHODS
         elif isinstance(base, MapT):

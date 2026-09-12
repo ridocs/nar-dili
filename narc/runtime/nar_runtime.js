@@ -784,6 +784,37 @@ function $fs() {
   }
 }
 
+// Başka bir programı çalıştırır ve bitmesini bekler. Kabuk açılmaz:
+// program adı ve argümanlar doğrudan verilir, böylece boşluklu yollar ve
+// özel karakterler tırnak derdi olmadan geçer.
+function $komutCalistir(program, argumanlar) {
+  if (!$nodeMu()) $panic("komutCalistir() yalnızca Node ortamında çalışır");
+  let cp;
+  try {
+    cp = require("child_process");
+  } catch (e) {
+    return { cikis: -1, cikti: "", hata: String(e && e.message || e) };
+  }
+  try {
+    const sonuc = cp.spawnSync(program, argumanlar || [], {
+      encoding: "utf8",
+      maxBuffer: 32 * 1024 * 1024,
+      windowsHide: true,
+    });
+    if (sonuc.error) {
+      return { cikis: -1, cikti: "", hata: String(sonuc.error.message) };
+    }
+    return {
+      // Sinyalle ölen süreçte `status` null olur; -1 "normal bitmedi" demek.
+      cikis: sonuc.status === null || sonuc.status === undefined ? -1 : sonuc.status,
+      cikti: sonuc.stdout || "",
+      hata: sonuc.stderr || "",
+    };
+  } catch (e) {
+    return { cikis: -1, cikti: "", hata: String(e && e.message || e) };
+  }
+}
+
 function $dosyaOku(yol) {
   const fs = $fs();
   if (!fs) return null;

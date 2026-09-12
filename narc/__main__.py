@@ -33,7 +33,8 @@ from .masaustu_paket import paketle
 from .mobil_paket import paketle as mobil_paketle
 from .ghb_paket import paketle as ghb_paketle
 from . import exe_paket
-from . import ghb_calistir, uzanti_kayit
+from . import ghb_calistir
+from . import ide_api, uzanti_kayit
 from . import bytecode as bc
 from . import vm as vm_modulu
 from . import vm_metotlar
@@ -105,6 +106,21 @@ def build_parser() -> argparse.ArgumentParser:
 
     ac = subs.add_parser("ac", help=".ghb uygulamasını açar")
     ac.add_argument("file", type=Path, help="açılacak .ghb paketi")
+
+    # Düzenleyicinin derleyiciye komut satırından ulaşması için: sonucu
+    # tek satır JSON olarak yazar. Nar ile yazılmış IDE sunucusu bunu
+    # kullanıyor — başka bir dilin kütüphanesine ihtiyaç duymadan.
+    api = subs.add_parser(
+        "api", help="düzenleyici için JSON çıktı verir (denetle/uret/calistir/kelimeler)")
+    api.add_argument("islem", choices=list(ide_api.ISLEMLER))
+    api.add_argument("file", type=Path, nargs="?", help="kaynak .nar dosyası")
+
+    ide = subs.add_parser("ide", help="Nar IDE'yi açar")
+    ide.add_argument("--port", type=int, default=8777)
+    ide.add_argument("--motor", choices=["nar", "python"], default="nar",
+                     help="sunucuyu hangi dilde yazılmış sürüm karşılasın")
+    ide.add_argument("--tarayici-acma", action="store_true",
+                     help="pencereyi kendiliğinden açma")
 
     uzanti_kur = subs.add_parser(
         "uzanti-kur", help=".ghb uzantısını bu bilgisayarda ilişkilendirir")
@@ -299,6 +315,47 @@ def komut_fmt(args) -> int:
     return 0
 
 
+
+def komut_ide(args) -> int:
+    """Nar IDE'yi başlatır.
+
+    Varsayılan sunucu Nar ile yazılmıştır (`araclar/ide_sunucusu.nar`);
+    `--motor python` eski Python sunucusunu kullanır. İkisi de aynı
+    arayüzü ve aynı derleyici API'sini kullanır, fark hızdadır:
+    Python sunucusu derleyiciyi kendi içinde çağırır, Nar sunucusu her
+    denetim için `nar api` sürecini başlatır.
+    """
+    import subprocess
+    import sys as _sys
+    kok = Path(__file__).resolve().parent.parent
+
+    if args.motor == "python":
+        komut = [_sys.executable, str(kok / "ide" / "sunucu.py"),
+                 "--port", str(args.port)]
+        if args.tarayici_acma:
+            komut.append("--tarayici-acma")
+        return subprocess.call(komut, cwd=str(kok))
+
+    sunucu = kok / "araclar" / "ide_sunucusu.nar"
+    if not sunucu.exists():
+        print(f"bulunamadı: {sunucu}", file=sys.stderr)
+        return 1
+    from .driver import compile_file
+    kod = compile_file(sunucu).to_js()
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        betik = Path(tmp) / "ide_sunucusu.js"
+        betik.write_text(kod, encoding="utf-8")
+        node = shutil.which("node")
+        if node is None:
+            print("'node' bulunamadı; Node.js kurulu olmalı", file=sys.stderr)
+            return 1
+        arg = [node, str(betik), str(args.port), str(kok)]
+        if args.tarayici_acma:
+            arg.append("--tarayici-acma")
+        return subprocess.call(arg, cwd=str(kok))
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     sources: dict[str, str] = {}
@@ -311,6 +368,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "ac":
         return ghb_calistir.calistir(args.file.resolve())
+
+    if args.command == "api":
+        return ide_api.komut(args.islem,
+                             str(args.file) if args.file else None)
+
+    if args.command == "ide":
+        return komut_ide(args)
 
     if args.command in ("uzanti-kur", "uzanti-kaldir", "uzanti-durum"):
         return komut_uzanti(args)

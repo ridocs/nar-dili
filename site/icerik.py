@@ -2337,6 +2337,8 @@ REFERANS = [
             ("satirOku()", "Girdiden bir satır okur (bitince none)"),
             ("tumGirdi()", "Girdinin tamamını okur"),
             ("argumanlar()", "Komut satırı argümanları"),
+            ("komutCalistir(program, argumanlar)",
+             "Başka bir programı çalıştırır; .cikis() .cikti() .hata()"),
             ("cik(kod)", "Programı verilen çıkış koduyla bitirir"),
             ("simdi()", "1970'ten beri geçen milisaniye"),
             ("zamanMetni()", "Okunabilir tarih-saat"),

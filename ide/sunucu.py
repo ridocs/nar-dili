@@ -25,11 +25,7 @@ KOK = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(KOK))
 
 from narc import __version__  # noqa: E402
-from narc.backends import js as js_backend  # noqa: E402
-from narc.checker import BUILTIN_NAMES, Checker  # noqa: E402
-from narc.lexer import KEYWORDS  # noqa: E402
-from narc.diagnostics import NarError  # noqa: E402
-from narc.parser import parse  # noqa: E402
+from narc import ide_api  # noqa: E402
 
 ARAYUZ = Path(__file__).resolve().parent / "arayuz.html"
 CALISMALAR = KOK / "calismalar"
@@ -80,96 +76,16 @@ def araclar_js() -> str:
 ZAMAN_ASIMI = 10
 
 
-def _hata_sozlugu(err: NarError, kaynak: str) -> dict:
-    return {
-        "mesaj": err.message,
-        "satir": err.span.line if err.span else None,
-        "sutun": err.span.col if err.span else None,
-        "uzunluk": err.span.length if err.span else 1,
-        "ipucu": err.hint,
-        "gosterim": err.render(kaynak),
-    }
+# Derleyiciye bakan her şey `narc/ide_api.py` içinde: Nar ile yazılmış
+# sunucu da aynı işlevleri `nar api` üzerinden çağırıyor, ikisi ayrışmasın.
+derle = ide_api.derle
+calistir = ide_api.calistir
+kelime_sozlugu = ide_api.kelime_sozlugu
+uyarilar = ide_api.uyarilar
 
 
-def uyarilar(checker: "Checker | None", kaynak: str) -> list[dict]:
-    """Denetçinin uyarılarını sözlük listesine çevirir."""
-    if checker is None:
-        return []
-    return [dict(_hata_sozlugu(u, kaynak), seviye="uyari") for u in checker.warnings]
-
-
-_son_uyarilar: list[dict] = []
-
-
-def derle(kaynak: str, ad: str = "duzenleyici.nar"):
-    """(js_kodu, hata_sozlugu) döndürür; biri her zaman None'dur.
-
-    Hata sözlüğü ilk hatayı taşır; `hepsi` alanında tüm hatalar bulunur.
-    Uyarılar `son_uyarilar()` ile ayrıca alınır.
-    """
-    global _son_uyarilar
-    _son_uyarilar = []
-    checker = None
-    try:
-        module = parse(kaynak, ad)
-        checker = Checker(module, kaynak)
-        checker.check()
-        _son_uyarilar = uyarilar(checker, kaynak)
-        return js_backend.generate(module, checker), None
-    except NarError as err:
-        # Hata olsa da toplanan uyarılar kaybolmasın.
-        _son_uyarilar = uyarilar(checker, kaynak)
-        sozluk = _hata_sozlugu(err, kaynak)
-        hepsi = getattr(err, "errors", None)
-        sozluk["hepsi"] = [_hata_sozlugu(h, kaynak) for h in hepsi] if hepsi else [dict(sozluk)]
-        sozluk["adet"] = len(sozluk["hepsi"])
-        if sozluk["adet"] > 1:
-            sozluk["gosterim"] = "\n\n".join(h["gosterim"] for h in sozluk["hepsi"])
-        return None, sozluk
-    except RecursionError:
-        return None, {
-            "mesaj": "program çok derin iç içe geçmiş (özyineleme sınırı)",
-            "satir": None, "sutun": None, "uzunluk": 1, "ipucu": None,
-            "gosterim": "hata: program çok derin iç içe geçmiş",
-        }
-
-
-def calistir(kaynak: str) -> dict:
-    kod, hata = derle(kaynak)
-    if hata is not None:
-        return {"durum": "derleme-hatasi", "hata": hata, "cikti": ""}
-
-    if NODE is None:
-        return {
-            "durum": "ortam-hatasi",
-            "cikti": "",
-            "hata": {"mesaj": "'node' bulunamadı; Node.js kurulu olmalı",
-                     "satir": None, "sutun": None, "uzunluk": 1,
-                     "ipucu": None, "gosterim": "hata: 'node' bulunamadı"},
-        }
-
-    with tempfile.TemporaryDirectory() as tmp:
-        betik = Path(tmp) / "program.js"
-        betik.write_text(kod, encoding="utf-8")
-        try:
-            sonuc = subprocess.run(
-                [NODE, str(betik)], capture_output=True, text=True,
-                encoding="utf-8", timeout=ZAMAN_ASIMI,
-            )
-        except subprocess.TimeoutExpired:
-            return {
-                "durum": "zaman-asimi",
-                "cikti": f"Program {ZAMAN_ASIMI} saniyede bitmedi ve durduruldu.\n"
-                         "Sonsuz döngü olabilir mi?",
-                "hata": None,
-            }
-
-    return {
-        "durum": "tamam" if sonuc.returncode == 0 else "calisma-hatasi",
-        "cikti": sonuc.stdout,
-        "stderr": sonuc.stderr,
-        "hata": None,
-    }
+def son_uyarilar() -> list[dict]:
+    return ide_api.son_uyarilar()
 
 
 # Dosya ağacındaki gruplar: (klasör, görünen ad). Sıra ağaçtaki sıradır;
@@ -182,38 +98,6 @@ AGAC_GRUPLARI = [
     ("derleyici", "Derleyici"),
     ("testler/nar", "Testler"),
 ]
-
-
-def kelime_sozlugu() -> list[dict]:
-    """Kod önerisi sözlüğü: anahtar kelimeler, yerleşikler, metotlar.
-
-    Metot arity'si üreteç tablolarındaki `{n}` yer tutucularından
-    çıkarılır; ayrı bir liste tutulsaydı tabloyla ayrışırdı.
-    """
-    import re
-    kelimeler: list[dict] = []
-    for ad in sorted(KEYWORDS):
-        kelimeler.append({"ad": ad, "tur": "anahtar", "arg": 0})
-    for ad in sorted(BUILTIN_NAMES):
-        kelimeler.append({"ad": ad, "tur": "yerlesik", "arg": 1})
-
-    tablolar = {
-        "metin": js_backend.STRING_METHODS,
-        "liste": js_backend.LIST_METHODS,
-        "eşleme": js_backend.MAP_METHODS,
-        "öğe": js_backend.ELEMENT_METHODS,
-        "olay": js_backend.OLAY_METHODS,
-    }
-    gorulen: set[str] = set()
-    for sahip, tablo in tablolar.items():
-        for ad, sablon in tablo.items():
-            if ad in gorulen:
-                continue
-            gorulen.add(ad)
-            arg = len(set(re.findall(r"\{(\d+)\}", sablon))) - 1
-            kelimeler.append({"ad": ad, "tur": "metot", "arg": max(0, arg),
-                              "sahip": sahip})
-    return kelimeler
 
 
 def dosya_listesi() -> list[dict]:

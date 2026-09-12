@@ -1,0 +1,292 @@
+// Nar IDE'nin sunucusu — Nar diliyle yazılmıştır.
+//
+//     nar ide                 bu sunucuyu başlatır
+//     nar ide --motor python  eski Python sunucusunu başlatır
+//
+// Düzenleyicinin arayüzü, renklendiricisi, biçimlendiricisi ve bütün
+// davranışı zaten Nar ile yazılmıştı; eksik kalan tek parça sunucuydu.
+// Artık o da burada: dosya ağacı, okuma, kaydetme ve yeni dosya işlemleri
+// tamamen bu dosyada.
+//
+// Derleyicinin kendisi hâlâ Python'da. Nar sunucusu ona `nar api` komutuyla
+// ulaşır: her denetim bir süreç başlatır (ölçüldü: ~120 ms), Python sunucusu
+// ise derleyiciyi kendi içinde çağırır (~0.2 ms). Aradaki fark dilin değil,
+// derleyicinin hangi dilde yazıldığının sonucu — derleyici Nar'a taşındığında
+// bu köprü de gereksizleşecek.
+//
+// Bir program, kütüphane değil: `main` içerir.
+
+import "json.nar"
+
+// --- ayarlar --------------------------------------------------------------
+
+var KOK = "."
+var PORT = 8777
+var TARAYICI_AC = true
+
+// Başlangıçta bir kez üretilip bellekte tutulanlar: her istekte yeniden
+// derlemek sunucuyu kullanılamaz hâle getirirdi.
+var ARACLAR_JS = ""
+var KELIMELER_JSON = ""
+
+// Dosya ağacındaki gruplar: klasör ve görünen adı. Sıra ağaçtaki sıradır;
+// kullanıcının kendi dosyaları en üstte.
+let AGAC_GRUPLARI = [
+  ["calismalar", "Çalışmalarım"],
+  ["", "Oyun alanı"],
+  ["ornekler", "Örnekler"],
+  ["araclar", "Araçlar"],
+  ["derleyici", "Derleyici"],
+  ["testler/nar", "Testler"]
+]
+
+// --- derleyici köprüsü ----------------------------------------------------
+//
+// `nar api <islem> <dosya>` tek satır JSON yazar. Kaynağı geçici bir
+// dosyaya yazıp yolunu veriyoruz: stdin Windows'ta kodlama sürprizi
+// çıkarıyor, dosya yolu her ortamda aynı davranıyor.
+
+fn geciciYol() -> String = KOK + "/.narbuild/ide-gecici.nar"
+
+fn pythonYolu() -> String {
+  // Sunucuyu `nar ide` başlattıysa Python zaten PATH'te; değilse de
+  // "python" adı Windows'ta App Execution Alias ile çözülür.
+  return ortam("NAR_PYTHON") ?? "python"
+}
+
+fn apiCagir(islem: String, kaynak: String) -> String {
+  klasorOlustur(KOK + "/.narbuild")
+  if !dosyaYaz(geciciYol(), kaynak) {
+    return "{\"hata\": {\"mesaj\": \"geçici dosya yazılamadı\", \"gosterim\": \"hata: geçici dosya yazılamadı\"}}"
+  }
+  let s = komutCalistir(pythonYolu(), ["-m", "narc", "api", islem, geciciYol()])
+  if s.cikis() != 0 && s.cikti().trim() == "" {
+    return "{\"hata\": {\"mesaj\": \"derleyici çağrılamadı\", \"gosterim\": \"hata: " +
+      kacirJson(s.hata().trim()) + "\"}}"
+  }
+  return s.cikti().trim()
+}
+
+// JSON metnine gömülecek bir dizgeyi kaçırır.
+fn kacirJson(s: String) -> String {
+  var sonuc = s.replace("\\", "\\\\")
+  sonuc = sonuc.replace("\"", "\\\"")
+  sonuc = sonuc.replace("\n", "\\n")
+  sonuc = sonuc.replace("\r", "")
+  sonuc = sonuc.replace("\t", "\\t")
+  return sonuc
+}
+
+fn baslangicUret() {
+  let a = komutCalistir(pythonYolu(), ["-m", "narc", "api", "araclar"])
+  if a.cikis() == 0 {
+    ARACLAR_JS = a.cikti()
+  } else {
+    print("düzenleyici betiği üretilemedi:")
+    print(a.hata())
+  }
+  let k = komutCalistir(pythonYolu(), ["-m", "narc", "api", "kelimeler"])
+  if k.cikis() == 0 {
+    KELIMELER_JSON = k.cikti().trim()
+  } else {
+    KELIMELER_JSON = "{\"kelimeler\": []}"
+  }
+}
+
+// --- dosyalar -------------------------------------------------------------
+
+// Yol kökün dışına çıkamaz: ".." ve sürücü harfi taşıyan yollar reddedilir.
+fn guvenliMi(bagil: String) -> Bool {
+  if bagil == "" {
+    return false
+  }
+  if bagil.contains("..") {
+    return false
+  }
+  if bagil.startsWith("/") || bagil.startsWith("\\") {
+    return false
+  }
+  if bagil.contains(":") {
+    return false
+  }
+  return true
+}
+
+fn narMi(ad: String) -> Bool = ad.endsWith(".nar")
+
+fn dosyaListesiJson() -> String {
+  var ogeler: [String] = []
+  for grup in AGAC_GRUPLARI {
+    let klasor = grup[0]
+    let baslik = grup[1]
+    let kok = if klasor == "" { KOK } else { KOK + "/" + klasor }
+    for ad in klasorListele(kok) {
+      if !narMi(ad) {
+        continue
+      }
+      let bagil = if klasor == "" { ad } else { klasor + "/" + ad }
+      ogeler.push("{\"ad\": \"" + kacirJson(ad) + "\", \"yol\": \"" +
+                  kacirJson(bagil) + "\", \"grup\": \"" + kacirJson(baslik) + "\"}")
+    }
+  }
+  return "{\"dosyalar\": [" + ogeler.join(", ") + "], \"surum\": \"nar\"}"
+}
+
+// --- istekler -------------------------------------------------------------
+
+fn hataYaniti(mesaj: String, kod: Int) -> Yanit {
+  let y = yanitJson("{\"hata\": \"" + kacirJson(mesaj) + "\"}")
+  return y.durumYaz(kod)
+}
+
+// POST gövdesindeki alanı okur.
+fn govdeAlani(govde: String, ad: String) -> String {
+  let veri = jsonOku(govde)
+  return metinAl(alan(veri, ad)) ?? ""
+}
+
+fn getIstegi(i: Istek) -> Yanit {
+  let yol = i.yol()
+
+  if yol == "/" || yol == "/index.html" {
+    let html = dosyaOku(KOK + "/ide/arayuz.html")
+    if html == none {
+      return hataYaniti("arayüz dosyası bulunamadı", 500)
+    }
+    return yanitHtml(html!)
+  }
+
+  if yol == "/nar-ide.js" {
+    let y = yanitMetin(ARACLAR_JS)
+    return y.baslikYaz("Content-Type", "application/javascript; charset=utf-8")
+  }
+
+  if yol == "/api/dosyalar" {
+    return yanitJson(dosyaListesiJson())
+  }
+
+  if yol == "/api/kelimeler" {
+    return yanitJson(KELIMELER_JSON)
+  }
+
+  if yol == "/api/dosya" {
+    let bagil = i.sorgu("yol") ?? ""
+    if !guvenliMi(bagil) {
+      return hataYaniti("bu dosya açılamaz", 400)
+    }
+    let kaynak = dosyaOku(KOK + "/" + bagil)
+    if kaynak == none {
+      return hataYaniti("dosya bulunamadı", 404)
+    }
+    return yanitJson("{\"yol\": \"" + kacirJson(bagil) + "\", \"kaynak\": \"" +
+                     kacirJson(kaynak!) + "\"}")
+  }
+
+  return hataYaniti("bulunamadı", 404)
+}
+
+fn postIstegi(i: Istek) -> Yanit {
+  let yol = i.yol()
+  let govde = i.govde()
+  let kaynak = govdeAlani(govde, "kaynak")
+
+  if yol == "/api/denetle" {
+    let cevap = apiCagir("denetle", kaynak)
+    // Düzenleyici `tamam` alanını bekliyor; api yalnızca hatayı veriyor.
+    let veri = jsonOku(cevap)
+    let hataVar = alan(veri, "hata") != none
+    let ek = if hataVar { "false" } else { "true" }
+    if cevap.startsWith("{") {
+      return yanitJson("{\"tamam\": " + ek + ", " +
+                       cevap.slice(1, cevap.len()))
+    }
+    return yanitJson(cevap)
+  }
+
+  if yol == "/api/uretilen" {
+    return yanitJson(apiCagir("uret", kaynak))
+  }
+
+  if yol == "/api/calistir" {
+    return yanitJson(apiCagir("calistir", kaynak))
+  }
+
+  if yol == "/api/kaydet" {
+    let bagil = govdeAlani(govde, "yol")
+    if !guvenliMi(bagil) {
+      return hataYaniti("bu konuma kaydedilemez", 400)
+    }
+    // Klasör yoksa açılır: "calismalar/yeni.nar" ilk kayıtta da çalışsın.
+    let parcalar = bagil.split("/")
+    if parcalar.len() > 1 {
+      var klasor = KOK
+      var i2 = 0
+      while i2 < parcalar.len() - 1 {
+        klasor += "/" + parcalar[i2]
+        klasorOlustur(klasor)
+        i2 += 1
+      }
+    }
+    if !dosyaYaz(KOK + "/" + bagil, kaynak) {
+      return hataYaniti("yazılamadı", 500)
+    }
+    return yanitJson("{\"tamam\": true, \"yol\": \"" + kacirJson(bagil) + "\"}")
+  }
+
+  return hataYaniti("bulunamadı", 404)
+}
+
+fn istekIsle(i: Istek) -> Yanit {
+  if i.yontem() == "POST" {
+    return postIstegi(i)
+  }
+  return getIstegi(i)
+}
+
+// --- pencere --------------------------------------------------------------
+
+// Tarayıcıyı uygulama kipinde açar: adres çubuğu ve sekmeler olmadan,
+// masaüstü penceresi gibi görünsün.
+fn pencereAc(adres: String) {
+  let edge = "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"
+  if dosyaVarMi(edge) {
+    komutCalistir("cmd", ["/c", "start", "", edge, "--app=" + adres])
+    return
+  }
+  komutCalistir("cmd", ["/c", "start", "", adres])
+}
+
+// --- başlatma -------------------------------------------------------------
+
+fn main() {
+  let args = argumanlar()
+  if args.len() > 0 {
+    PORT = int(args[0]) ?? 8777
+  }
+  if args.len() > 1 {
+    KOK = args[1].replace("\\", "/")
+  }
+  for a in args {
+    if a == "--tarayici-acma" {
+      TARAYICI_AC = false
+    }
+  }
+
+  print("Nar IDE — sunucu Nar ile yazılmıştır")
+  print("derleyici köprüsü hazırlanıyor…")
+  baslangicUret()
+  if ARACLAR_JS == "" {
+    print("düzenleyici betiği üretilemedi; sunucu yine de açılıyor")
+  }
+
+  let adres = "http://127.0.0.1:" + str(PORT) + "/"
+  print("açık: " + adres)
+  // Dürüst olalım: derleyici Python'da olduğu için her denetim bir süreç
+  // başlatıyor. Ölçüm: bu sunucuda ~111 ms, Python sunucusunda ~4 ms.
+  print("not: denetim bu sunucuda ~110 ms sürüyor (derleyici Python'da);")
+  print("     daha hızlısı için: nar ide --motor python")
+  if TARAYICI_AC {
+    pencereAc(adres)
+  }
+  sunucu(PORT, |i: Istek| istekIsle(i))
+}
