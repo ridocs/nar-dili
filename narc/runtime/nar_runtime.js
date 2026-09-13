@@ -806,6 +806,15 @@ function $medyaDinle(sorgu, islev) {
   matchMedia(sorgu).addEventListener("change", (o) => islev(o.matches));
 }
 
+// Başka bir adrese gider. Tarayıcı dışında gidilecek bir yer yok:
+// sessiz kalmak yerine söyleriz, yoksa program ilerlemiş gibi görünür.
+function $adreseGit(adres) {
+  if (typeof location === "undefined") {
+    $panic("adreseGit() yalnızca tarayıcıda çalışır");
+  }
+  location.assign(adres);
+}
+
 function $zamanla(ms, islev) {
   if (typeof setTimeout === "undefined") $panic("zamanla() bu ortamda yok");
   setTimeout(islev, ms);

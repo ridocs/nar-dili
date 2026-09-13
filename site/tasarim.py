@@ -227,6 +227,11 @@ IKON_OK = _ikon('<path d="M5 12h13m-5-5 5 5-5 5"/>', 15)
 IKON_OYNAT = _ikon('<path d="M8 5.5v13l11-6.5-11-6.5Z"/>', 15)
 # 21st'in kategori listesindeki minik çizgi işareti.
 IKON_CIZGI = _ikon('<path d="M7 12h10"/>', 14)
+# Dosya ağacı: klasör açıkken ve kapalıyken aynı simge, oku dönen ayrı.
+IKON_UC = _ikon('<path d="m9.5 7 5 5-5 5"/>', 13)
+IKON_KLASOR = _ikon('<path d="M3.5 6.5h5l1.6 2h10.4v9H3.5Z"/>', 14)
+IKON_DOSYA = _ikon('<path d="M6.5 3.5h7l4 4v13h-11Z"/><path d="M13.5 3.5v4h4"/>',
+                   13)
 IKON_TAKVIM = _ikon(
     '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/>'
     '<path d="M3.5 10h17"/><path d="M8 3v4M16 3v4"/>', 15)
@@ -712,38 +717,74 @@ pre.kod code {{ font: inherit; }}
   padding-right: 8px;
   font-size: 13px;
 }}
-.icindekiler summary {{
+/* Yalnız en dıştaki "İçindekiler" katlayıcısı gizlenir; içerideki
+   klasör başlıkları görünmek zorunda — ağaç onlardan ibaret. */
+.icindekiler > .ic-katla > summary {{
   display: none;
   font-family: var(--mono); font-size: 13px;
   font-weight: 500; cursor: pointer; padding: 8px 0;
 }}
 
-.ic-grup {{ margin-bottom: 18px; }}
+/* Konu ağacı: bölümler klasör, konular dosya. Katlama `details`
+   üstünden — betik çalışmasa da gezilebilir kalır. */
+
+.ic-agac {{ display: flex; flex-direction: column; gap: 1px; }}
+
+.ic-grup {{ margin: 0; }}
+.ic-grup > summary::-webkit-details-marker {{ display: none; }}
 .ic-baslik {{
-  display: flex; align-items: center; gap: 8px;
-  margin-bottom: 6px;
-  font-family: var(--mono); font-size: 10px; letter-spacing: .1em;
-  text-transform: uppercase; color: var(--metin-soluk);
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; margin-left: -8px;
+  border-radius: var(--radius-md);
+  cursor: pointer; list-style: none;
+  font-size: 12.5px; font-weight: 500; color: var(--metin-2);
+  transition: background .18s ease, color .18s ease;
+}}
+.ic-baslik:hover {{ background: var(--yuzey-2); color: var(--metin); }}
+.ic-baslik .ad {{
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }}
 .ic-baslik .sayi {{
-  margin-left: auto; font-variant-numeric: tabular-nums; opacity: .75;
+  margin-left: auto; font-family: var(--mono); font-size: 10px;
+  font-variant-numeric: tabular-nums; color: var(--metin-soluk);
 }}
-.ic-grup ul {{ margin: 0; padding: 0; list-style: none; }}
+/* İlk simge açılma oku; klasör açılınca döner. */
+.ic-baslik > svg:first-child {{
+  flex: none; color: var(--metin-soluk);
+  transition: transform .18s ease;
+}}
+.ic-grup[open] > .ic-baslik > svg:first-child {{ transform: rotate(90deg); }}
+.ic-baslik > svg:nth-child(2) {{ flex: none; color: var(--metin-soluk); }}
+
+/* Yapraklar: soldaki ince çizgi dalı görünür kılar. */
+.ic-grup ul {{
+  margin: 2px 0 6px; padding: 0 0 0 11px; list-style: none;
+  border-left: 1px solid var(--kenar);
+}}
 .ic-grup li {{ margin: 0; }}
 .ic-grup a {{
-  display: block; padding: 3px 10px;
-  margin-left: -10px;
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px 8px; margin-left: -1px;
   color: var(--metin-soluk); text-decoration: none;
   border-left: 2px solid transparent;
   border-radius: 0 var(--radius-md) var(--radius-md) 0;
   transition: color .2s ease, background .2s ease;
+}}
+.ic-grup a svg {{ flex: none; opacity: .6; }}
+.ic-grup a .ad {{
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }}
 .ic-grup a:hover {{ color: var(--metin); background: var(--yuzey-2); }}
 .ic-grup a.etkin {{
   color: var(--vurgu); border-left-color: var(--vurgu);
   background: var(--vurgu-zemin); font-weight: 500;
 }}
+.ic-grup a.etkin svg {{ opacity: 1; }}
 .ic-grup[hidden] {{ display: none; }}
+.ic-katla > summary .sayi {{
+  margin-left: 6px; font-family: var(--mono); font-size: 10px;
+  color: var(--metin-soluk);
+}}
 
 .ara-bos {{ padding: 8px 0; color: var(--metin-soluk); font-size: 13px; }}
 
@@ -931,8 +972,10 @@ table.ref code {{ font-size: 12.5px; background: var(--zemin); }}
     border: 1px solid var(--kenar); border-radius: var(--radius-lg);
     background: var(--yuzey);
   }}
-  .icindekiler summary {{ display: list-item; padding: 10px 14px; }}
-  .icindekiler > details[open] > *:not(summary) {{ padding-inline: 14px; }}
+  .icindekiler > .ic-katla > summary {{
+    display: flex; align-items: center; padding: 10px 14px;
+  }}
+  .icindekiler > .ic-katla[open] > *:not(summary) {{ padding-inline: 14px; }}
   .ara-sar {{ max-width: none; }}
   .ara-sar kbd {{ display: none; }}
   #ara {{ padding-right: 12px; }}
@@ -1041,6 +1084,7 @@ SCRIPT = """
         };
       });
 
+    var ilkDal = document.querySelector('.ic-agac .ic-grup');
     var suz = function () {
       var q = ara.value.trim().toLocaleLowerCase('tr');
       var bulunan = 0;
@@ -1052,6 +1096,12 @@ SCRIPT = """
           if (uyar) acik += 1;
         });
         g.oge.hidden = acik === 0;
+        // Ararken eşleşen dal açılır; arama silinince kendi hâline döner.
+        if (q) {
+          if (acik > 0) g.oge.open = true;
+        } else {
+          g.oge.open = g.oge === ilkDal;
+        }
         if (g.sayi) g.sayi.textContent = q ? String(acik) : g.toplam;
         bulunan += acik;
       });
@@ -1085,6 +1135,17 @@ SCRIPT = """
     if (etkin) etkin.classList.remove('etkin');
     a.classList.add('etkin');
     etkin = a;
+    // Konu kapalı bir dalın içindeyse dal açılır, yoksa işaret görünmez.
+    var dal = a.closest('details.ic-grup');
+    if (dal && !dal.open) dal.open = true;
+    // Açılan dal listenin dışına düştüyse görünür yere getir.
+    var kutu = a.closest('.icindekiler');
+    if (kutu) {
+      var ay = a.getBoundingClientRect(), ky = kutu.getBoundingClientRect();
+      if (ay.top < ky.top || ay.bottom > ky.bottom) {
+        a.scrollIntoView({ block: 'nearest' });
+      }
+    }
   };
 
   if ('IntersectionObserver' in window) {

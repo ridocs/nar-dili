@@ -59,6 +59,18 @@ class IceriAktarmaTesti(unittest.TestCase):
         # Kütüphanedeki adlar hakkında uydurma hata üretilmemeli.
         self.assertNotIn("tanımsız isim", hata["gosterim"])
 
+    def test_yanlis_yol_komsu_dosyayi_onerir(self):
+        """`araçlar/` ↔ `araclar/` — Türkçe yazım en sık tuzak."""
+        kaynak = 'import "araçlar/hareket.nar"\n\nfn main() { print(1) }\n'
+        _, hata = ide_api.derle(kaynak, yol=KOK / "araclar" / "arayuz.nar")
+        self.assertIn("dosya bulunamadı", hata["mesaj"])
+        self.assertEqual(hata["ipucu"], 'belki: "hareket.nar"')
+
+    def test_hicbir_aday_yoksa_ipucu_verilmez(self):
+        kaynak = 'import "boyle_bir_dosya_yok.nar"\n\nfn main() { print(1) }\n'
+        _, hata = ide_api.derle(kaynak, yol=KOK / "araclar" / "arayuz.nar")
+        self.assertIsNone(hata["ipucu"])
+
     def test_komut_taban_yolunu_kullanir(self):
         """`nar api denetle <geçici> <gerçek>` — Nar ile yazılmış sunucunun yolu."""
         with tempfile.TemporaryDirectory() as tmp:

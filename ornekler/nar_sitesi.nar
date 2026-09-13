@@ -1,0 +1,233 @@
+// Nar'ın tanıtım sayfası — Nar ile yazılmıştır.
+//
+// Bir dilin sitesi o dille yazılmalı; yazılmıyorsa dil hakkında söylenen
+// şey doğru değildir. Bu sayfadaki üst şerit, açılış, bölümler ve dip
+// `araclar/arayuz.nar` içindeki bileşenlerin ta kendisi — ayrı bir CSS
+// dosyası, ayrı bir şablon dili yok.
+//
+//     nar build ornekler/nar_sitesi.nar --target web -o docs/index.html
+
+import "../araclar/arayuz.nar"
+
+struct Durum {
+  var kodSekmesi: Int
+  var bilesen: Int
+  var puan: Int
+  var aralik: Int
+}
+
+var uygulama: Uygulama<Durum>? = none
+var SON: Durum? = none
+
+fn d() -> Durum = SON!
+
+fn guncelle(yeni: Durum) {
+  if uygulama != none {
+    uygulama!.degistir(yeni)
+  }
+}
+
+// --- gezinme --------------------------------------------------------------
+
+let DEPO = "https://github.com/ridocs/nar-dili"
+
+let BAGLAR = ["Belgeler", "Bileşenler", "Deneme", "Kaynak"]
+let ADRESLER = ["belgeler/", "bilesenler/", "deneme/", DEPO]
+
+fn git(i: Int) {
+  if i >= 0 && i < ADRESLER.len() {
+    adreseGit(ADRESLER[i])
+  }
+}
+
+// --- kod örnekleri --------------------------------------------------------
+//
+// Üçü de gerçekten çalışan kod: rehberdeki ve depodaki hâlleriyle aynı.
+
+let KOD_MERHABA = """fn selamla(ad: String) -> String = "Merhaba \${ad}!"
+
+fn main() {
+  let isimler = ["Ayşe", "Mehmet", "Zeynep"]
+  for ad in isimler {
+    print(selamla(ad))
+  }
+  print(isimler |> uzunlar |> birlestir)
+}
+
+fn uzunlar(liste: [String]) -> [String] = liste.filter(|a| { a.len() > 4 })
+fn birlestir(liste: [String]) -> String = liste.join(", ")"""
+
+let KOD_ARAYUZ = """import "araclar/arayuz.nar"
+
+fn ciz(sayi: Int) -> Gorunum = Kart("Sayaç", [
+  Metin("değer: \${sayi}"),
+  Satir([
+    Dugme("artır", || { artir() }),
+    IkincilDugme("sıfırla", || { sifirla() })
+  ])
+])
+
+fn main() {
+  uygulamaBaslat("#uygulama", 0, ciz)
+}"""
+
+let KOD_SUNUCU = """fn main() {
+  sunucu(8080, |istek| {
+    return match istek.yol {
+      "/" -> yanitHtml("<h1>Merhaba</h1>")
+      "/saglik" -> yanitJson("{\\"durum\\": \\"iyi\\"}")
+      _ -> yanit(404, "bulunamadı", "text/plain")
+    }
+  })
+}"""
+
+fn kodBolumu() -> Gorunum {
+  let kodlar = [KOD_MERHABA, KOD_ARAYUZ, KOD_SUNUCU]
+  return Sutun([
+    Sekmeler(["Merhaba", "Arayüz", "Sunucu"], d().kodSekmesi, |i| {
+      let g = d()
+      g.kodSekmesi = i
+      guncelle(g)
+    }),
+    KodBloku(kodlar[d().kodSekmesi])
+  ])
+}
+
+// --- bölümler -------------------------------------------------------------
+
+fn nedenBolumu() -> Gorunum = Bolum(
+  "Neden Nar?",
+  "Küçük bir dil; anlaşılmak için tasarlandı, etkilemek için değil.",
+  Izgara(3, [
+    Kart("Türkçe hata mesajı", [
+      Metin("Anahtar kelimeler İngilizce, hatalar Türkçe."),
+      Soluk("\"desenden sonra '->' bekleniyordu, 'if' bulundu\"")
+    ]),
+    Kart("İki derleyici", [
+      Metin("Biri Python ile, biri Nar ile yazıldı."),
+      Soluk("İkisinin çıktısı bit bit karşılaştırılıyor.")
+    ]),
+    Kart("Arayüz dilin içinde", [
+      Metin("HTML ve CSS yazmadan ekran kurulur."),
+      Soluk("Bu sayfa da öyle kuruldu.")
+    ])
+  ])
+)
+
+fn hedefBolumu() -> Gorunum = Bolum(
+  "Tek kaynak, yedi hedef",
+  "Aynı program; nereye derlediğine göre başka bir şey olur.",
+  ListeGrubu([
+    hedefSatiri("js", "Node ile çalışan düz JavaScript"),
+    hedefSatiri("web", "tek dosyalık, kendi kendine yeten sayfa"),
+    hedefSatiri("masaustu", "pencerede açılan masaüstü uygulaması"),
+    hedefSatiri("mobil", "telefon için paketlenmiş sürüm"),
+    hedefSatiri("ghb", "Nar uygulama paketi"),
+    hedefSatiri("exe", "Windows'ta çift tıklanan dosya"),
+    hedefSatiri("narb", "kendi sanal makinesinde koşan bytecode")
+  ])
+)
+
+fn hedefSatiri(ad: String, ne: String) -> Gorunum = SatirYay([
+  Satir([Rozet(ad, "notr"), Metin(ne)]),
+  Soluk("--target ${ad}")
+])
+
+// Kitaplığın kendisi burada duruyor: anlatmak yerine göstermek.
+fn bilesenBolumu() -> Gorunum = Bolum(
+  "Yetmiş altı bileşen, hazır",
+  "Üst şerit, açılış, takvim, kaydırak, zaman çizgisi… Hepsi Nar ile yazıldı; aşağıdakiler canlı, kurulum gerekmiyor.",
+  Sutun([
+    Izgara(3, [
+      Istatistik("Bileşen", "76", "+16"),
+      Istatistik("Hazır kalıp", "8", "+1"),
+      Istatistik("Test", "475", "+34")
+    ]),
+    Kaydirak([
+      Kart("Puanlama", [
+        Metin("Seçili yıldıza tekrar basmak puanı sıfırlar."),
+        Yildiz(d().puan, 5, |v| {
+          let g = d()
+          g.puan = v
+          guncelle(g)
+        })
+      ]),
+      Kart("Düğme grubu", [
+        Metin("Aynı şeyin başka görünümleri arasında seçim."),
+        DugmeGrubu(["Gün", "Hafta", "Ay"], d().aralik, |i| {
+          let g = d()
+          g.aralik = i
+          guncelle(g)
+        })
+      ]),
+      Kart("Zaman çizgisi", [
+        Zaman(["09:12", "09:40", "11:05"],
+              ["Depo klonlandı", "475 test geçti", "Yayına alındı"])
+      ])
+    ], d().bilesen, |i| {
+      let g = d()
+      g.bilesen = i
+      guncelle(g)
+    }),
+    // Cümle uzunluğundaki bir etiket düğme olmaz: düğme sarmaz, taşar.
+    Satir([
+      Dugme("Bileşen vitrinine git", || { git(1) }),
+      Soluk("Her örneğin altında kodu ve ürettiği HTML var")
+    ]).mobildeSutun()
+  ])
+)
+
+fn baslaBolumu() -> Gorunum = Bolum(
+  "Başlamak",
+  "Kurulum yok: depoyu indir, çalıştır.",
+  Sutun([
+    KodBloku("git clone https://github.com/ridocs/nar-dili\ncd nar-dili\npython -m narc run ornekler/merhaba.nar"),
+    Satir([
+      Dugme("Belgeleri oku", || { git(0) }),
+      IkincilDugme("Tarayıcıda dene", || { git(2) })
+    ])
+  ])
+)
+
+// --- sayfa ----------------------------------------------------------------
+
+fn ciz(durum: Durum) -> Gorunum {
+  SON = durum
+  return Yigin([
+    Gezinti("Nar", BAGLAR, -1, |i| { git(i) },
+            Dugme("Başla", || { git(0) })),
+
+    Kahraman("v0.1 · MIT · Türkçe",
+             "Kendi derleyicisini taşıyan küçük bir dil",
+             "Anahtar kelimeler İngilizce, hatalar Türkçe. Arayüz dilin içinde: bu sayfa da Nar ile yazıldı.",
+             [Dugme("Belgeler", || { git(0) }),
+              IkincilDugme("Bileşenler", || { git(1) })]),
+
+    Bolum("", "", kodBolumu()),
+    nedenBolumu(),
+    hedefBolumu(),
+    bilesenBolumu(),
+    baslaBolumu(),
+
+    AltBilgi(["Öğren", "Araçlar", "Proje"], [
+      [Bag("Belgeler", "belgeler/"), Bag("Rehber konuları", "belgeler/#baslangic"),
+       Bag("Hızlı başvuru", "belgeler/#referans")],
+      [Bag("Bileşen vitrini", "bilesenler/"), Bag("Deneme alanı", "deneme/"),
+       Bag("Takvim örneği", "takvim/")],
+      [Bag("GitHub", DEPO), Bag("Lisans: MIT", DEPO + "/blob/main/LICENSE")]
+    ], "Nar · Mardin · bu sayfa Nar ile yazıldı")
+  ])
+}
+
+fn main() {
+  if bul("#uygulama") == none {
+    print("Bu program tarayıcıda çalıştırılmalı.")
+    print("Derle:  nar build ornekler/nar_sitesi.nar --target web")
+    return
+  }
+  let baslangic = Durum { kodSekmesi: 0, bilesen: 0, puan: 4, aralik: 1 }
+  deriSec("yumusak")
+  uygulama = uygulamaBaslat("#uygulama", baslangic, ciz)
+  genislikKur(1040)
+  tamGenislikKur()
+}

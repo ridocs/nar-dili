@@ -74,11 +74,21 @@ nar uzanti-kur          bir kez çalıştır
 - **Sunucu**: HTTP sunucusu, yönlendirme, form ve JSON gövdesi, çerezler
 - **Sayfa**: DOM bağlaması ve bildirimsel arayüz kütüphanesi
 
-Tam anlatım ve çalışan örnekler için **belgeler sitesi**:
-**<https://ridocs.github.io/nar-dili/>**
+Site depodan yayınlanıyor:
 
-Site depodan yayınlanıyor; yayına giden dosya `docs/index.html`. İçerik ya da
-tasarım değişince yeniden üretip birlikte commit'le:
+| Sayfa | Adres | Nasıl üretiliyor |
+|---|---|---|
+| Açılış | <https://ridocs.github.io/nar-dili/> | `ornekler/nar_sitesi.nar` — **Nar ile** |
+| Belgeler | `/belgeler/` | `site/uret.py` (Python) |
+| Bileşen vitrini | `/bilesenler/` | `ornekler/arayuz_galerisi.nar` — **Nar ile** |
+| Deneme alanı | `/deneme/` | tarayıcıda çalışan derleyici |
+| Takvim örneği | `/takvim/` | `ornekler/takvim.nar` — **Nar ile** |
+
+Açılış sayfası ve vitrin Nar'ın kendi arayüz kütüphanesiyle yazıldı: "arayüz
+dilin içinde" iddiası böyle sınanıyor.
+
+Hepsi tek komutla üretilir; içerik ya da tasarım değişince yeniden üretip
+birlikte commit'le:
 
 ```
 python site/uret.py --cikti docs/index.html

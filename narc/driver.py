@@ -26,6 +26,33 @@ class Compilation:
         return js_backend.generate(self.module, self.checker, self.kutuphane)
 
 
+def iceri_ipucu(hedef: Path) -> str | None:
+    """Bulunamayan içe aktarma için aynı adlı gerçek bir dosya önerir.
+
+    En sık hata klasör adını Türkçe yazmak: `araçlar/` ile `araclar/`
+    aynı görünüyor. Aynı ada sahip bir dosya yakınlarda duruyorsa onu
+    göstermek, hatayı çıkmaz sokak olmaktan çıkarır.
+
+    Yalnız iki kademe bakılır — aynı klasör ve kardeş klasörler; bütün
+    ağacı taramak hata yolunda gereksiz iş olurdu.
+    """
+    ad = hedef.name
+    taban = hedef.parent
+    while not taban.is_dir() and taban != taban.parent:
+        taban = taban.parent
+    if not taban.is_dir():
+        return None
+
+    adaylar: list[str] = []
+    for kalip in (ad, f"*/{ad}"):
+        for aday in sorted(taban.glob(kalip)):
+            if aday.is_file():
+                adaylar.append(aday.relative_to(taban).as_posix())
+    if not adaylar:
+        return None
+    return 'belki: "' + min(adaylar, key=len) + '"'
+
+
 def load_module(path: Path, sources: dict[str, str], seen: list[Path],
                 stack: set[Path] | None = None,
                 kaynak: str | None = None) -> list[A.Node]:
@@ -45,7 +72,8 @@ def load_module(path: Path, sources: dict[str, str], seen: list[Path],
         return []  # zaten yüklendi
 
     if kaynak is None and not resolved.exists():
-        raise NarError(f"dosya bulunamadı: {path}", Span(str(path), 1, 1))
+        raise NarError(f"dosya bulunamadı: {path}", Span(str(path), 1, 1),
+                       hint=iceri_ipucu(resolved))
 
     # `utf-8-sig`: Windows araçları (Not Defteri, PowerShell'in `-Encoding utf8`)
     # dosyanın başına BOM koyar. BOM varsa atılır, yoksa davranış değişmez.

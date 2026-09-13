@@ -92,6 +92,8 @@ def build_parser() -> argparse.ArgumentParser:
                              help="kütüphane olarak derle: 'main' gerekmez, "
                                   "fonksiyonlar globalThis.Nar altına açılır")
         if name == "build":
+            sub.add_argument("--baslik", default=None,
+                             help="sayfa başlığı (verilmezse dosya adı)")
             sub.add_argument("-o", "--out", type=Path, default=None,
                              help="çıktı dosyası")
     calistir = subs.add_parser(
@@ -411,7 +413,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     target = getattr(args, "target", "js")
-    title = args.file.stem
+    # Sayfanın başlığı dosya adından gelir; `--baslik` ile insana
+    # okunur bir ad verilebilir (sekmede ve arama sonucunda görünen şey).
+    title = getattr(args, "baslik", None) or args.file.stem
 
     if target == "masaustu":
         if args.command == "emit":

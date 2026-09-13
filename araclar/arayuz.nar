@@ -1835,9 +1835,20 @@ fn fontKur(aile: String, adres: String) {
 
 // Kök kapsayıcının en geniş hâli. Geniş ekranlarda okunabilirlik için
 // varsayılan 820px; gösterge paneli gibi sayfalarda büyütülür.
+//
+// Değişkeni yazar, `max-width`i değil: üst şerit ve dip de aynı değişkeni
+// okuyor, tek sayı değişince hepsi birlikte hizalanıyor.
 fn genislikKur(px: Int) {
   if let kok = bul(".nar-kok") {
-    kok.stil("max-width", "${px}px")
+    kok.stil("--nar-genislik", "${px}px")
+  }
+}
+
+// Tanıtım sayfası kipi: üst şerit ve dip ekranın kenarına dayanır,
+// bölümler ortada `genislikKur` ile verilen ölçüde durur.
+fn tamGenislikKur() {
+  if let kok = bul(".nar-kok") {
+    kok.sinifEkle("nar-tam")
   }
 }
 

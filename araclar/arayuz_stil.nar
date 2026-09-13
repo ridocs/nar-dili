@@ -666,6 +666,21 @@ let STIL = """
 .nar-yigin { display: flex; flex-direction: column; align-items: stretch;
   width: 100%; }
 
+/* Tam genişlik kipi: üst şerit ve dip ekranın kenarına dayanır, okunacak
+   içerik ortada kendi ölçüsünde durur. Tanıtım sayfaları böyle olur;
+   `tamGenislikKur()` açar. Varsayılan hâl (dar, ortalanmış sütun) uygulama
+   ekranları için doğru olduğundan değişmez. */
+.nar-kok.nar-tam {
+  max-width: none; padding-inline: 0; --nar-ic-bosluk: 0px;
+}
+/* Ölçüye kendi yan boşluğu eklenir: üst şeridin iç kabı da dışarıdan
+   aynı boşluğu alıyor, ikisi ancak böyle aynı çizgiden başlar. */
+.nar-kok.nar-tam .nar-bolum {
+  max-width: calc(var(--nar-genislik) + var(--nar-b5) * 2);
+  margin-inline: auto;
+  padding-inline: var(--nar-b5);
+}
+
 /* --- sayfa iskeleti ------------------------------------------------------ */
 /*
    Üst şerit, açılış, bölüm ve dip kök sütunda kenardan kenara uzar; bir

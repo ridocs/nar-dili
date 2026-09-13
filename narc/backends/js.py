@@ -181,6 +181,7 @@ SISTEM_ISLEVLERI = {
     "odaklanan": "$odaklanan",
     "medyaEslesir": "$medyaEslesir",
     "medyaDinle": "$medyaDinle",
+    "adreseGit": "$adreseGit",
     "sunucu": "$sunucu",
     "yanit": "$yanit",
     "icerikTipi": "$icerikTipi",

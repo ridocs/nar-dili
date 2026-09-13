@@ -31,7 +31,7 @@ BUILTIN_NAMES = {
     "pow", "floor", "ceil", "round", "random", "panic", "assert",
     # Sayfa (DOM) işlemleri — yalnızca tarayıcı hedefinde anlamlıdır.
     "bul", "bulHepsi", "olustur", "govde", "zamanla", "istek", "odaklanan",
-    "medyaEslesir", "medyaDinle",
+    "medyaEslesir", "medyaDinle", "adreseGit",
     # Dosya ve program işlemleri — yalnızca Node hedefinde anlamlıdır.
     "dosyaOku", "dosyaYaz", "dosyaEkle", "dosyaVarMi", "dosyaSil",
     "klasorListele", "klasorMu", "klasorOlustur",
@@ -50,6 +50,7 @@ def _sayfa_imzalari() -> dict[str, FnT]:
     return {
         "odaklanan": FnT((), OptT(ELEMENT)),
         "medyaEslesir": FnT((STRING,), BOOL),
+        "adreseGit": FnT((STRING,), VOID),
         "medyaDinle": FnT((STRING, FnT((BOOL,), VOID)), VOID),
         "bul": FnT((STRING,), OptT(ELEMENT)),
         "bulHepsi": FnT((STRING,), ListT(ELEMENT)),

@@ -40,11 +40,17 @@ import tasarim  # noqa: E402
 from tasarim import (  # noqa: E402
     IKON_ARA, IKON_AY, IKON_BAG, IKON_CIZGI, IKON_GITHUB, IKON_GUNES,
     IKON_KOD, IKON_KOPYA, IKON_OK, IKON_ONAY, IKON_BILESEN, IKON_OYNAT, IKON_TAKVIM,
+    IKON_UC, IKON_KLASOR, IKON_DOSYA,
 )
 from icerik import (  # noqa: E402
     ALT_BASLIK, BASLIK, BOLUMLER, DEPO, GIRIS, HEDEFLER, NASIL_CALISTIRILIR,
     NOT_SARMAL, REFERANS, VITRIN,
 )
+
+# Belgeler sayfası `docs/belgeler/` altında durur; kardeş sayfalara
+# (deneme, bileşenler, takvim) bir üst klasörden gidilir. Tek yerde
+# tanımlı olsun ki bağlantılar ayrışmasın.
+UST = "../"
 
 NODE = shutil.which("node")
 
@@ -130,7 +136,7 @@ def kod_blogu(kaynak: str, dil_etiketi: str = "nar",
     dene = ""
     if denenecek is not None:
         dene = (
-            f'<a class="dene" href="deneme/#k={oyun.kodu_sar(denenecek)}">'
+            f'<a class="dene" href="{UST}deneme/#k={oyun.kodu_sar(denenecek)}">'
             f'{IKON_OYNAT}<span>dene</span></a>'
         )
 
@@ -253,17 +259,17 @@ def bolum_dizini_html() -> str:
         f'<span class="adet">{len(REFERANS)}</span></a></li>'
     )
     ogeler.append(
-        f'<li><a href="deneme/">{IKON_OYNAT}'
+        f'<li><a href="{UST}deneme/">{IKON_OYNAT}'
         f'<span class="ad">Deneme alanı</span>'
         f'<span class="adet">→</span></a></li>'
     )
     ogeler.append(
-        f'<li><a href="bilesenler/">{IKON_BILESEN}'
+        f'<li><a href="{UST}bilesenler/">{IKON_BILESEN}'
         f'<span class="ad">Bileşen vitrini</span>'
         f'<span class="adet">→</span></a></li>'
     )
     ogeler.append(
-        f'<li><a href="takvim/">{IKON_TAKVIM}'
+        f'<li><a href="{UST}takvim/">{IKON_TAKVIM}'
         f'<span class="ad">Takvim örneği</span>'
         f'<span class="adet">→</span></a></li>'
     )
@@ -280,31 +286,51 @@ def bolum_dizini_html() -> str:
 </section>"""
 
 
+def agac_dugumu(baslik: str, sayi: int, konular: list[tuple[str, str]],
+                acik: bool) -> str:
+    """Ağaçta bir klasör: başlığı katlanır, altındaki konular yapraktır.
+
+    `details` kullanılır — açma/kapama tarayıcının işi, JavaScript'e
+    gerek yok; betik çalışmasa da ağaç gezilebilir kalır.
+    """
+    parcalar = [
+        f'<details class="ic-grup"{" open" if acik else ""}>',
+        f'<summary class="ic-baslik">{IKON_UC}{IKON_KLASOR}'
+        f'<span class="ad">{html.escape(baslik)}</span>'
+        f'<span class="sayi">{sayi}</span></summary><ul>',
+    ]
+    for kimlik, ad in konular:
+        parcalar.append(
+            f'<li><a href="#{kimlik}">{IKON_DOSYA}'
+            f'<span class="ad">{html.escape(ad)}</span></a></li>'
+        )
+    parcalar.append("</ul></details>")
+    return "".join(parcalar)
+
+
 def icindekiler_html() -> str:
-    # `details` ile sarılır: dar ekranda katlanır, geniş ekranda hep açıktır.
+    """Sol sütundaki konu ağacı.
+
+    Altmış yedi konu düz bir liste olarak taranamıyordu; bölümler artık
+    katlanan klasörler. İlki açık gelir, ötekiler kapalı — okuyan kişi
+    ilgilendiği dalı kendisi açar. Etkin konu görününce dalı da açılır.
+    """
     parcalar = [
         '<nav class="icindekiler" aria-label="İçindekiler">',
         '<details class="ic-katla" open>'
-        "<summary>İçindekiler</summary>",
+        f"<summary>İçindekiler<span class=\"sayi\">"
+        f"{sum(len(b['konular']) for b in BOLUMLER)}</span></summary>",
         '<p class="ara-bos" hidden>Eşleşen konu yok.</p>',
+        '<div class="ic-agac">',
     ]
-    for bolum in BOLUMLER:
-        parcalar.append(
-            '<div class="ic-grup">'
-            f'<span class="ic-baslik">{html.escape(bolum["baslik"])}'
-            f'<span class="sayi">{len(bolum["konular"])}</span></span><ul>'
-        )
-        for konu in bolum["konular"]:
-            parcalar.append(
-                f'<li><a href="#{konu["id"]}">{html.escape(konu["baslik"])}</a></li>'
-            )
-        parcalar.append("</ul></div>")
-    parcalar.append(
-        '<div class="ic-grup"><span class="ic-baslik">Başvuru'
-        f'<span class="sayi">{len(REFERANS)}</span></span><ul>'
-        '<li><a href="#referans">Hızlı başvuru</a></li></ul></div>'
-    )
-    parcalar.append("</details></nav>")
+    for sira, bolum in enumerate(BOLUMLER):
+        parcalar.append(agac_dugumu(
+            bolum["baslik"], len(bolum["konular"]),
+            [(k["id"], k["baslik"]) for k in bolum["konular"]],
+            acik=(sira == 0)))
+    parcalar.append(agac_dugumu(
+        "Başvuru", len(REFERANS), [("referans", "Hızlı başvuru")], acik=False))
+    parcalar.append("</div></details></nav>")
     return "\n".join(parcalar)
 
 
@@ -333,7 +359,7 @@ def giris_html(konu_sayisi: int, calisan: int) -> str:
       <h1>{html.escape(ALT_BASLIK)}</h1>
       <div class="giris-ozet">{GIRIS.strip()}</div>
       <div class="eylemler">
-        <a class="cta" href="deneme/">{IKON_OYNAT}Tarayıcıda dene</a>
+        <a class="cta" href="{UST}deneme/">{IKON_OYNAT}Tarayıcıda dene</a>
         <a class="cta-ikincil" href="#baslangic">Rehbere başla{IKON_OK}</a>
       </div>
       <p class="giris-not">Kurulum yok: deneme alanı derleyiciyi tarayıcında
@@ -390,7 +416,7 @@ def sayfa_uret(artifact: bool = False) -> str:
 <a class="atla" href="#icerik">İçeriğe atla</a>
 
 <header class="bar">
-  <a class="bar-marka" href="#">
+  <a class="bar-marka" href="{UST}">
     <b>{html.escape(BASLIK)}</b>
     <span class="surum">v{__version__}</span>
   </a>
@@ -401,8 +427,8 @@ def sayfa_uret(artifact: bool = False) -> str:
     <kbd>Ctrl K</kbd>
   </div>
   <div class="bar-sag">
-    <a class="bar-dugme" href="deneme/">{IKON_OYNAT}<span>Dene</span></a>
-    <a class="bar-dugme" href="bilesenler/">{IKON_BILESEN}<span>Bileşenler</span></a>
+    <a class="bar-dugme" href="{UST}deneme/">{IKON_OYNAT}<span>Dene</span></a>
+    <a class="bar-dugme" href="{UST}bilesenler/">{IKON_BILESEN}<span>Bileşenler</span></a>
     <a class="bar-dugme" href="{html.escape(DEPO)}" rel="noreferrer">
       {IKON_GITHUB}<span>Kaynak</span>
     </a>
@@ -477,18 +503,24 @@ def main() -> int:
     args = ayristirici.parse_args()
 
     sayfa = sayfa_uret(artifact=args.artifact)
-    args.cikti.parent.mkdir(parents=True, exist_ok=True)
-    args.cikti.write_text(sayfa, encoding="utf-8")
+    kok = args.cikti.parent
+
+    # Artifact tek dosyadır; orada klasör ayrımı yok.
+    # Normalde kök açılış sayfasıdır (Nar ile yazılmış), belgeler bir alt
+    # klasörde durur: dilin sitesi ile dilin kılavuzu aynı şey değil.
+    belgeler = args.cikti if args.artifact else kok / "belgeler" / "index.html"
+    belgeler.parent.mkdir(parents=True, exist_ok=True)
+    belgeler.write_text(sayfa, encoding="utf-8")
 
     konu_sayisi = sum(len(b["konular"]) for b in BOLUMLER)
-    print(f"yazıldı: {args.cikti}")
+    print(f"yazıldı: {belgeler}")
     print(f"{len(BOLUMLER)} bölüm, {konu_sayisi} konu, {len(sayfa) // 1024} KB")
 
     # Deneme alanı sayfanın yanına üretilir; ayrı bir komut olsaydı
     # ikisinden biri er geç unutulurdu. Rehberdeki her çalışan konu deneme
     # alanının dosya ağacında "Rehber" altında açılabilir.
     if not args.artifact:
-        deneme = args.cikti.parent / "deneme"
+        deneme = kok / "deneme"
         deneme.mkdir(parents=True, exist_ok=True)
         boyut = oyun.narc_zip(deneme / "narc.zip")
         rehber = []
@@ -508,7 +540,7 @@ def main() -> int:
 
         # Bileşen vitrini: arayüz kitaplığının kendi kendini anlattığı sayfa.
         # Nar ile yazılmıştır, derleyiciden geçerek buraya çıkar.
-        vitrin = args.cikti.parent / "bilesenler"
+        vitrin = kok / "bilesenler"
         vitrin.mkdir(parents=True, exist_ok=True)
         kaynak = KOK / "ornekler" / "arayuz_galerisi.nar"
         sonuc = subprocess.run(
@@ -522,7 +554,7 @@ def main() -> int:
         print(f"yazıldı: {vitrin / 'index.html'} (bileşen vitrini)")
 
         # Takvim demosu: aralık seçicinin gerçek bir ekranda hâli.
-        takvim = args.cikti.parent / "takvim"
+        takvim = kok / "takvim"
         takvim.mkdir(parents=True, exist_ok=True)
         sonuc = subprocess.run(
             [sys.executable, "-m", "narc", "build",
@@ -534,6 +566,22 @@ def main() -> int:
             print("takvim demosu üretilemedi:\n" + (sonuc.stderr or sonuc.stdout))
             return 1
         print(f"yazıldı: {takvim / 'index.html'} (takvim demosu)")
+
+        # Açılış sayfası: dilin kendi sitesi, Nar ile yazılmış. Kılavuzun
+        # HTML'ini Python üretiyor; bu sayfayı dilin kendisi üretiyor —
+        # "arayüz dilin içinde" iddiası burada sınanıyor.
+        sonuc = subprocess.run(
+            [sys.executable, "-m", "narc", "build",
+             str(KOK / "ornekler" / "nar_sitesi.nar"),
+             "--target", "web", "--baslik", "Nar — küçük bir programlama dili",
+             "-o", str(args.cikti)],
+            cwd=KOK, capture_output=True, text=True, encoding="utf-8",
+        )
+        if sonuc.returncode != 0:
+            print("açılış sayfası üretilemedi:" + chr(10)
+                  + (sonuc.stderr or sonuc.stdout))
+            return 1
+        print(f"yazıldı: {args.cikti} (açılış sayfası, Nar ile)")
     return 0
 
 

@@ -710,6 +710,8 @@ YERLESIKLER.update({
     "odaklanan": lambda vm, a: None,
     "medyaEslesir": lambda vm, a: False,
     "medyaDinle": lambda vm, a: None,
+    # Gitmek bir yan etki: sessizce yutmak programı yanıltır.
+    "adreseGit": _sayfa_yok,
     # Sayfa üretimi: burada gerçekten yapılacak bir şey yok; program
     # yanlış ortamda olduğunu açık bir hatayla öğrenmeli.
     "olustur": _sayfa_yok,
