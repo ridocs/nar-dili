@@ -114,6 +114,9 @@ def build_parser() -> argparse.ArgumentParser:
         "api", help="düzenleyici için JSON çıktı verir (denetle/uret/calistir/kelimeler)")
     api.add_argument("islem", choices=list(ide_api.ISLEMLER))
     api.add_argument("file", type=Path, nargs="?", help="kaynak .nar dosyası")
+    api.add_argument("taban", type=Path, nargs="?",
+                     help="metnin gerçekte ait olduğu yol; içe aktarmalar "
+                          "buna göre çözülür")
 
     ide = subs.add_parser("ide", help="Nar IDE'yi açar")
     ide.add_argument("--port", type=int, default=8777)
@@ -371,7 +374,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "api":
         return ide_api.komut(args.islem,
-                             str(args.file) if args.file else None)
+                             str(args.file) if args.file else None,
+                             str(args.taban) if args.taban else None)
 
     if args.command == "ide":
         return komut_ide(args)

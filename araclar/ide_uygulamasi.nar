@@ -362,7 +362,8 @@ fn denetimPlanla() {
 }
 
 fn denetle() {
-  let govde = jsonYaz(Json.Nesne({"kaynak": Json.Metin(kaynakMetni())}))
+  let govde = jsonYaz(Json.Nesne({"kaynak": Json.Metin(kaynakMetni()),
+    "yol": Json.Metin(acikYol)}))
   istek("POST", "/api/denetle", govde, |cevap: String| {
     denetimSonucu(cevap)
   })
@@ -375,6 +376,11 @@ fn denetimSonucu(cevap: String) {
     return
   }
 
+  // Sunucu süreci derleyiciyi açılışta bir kez yükler. Sonradan eklenen
+  // bir dil özelliği bu sürece girmez; kullanıcı yeni sözdizimini deneyip
+  // "dil bozuk" sanmasın diye durumu söylüyoruz.
+  let eskiSunucu = mantikAl(alan(veri, "eskiSunucu")) ?? false
+
   let uyarilar = diziAl(alan(veri, "uyarilar"))
   if mantikAl(alan(veri, "tamam")) ?? false {
     sorunlariAyikla(none, uyarilar)
@@ -383,7 +389,11 @@ fn denetimSonucu(cevap: String) {
     } else {
       rozetYaz("${uyarilar.len()} uyarı", "uyari")
     }
-    durumYaz("hazır", false)
+    if eskiSunucu {
+      durumYaz("derleyici güncellendi — IDE sunucusunu yeniden başlat", true)
+    } else {
+      durumYaz("hazır", false)
+    }
     sorunlariGoster()
     ciz()
     return
@@ -396,7 +406,11 @@ fn denetimSonucu(cevap: String) {
   } else {
     rozetYaz("${hatalar} hata", "kotu")
   }
-  if sorunlar.len() > 0 {
+  if eskiSunucu {
+    // Eski sunucu yeni sözdizimini tanımaz; hatanın kendisinden önce
+    // bunu söylemek gerek, yoksa dil suçlanır.
+    durumYaz("derleyici güncellendi — IDE sunucusunu yeniden başlat", true)
+  } else if sorunlar.len() > 0 {
     let ilk = sorunlar[0]
     if ilk.satir > 0 {
       durumYaz("satır ${ilk.satir}: ${ilk.mesaj}", true)
@@ -422,7 +436,8 @@ fn calistir() {
   sekmeSec("pano-cikti")
   ciktiYaz("<span class=\"bos\">çalışıyor…</span>")
 
-  let govde = jsonYaz(Json.Nesne({"kaynak": Json.Metin(kaynakMetni())}))
+  let govde = jsonYaz(Json.Nesne({"kaynak": Json.Metin(kaynakMetni()),
+    "yol": Json.Metin(acikYol)}))
   istek("POST", "/api/calistir", govde, |cevap: String| {
     calisiyor = false
     calismaSonucu(cevap)
@@ -489,7 +504,8 @@ fn calismaSonucu(cevap: String) {
 fn javascriptGoster() {
   sekmeSec("pano-js")
   panoYaz("pano-js", "<span class=\"bos\">üretiliyor…</span>")
-  let govde = jsonYaz(Json.Nesne({"kaynak": Json.Metin(kaynakMetni())}))
+  let govde = jsonYaz(Json.Nesne({"kaynak": Json.Metin(kaynakMetni()),
+    "yol": Json.Metin(acikYol)}))
   istek("POST", "/api/uretilen", govde, |cevap: String| {
     let veri = jsonOku(cevap)
     if let hata = alan(veri, "hata") {
@@ -812,12 +828,94 @@ fn suz(adaylar: [Oneri], parca: String, sinir: Int) -> [Oneri] {
   return sonuc
 }
 
+// --- içe aktarma yolu önerisi ---------------------------------------------
+//
+// `import "..."` içine yazılan şey bir yoldur; oraya tanımlayıcı önermek
+// işe yaramıyordu. Bu iki işlev projedeki gerçek dosyaları, açık dosyaya
+// göre yazılmış hâlleriyle önerir.
+
+// İmleç bir `import` satırının dizgisi içindeyse dizginin başladığı yeri,
+// değilse -1 verir.
+fn iceriAktarmaYeri(metin: String, konum: Int) -> Int {
+  var satirBasi = konum
+  while satirBasi > 0 && karakter(metin, satirBasi - 1) != "\n" {
+    satirBasi -= 1
+  }
+  let onu = metin.slice(satirBasi, konum)
+  if !onu.trim().startsWith("import") {
+    return -1
+  }
+  // Tek sayıda tırnak: hâlâ dizginin içindeyiz.
+  var i = 0
+  var sayi = 0
+  var sonTirnak = -1
+  while i < onu.len() {
+    if karakter(onu, i) == "\"" {
+      sayi += 1
+      sonTirnak = i
+    }
+    i += 1
+  }
+  if sayi % 2 == 0 {
+    return -1
+  }
+  return satirBasi + sonTirnak + 1
+}
+
+// `hedef`i açık dosyanın klasörüne göre yazar:
+// ornekler/deneme.nar açıkken araclar/arayuz.nar → ../araclar/arayuz.nar
+fn bagilYol(hedef: String) -> String {
+  let buradan = acikYol.split("/")
+  let oraya = hedef.split("/")
+  let buKlasor = buradan.len() - 1      // son parça dosya adı
+  let oKlasor = oraya.len() - 1
+  var ortak = 0
+  while ortak < buKlasor && ortak < oKlasor && buradan[ortak] == oraya[ortak] {
+    ortak += 1
+  }
+  var parcalar: [String] = []
+  var i = ortak
+  while i < buKlasor {
+    parcalar.push("..")
+    i += 1
+  }
+  i = ortak
+  while i < oraya.len() {
+    parcalar.push(oraya[i])
+    i += 1
+  }
+  return parcalar.join("/")
+}
+
 fn oneriGuncelle() {
   if let k = kodAlani() {
     let metin = k.deger()
     let konum = k.secimBasi()
     if konum != k.secimSonu() {
       oneriKapat()
+      return
+    }
+
+    // İçe aktarma satırındaysak öneri listesi dosyalardan kurulur.
+    let yolBasi = iceriAktarmaYeri(metin, konum)
+    if yolBasi >= 0 {
+      let yazilan = metin.slice(yolBasi, konum)
+      var dosyaAdaylari: [Oneri] = []
+      for yol in dosyaYollari {
+        if yol != acikYol {
+          let b = bagilYol(yol)
+          dosyaAdaylari.push(Oneri { ad: b, metin: b, tur: "dosya" })
+        }
+      }
+      oneriler = suz(dosyaAdaylari, yazilan, 8)
+      if oneriler.len() == 0 {
+        oneriKapat()
+        return
+      }
+      oneriBas = yolBasi
+      oneriSon = konum
+      oneriSecili = 0
+      oneriCiz(yazilan)
       return
     }
 
@@ -1059,10 +1157,14 @@ fn enYakinAd(ad: String) -> String {
     }
   }
   var enIyi = ""
-  var enKucuk = 3          // en çok iki düzenleme uzakta olsun
+  var enKucuk = 3
   for aday in adaylar {
     let u = uzaklik(ad.lowerTr(), aday.lowerTr())
-    if u < enKucuk && u * 2 <= max(ad.len(), 2) + 1 {
+    // Kısa adlarda iki düzenleme kelimenin yarısı demek: "Kart" → "nar",
+    // "Metin" → "main" gibi öneriler böyle çıkıyordu. İki düzenleme ancak
+    // altı harften uzun adlarda anlamlı.
+    let sinir = if ad.len() >= 6 { 2 } else { 1 }
+    if u <= sinir && u < enKucuk {
       enKucuk = u
       enIyi = aday
     }

@@ -17,6 +17,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -36,6 +37,23 @@ NODE = shutil.which("node")
 # kaynak değişirse kendiliğinden yenilenir.
 ARACLAR_NAR = KOK / "araclar" / "ide_uygulamasi.nar"
 _araclar_onbellek: dict[str, object] = {"imza": None, "js": ""}
+
+# Sunucunun açıldığı an. `araclar/*.nar` değişince kendiliğinden yenilenir
+# ama derleyicinin kendisi (narc/*.py) süreç açılışında bir kez yüklenir:
+# sonradan eklenen bir dil özelliği bu sunucuya girmez. Kullanıcı yeni
+# sözdizimini deneyip "dil bozuk" sanmasın diye durumu kendimiz söyleriz.
+BASLANGIC = time.time()
+
+
+def derleyici_eskidi() -> bool:
+    """Sunucu açıldıktan sonra derleyici kaynağı değiştiyse True."""
+    for yol in (KOK / "narc").rglob("*.py"):
+        try:
+            if yol.stat().st_mtime > BASLANGIC:
+                return True
+        except OSError:
+            pass
+    return False
 
 
 def _araclar_imzasi() -> tuple:
@@ -198,19 +216,24 @@ class Islem(BaseHTTPRequestHandler):
         yol = self.path.split("?")[0]
         veri = self._govde_oku()
         kaynak = veri.get("kaynak", "")
+        # Açık dosyanın yolu: içe aktarmalar buna göre çözülür. Dosya henüz
+        # kaydedilmemişse kök varsayılır — kullanıcı `import "araclar/..."`
+        # yazdığında komut satırındakiyle aynı şey olsun.
+        acik = guvenli_yol(veri.get("yol", "")) or (KOK / "duzenleyici.nar")
 
         if yol == "/api/calistir":
-            self._json(calistir(kaynak))
+            self._json(calistir(kaynak, yol=acik))
             return
 
         if yol == "/api/denetle":
-            _, hata = derle(kaynak)
+            _, hata = derle(kaynak, yol=acik)
             self._json({"tamam": hata is None, "hata": hata,
-                        "uyarilar": list(_son_uyarilar)})
+                        "uyarilar": list(son_uyarilar()),
+                        "eskiSunucu": derleyici_eskidi()})
             return
 
         if yol == "/api/uretilen":
-            kod, hata = derle(kaynak)
+            kod, hata = derle(kaynak, yol=acik)
             self._json({"kod": kod or "", "hata": hata})
             return
 

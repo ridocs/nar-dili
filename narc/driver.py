@@ -27,8 +27,14 @@ class Compilation:
 
 
 def load_module(path: Path, sources: dict[str, str], seen: list[Path],
-                stack: set[Path] | None = None) -> list[A.Node]:
-    """Dosyayı ve içe aktardıklarını çözümleyip üst düzey öğeleri düz listeye açar."""
+                stack: set[Path] | None = None,
+                kaynak: str | None = None) -> list[A.Node]:
+    """Dosyayı ve içe aktardıklarını çözümleyip üst düzey öğeleri düz listeye açar.
+
+    `kaynak` verilirse dosya okunmaz, verilen metin kullanılır: düzenleyicide
+    açık olan ve henüz kaydedilmemiş tampon böyle derlenir. İçe aktardıkları
+    yine diskten okunur, `path`in klasörüne göre çözülür.
+    """
     stack = stack if stack is not None else set()
     resolved = path.resolve()
 
@@ -38,12 +44,12 @@ def load_module(path: Path, sources: dict[str, str], seen: list[Path],
     if resolved in seen:
         return []  # zaten yüklendi
 
-    if not resolved.exists():
+    if kaynak is None and not resolved.exists():
         raise NarError(f"dosya bulunamadı: {path}", Span(str(path), 1, 1))
 
     # `utf-8-sig`: Windows araçları (Not Defteri, PowerShell'in `-Encoding utf8`)
     # dosyanın başına BOM koyar. BOM varsa atılır, yoksa davranış değişmez.
-    source = resolved.read_text(encoding="utf-8-sig")
+    source = kaynak if kaynak is not None else resolved.read_text(encoding="utf-8-sig")
     name = resolved.name
     sources[name] = source
     seen.append(resolved)
@@ -70,9 +76,23 @@ def compile_file(path: Path, sources: dict[str, str] | None = None,
     `sources` verilirse okunan kaynak metinler oraya yazılır. Hata fırlatılsa
     bile dolu kalır; çağıran böylece hatanın geçtiği satırı gösterebilir.
     """
+    return compile_source(None, path, sources, kutuphane)
+
+
+def compile_source(kaynak: str | None, path: Path,
+                   sources: dict[str, str] | None = None,
+                   kutuphane: bool = False) -> Compilation:
+    """Verilen metni `path` konumundaki dosyaymış gibi derler.
+
+    `kaynak` None ise dosya diskten okunur (`compile_file` böyle çalışır).
+    Metin verilirse disk yerine o kullanılır; içe aktardıkları `path`in
+    klasörüne göre çözülür. Düzenleyici kaydedilmemiş tamponu böyle
+    denetletir — içe aktarmalar komut satırındakiyle aynı yoldan geçsin,
+    iki yerde iki ayrı davranış olmasın.
+    """
     sources = sources if sources is not None else {}
     seen: list[Path] = []
-    items = load_module(path, sources, seen)
+    items = load_module(path, sources, seen, kaynak=kaynak)
 
     root = A.Module(Span(path.name, 1, 1), path.name, items)
     checker = Checker(root, sources.get(path.name, ""), kutuphane=kutuphane)

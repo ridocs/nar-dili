@@ -16,9 +16,11 @@ import sys
 import tempfile
 from pathlib import Path
 
+from . import nar_ast as A
 from .backends import js as js_backend
 from .checker import BUILTIN_NAMES, Checker
 from .diagnostics import NarError
+from .driver import compile_source
 from .lexer import KEYWORDS
 from .parser import parse
 
@@ -52,8 +54,14 @@ def son_uyarilar() -> list[dict]:
     return _son_uyarilar
 
 
-def derle(kaynak: str, ad: str = "duzenleyici.nar"):
+def derle(kaynak: str, ad: str = "duzenleyici.nar", yol: "Path | None" = None):
     """(js_kodu, hata_sozlugu) döndürür; biri her zaman None'dur.
+
+    `yol` verilirse metin o konumdaki dosyaymış gibi derlenir: içe
+    aktarmalar o klasöre göre çözülür ve kütüphanedeki adlar tanınır.
+    Verilmezse içe aktarma çözülemez — o durumda tek bir açık hata verilir,
+    yoksa kütüphanedeki her ad "tanımsız isim" diye görünür ve düzeltme
+    önerileri saçmalar.
 
     Hata sözlüğü ilk hatayı taşır; `hepsi` alanında tüm hatalar bulunur.
     Uyarılar `son_uyarilar()` ile ayrıca alınır.
@@ -62,7 +70,19 @@ def derle(kaynak: str, ad: str = "duzenleyici.nar"):
     _son_uyarilar = []
     checker = None
     try:
+        if yol is not None:
+            derleme = compile_source(kaynak, yol)
+            _son_uyarilar = uyarilar(derleme.checker, kaynak)
+            return derleme.to_js(), None
         module = parse(kaynak, ad)
+        ilk_iceri = next((i for i in module.items if isinstance(i, A.Import)), None)
+        if ilk_iceri is not None:
+            raise NarError(
+                f"içe aktarma çözülemedi: '{ilk_iceri.path}'",
+                ilk_iceri.span,
+                hint="dosyayı kaydet; içe aktarma kayıtlı dosyanın "
+                     "klasörüne göre aranır",
+            )
         checker = Checker(module, kaynak)
         checker.check()
         _son_uyarilar = uyarilar(checker, kaynak)
@@ -86,8 +106,8 @@ def derle(kaynak: str, ad: str = "duzenleyici.nar"):
         }
 
 
-def calistir(kaynak: str) -> dict:
-    kod, hata = derle(kaynak)
+def calistir(kaynak: str, yol: "Path | None" = None) -> dict:
+    kod, hata = derle(kaynak, yol=yol)
     if hata is not None:
         return {"durum": "derleme-hatasi", "hata": hata, "cikti": ""}
 
@@ -164,7 +184,14 @@ def kelime_sozlugu() -> list[dict]:
 ISLEMLER = ("denetle", "uret", "calistir", "kelimeler", "araclar")
 
 
-def komut(islem: str, dosya: str | None) -> int:
+def komut(islem: str, dosya: str | None, taban: str | None = None) -> int:
+    """`nar api` alt komutu.
+
+    `dosya` denetlenecek metni taşır; düzenleyiciler kaydedilmemiş tamponu
+    geçici bir dosyaya yazıp burayı gösterir. `taban` ise metnin gerçekte
+    ait olduğu yol — içe aktarmalar ona göre çözülür. Verilmezse geçici
+    dosyanın klasörü kullanılır ve içe aktarmalar bulunamaz.
+    """
     if islem not in ISLEMLER:
         print(json.dumps({"hata": f"bilinmeyen işlem: {islem}"}), flush=True)
         return 2
@@ -199,14 +226,16 @@ def komut(islem: str, dosya: str | None) -> int:
         print(json.dumps({"hata": f"dosya okunamadı: {e}"}), flush=True)
         return 2
 
+    konum = Path(taban) if taban else Path(dosya)
+
     if islem == "denetle":
-        _, hata = derle(kaynak)
+        _, hata = derle(kaynak, yol=konum)
         yanit = {"hata": hata, "uyarilar": son_uyarilar()}
     elif islem == "uret":
-        kod, hata = derle(kaynak)
+        kod, hata = derle(kaynak, yol=konum)
         yanit = {"kod": kod or "", "hata": hata}
     else:
-        yanit = calistir(kaynak)
+        yanit = calistir(kaynak, yol=konum)
         yanit["uyarilar"] = son_uyarilar()
 
     print(json.dumps(yanit, ensure_ascii=False), flush=True)
@@ -215,4 +244,5 @@ def komut(islem: str, dosya: str | None) -> int:
 
 if __name__ == "__main__":
     sys.exit(komut(sys.argv[1] if len(sys.argv) > 1 else "",
-                   sys.argv[2] if len(sys.argv) > 2 else None))
+                   sys.argv[2] if len(sys.argv) > 2 else None,
+                   sys.argv[3] if len(sys.argv) > 3 else None))
